@@ -57,16 +57,32 @@ router.post("/tts", async (req, res) => {
       return;
     }
 
-    const response = await openai.audio.speech.create({
-      model: "gpt-4o-mini-tts",
-      voice: voice as "alloy" | "echo" | "fable" | "nova" | "shimmer" | "onyx",
-      input: speechText,
-      speed,
-      response_format: "mp3",
+    // Use gpt-audio chat completion (supported via Replit AI Integrations proxy)
+    // The standalone /audio/speech endpoint is NOT supported by the proxy.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await (openai.chat.completions.create as any)({
+      model: "gpt-audio-mini",
+      modalities: ["text", "audio"],
+      audio: { voice, format: "mp3" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a text-to-speech engine. Speak the user's exact message in a warm, energetic, child-friendly cartoon-hero voice. Do NOT add words. Do NOT comment. Just read it aloud.",
+        },
+        { role: "user", content: speechText },
+      ],
     });
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const base64 = buffer.toString("base64");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const audioData = (response.choices[0]?.message as any)?.audio?.data as
+      | string
+      | undefined;
+    if (!audioData) {
+      throw new Error("no audio returned");
+    }
+    const base64 = audioData;
+    void speed;
 
     if (cache.size >= MAX_CACHE) {
       const firstKey = cache.keys().next().value;
