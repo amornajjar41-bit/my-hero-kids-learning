@@ -32,6 +32,7 @@ import { useApp } from "@/contexts/AppContext";
 import { useT, useLang } from "@/hooks/useT";
 import { chatSend, transcribe, type ChatMessage } from "@/lib/api";
 import { speak } from "@/lib/audio";
+import { getJSON, setJSON, STORAGE_KEYS } from "@/lib/storage";
 
 export default function Chat() {
   const c = useColors();
@@ -39,10 +40,28 @@ export default function Chat() {
   const lang = useLang();
   const { profile, saveProgress } = useApp();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+
+  // Load saved history on mount
+  useEffect(() => {
+    (async () => {
+      const saved = await getJSON<ChatMessage[]>(STORAGE_KEYS.chatHistory);
+      if (saved && Array.isArray(saved) && saved.length > 0) {
+        setMessages(saved);
+      }
+      setHistoryLoaded(true);
+    })();
+  }, []);
+
+  // Persist history whenever it changes
+  useEffect(() => {
+    if (!historyLoaded) return;
+    setJSON(STORAGE_KEYS.chatHistory, messages).catch(() => {});
+  }, [messages, historyLoaded]);
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recState = useAudioRecorderState(recorder);
@@ -62,10 +81,10 @@ export default function Chat() {
   }, []);
 
   useEffect(() => {
-    if (messages.length === 0) {
+    if (historyLoaded && messages.length === 0) {
       setMessages([{ role: "assistant", text: t("chatHello") }]);
     }
-  }, [messages.length, t]);
+  }, [historyLoaded, messages.length, t]);
 
   const voice = profile?.hero === "girl" ? "nova" : "echo";
 

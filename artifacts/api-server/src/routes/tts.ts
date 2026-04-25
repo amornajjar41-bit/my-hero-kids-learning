@@ -53,7 +53,11 @@ router.post("/tts", async (req, res) => {
     const key = cacheKey(speechText, voice);
 
     if (cache.has(key)) {
-      res.json({ audio: cache.get(key), cached: true });
+      res.json({
+        audioBase64: cache.get(key),
+        mimeType: "audio/mpeg",
+        cached: true,
+      });
       return;
     }
 
@@ -90,7 +94,7 @@ router.post("/tts", async (req, res) => {
     }
     cache.set(key, base64);
 
-    res.json({ audio: base64, cached: false });
+    res.json({ audioBase64: base64, mimeType: "audio/mpeg", cached: false });
   } catch (err) {
     req.log.error({ err }, "tts error");
     res.status(500).json({ error: "tts failed" });
