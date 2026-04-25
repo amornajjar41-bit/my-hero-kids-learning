@@ -1,0 +1,20 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "QSOjYab9bvDn71EdSS3DF"
+uri = "file://artifacts/adam/assets/images/adam-boy.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "JBuruXjcxaCthvzryJ4bX"
+uri = "file://artifacts/adam/assets/images/lulu-girl.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "H7A_sD_TYZOvMvxWwVVng"
+uri = "file://artifacts/adam/assets/images/icon.png"
+type = "image"
+title = "generated_image"
