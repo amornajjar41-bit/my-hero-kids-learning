@@ -1,3 +1,4 @@
+import * as Haptics from "expo-haptics";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -151,7 +152,7 @@ export default function Home() {
 
         <View style={{ flexDirection: "row", gap: 12 }}>
           <Pressable
-            onPress={() => router.push("/(tabs)/chat")}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); router.push("/(tabs)/chat"); }}
             style={({ pressed }) => ({
               flex: 1,
               backgroundColor: c.primary,
@@ -161,14 +162,7 @@ export default function Home() {
             })}
           >
             <Text style={{ fontSize: 32 }}>📚</Text>
-            <Text
-              style={{
-                color: "#FFF",
-                fontWeight: "800",
-                fontSize: 16,
-                marginTop: 6,
-              }}
-            >
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 16, marginTop: 6 }}>
               {t("homeworkHelper")}
             </Text>
             <Text style={{ color: "#FFF", opacity: 0.85, marginTop: 4, fontSize: 12 }}>
@@ -176,7 +170,7 @@ export default function Home() {
             </Text>
           </Pressable>
           <Pressable
-            onPress={() => router.push("/(tabs)/games")}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); router.push("/(tabs)/games"); }}
             style={({ pressed }) => ({
               flex: 1,
               backgroundColor: c.pink,
@@ -186,14 +180,7 @@ export default function Home() {
             })}
           >
             <Text style={{ fontSize: 32 }}>🎮</Text>
-            <Text
-              style={{
-                color: "#FFF",
-                fontWeight: "800",
-                fontSize: 16,
-                marginTop: 6,
-              }}
-            >
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 16, marginTop: 6 }}>
               {t("playAndLearn")}
             </Text>
             <Text style={{ color: "#FFF", opacity: 0.85, marginTop: 4, fontSize: 12 }}>
@@ -204,7 +191,7 @@ export default function Home() {
 
         <View style={{ flexDirection: "row", gap: 12 }}>
           <Pressable
-            onPress={() => router.push("/learn/english")}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); router.push("/learn/english"); }}
             style={({ pressed }) => ({
               flex: 1,
               backgroundColor: c.blue,
@@ -219,7 +206,7 @@ export default function Home() {
             </Text>
           </Pressable>
           <Pressable
-            onPress={() => router.push("/learn/arabic")}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); router.push("/learn/arabic"); }}
             style={({ pressed }) => ({
               flex: 1,
               backgroundColor: c.green,

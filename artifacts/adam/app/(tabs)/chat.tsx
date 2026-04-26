@@ -14,6 +14,7 @@ import {
   Animated,
   Easing,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -35,6 +36,48 @@ import { useT, useLang } from "@/hooks/useT";
 import { chatSend, transcribe, type ChatMessage } from "@/lib/api";
 import { speak } from "@/lib/audio";
 import { getJSON, setJSON, STORAGE_KEYS, type SafetyAlert } from "@/lib/storage";
+
+// ── Typing indicator (3 bouncing dots) ─────────────────────────────────────
+function TypingBubble({ lang }: { lang: string }) {
+  const dots = [
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+  ];
+  useEffect(() => {
+    dots.forEach((dot, i) => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * 140),
+          Animated.timing(dot, { toValue: -8, duration: 300, useNativeDriver: false, easing: Easing.out(Easing.quad) }),
+          Animated.timing(dot, { toValue:  0, duration: 300, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+          Animated.delay(420),
+        ]),
+      ).start();
+    });
+  }, []);
+
+  return (
+    <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 6, paddingLeft: 6, paddingVertical: 12 }}>
+      <View style={{
+        flexDirection: "row", alignItems: "center", gap: 5,
+        backgroundColor: "#F3F4F6", borderRadius: 18, borderTopLeftRadius: 4,
+        paddingHorizontal: 16, paddingVertical: 12,
+      }}>
+        {dots.map((dot, i) => (
+          <Animated.View
+            key={i}
+            style={{
+              width: 8, height: 8, borderRadius: 4,
+              backgroundColor: "#9CA3AF",
+              transform: [{ translateY: dot }],
+            }}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
 
 // ── Pulsing ring animation ──────────────────────────────────────────────────
 function PulseRing({ active }: { active: boolean }) {
@@ -146,7 +189,9 @@ let _nativeRec: any = null;
 
 async function nativeStartRecording(): Promise<void> {
   const { AudioModule, AudioRecorder, RecordingPresets } = await import("expo-audio");
-  await AudioModule.requestRecordingPermissionsAsync();
+  // Always request — on iOS this shows the system dialog first time
+  const perm = await AudioModule.requestRecordingPermissionsAsync();
+  if (!perm.granted) throw Object.assign(new Error("Permission denied"), { name: "NotAllowedError" });
   await AudioModule.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
   _nativeRec = new AudioRecorder(RecordingPresets.HIGH_QUALITY);
   await _nativeRec.prepareToRecordAsync();
@@ -340,6 +385,7 @@ export default function Chat() {
         await setJSON(STORAGE_KEYS.safetyAlerts, [...(prev ?? []).slice(-49), newAlert]);
       }
 
+      Keyboard.dismiss();
       setMessages((m) => [...m, { role: "assistant", text: reply }]);
       setAdamPose("talking");
       speak(reply, voice)
@@ -555,12 +601,7 @@ export default function Chat() {
             </View>
           ))}
 
-          {busy && (
-            <View style={{ flexDirection: "row", gap: 10, alignItems: "center", paddingLeft: 8 }}>
-              <Text style={{ color: c.mutedForeground, fontSize: 22 }}>💭</Text>
-              <Text style={{ color: c.mutedForeground, fontSize: 14, fontWeight: "700" }}>{t("thinking")}</Text>
-            </View>
-          )}
+          {busy && <TypingBubble lang={lang} />}
 
           {tooShort && (
             <View style={{ alignSelf: "flex-start", backgroundColor: "#FEF3C7", borderRadius: 16, padding: 12 }}>

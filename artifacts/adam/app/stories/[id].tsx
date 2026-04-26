@@ -2,8 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Pressable, Text, View } from "react-native";
+import { Animated, Easing, Platform, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as FileSystem from "expo-file-system";
 
 import { useApp } from "@/contexts/AppContext";
 import { useLang } from "@/hooks/useT";
@@ -13,13 +14,63 @@ import { getJSON, setJSON, STORAGE_KEYS } from "@/lib/storage";
 
 const SLEEPY_FRAMES = ["😊", "🙂", "😌", "🥱", "😴"];
 
-// Split story text into paragraphs (audio chunks)
 function splitIntoParagraphs(text: string): string[] {
-  return text
-    .split(/\n\n+/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  return text.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
 }
+
+// ── Cross-platform audio player ──────────────────────────────────────────────
+let _storyPlayer: any = null;
+
+async function playAudioCrossPlatform(
+  base64: string,
+  mimeType: string,
+  webAudioRef: React.MutableRefObject<HTMLAudioElement | null>,
+  rate = 0.85,
+): Promise<void> {
+  if (Platform.OS === "web") {
+    if (webAudioRef.current) { webAudioRef.current.pause(); webAudioRef.current.src = ""; }
+    const uri = `data:${mimeType || "audio/mpeg"};base64,${base64}`;
+    const audio = new Audio(uri);
+    audio.playbackRate = rate;
+    webAudioRef.current = audio;
+    await new Promise<void>((resolve) => {
+      audio.onended = () => { webAudioRef.current = null; resolve(); };
+      audio.onerror  = () => { webAudioRef.current = null; resolve(); };
+      audio.play().catch(() => resolve());
+    });
+  } else {
+    // Native: write base64 to temp file then play via expo-audio
+    const { createAudioPlayer, AudioModule } = await import("expo-audio");
+    try {
+      await AudioModule.setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false });
+    } catch { /* ignore */ }
+    const tmpUri = (FileSystem.cacheDirectory ?? "") + `story_${Date.now()}.mp3`;
+    await FileSystem.writeAsStringAsync(tmpUri, base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    await new Promise<void>((resolve) => {
+      const player = createAudioPlayer({ uri: tmpUri });
+      _storyPlayer = player;
+      player.addListener("playbackStatusUpdate", (status: any) => {
+        if (status.didJustFinish || status.isLoaded === false) {
+          _storyPlayer = null;
+          FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
+          resolve();
+        }
+      });
+      player.play();
+      // Safety timeout: 2 min max per paragraph
+      setTimeout(() => { resolve(); }, 120_000);
+    });
+  }
+}
+
+function stopNativePlayer() {
+  try { _storyPlayer?.pause(); _storyPlayer?.remove(); } catch { /* no-op */ }
+  _storyPlayer = null;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 
 export default function StoryPlayer() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -31,34 +82,34 @@ export default function StoryPlayer() {
   const paragraphs = story ? splitIntoParagraphs(lang === "ar" ? story.textAr : story.textEn) : [];
   const totalSec = (story?.durationMin ?? 5) * 60;
 
-  const [playing, setPlaying] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [sceneIdx, setSceneIdx] = useState(0);
+  const [playing, setPlaying]     = useState(false);
+  const [elapsed, setElapsed]     = useState(0);
+  const [loading, setLoading]     = useState(false);
+  const [sceneIdx, setSceneIdx]   = useState(0);
   const [sleepyFrame, setSleepyFrame] = useState(0);
-  const [dimmed, setDimmed] = useState(false);
-  const [finished, setFinished] = useState(false);
-  const [paraIdx, setParaIdx] = useState(0);
+  const [dimmed, setDimmed]       = useState(false);
+  const [finished, setFinished]   = useState(false);
+  const [paraIdx, setParaIdx]     = useState(0);
 
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const dimRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sleepyRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dimRef     = useRef<ReturnType<typeof setTimeout>  | null>(null);
+  const sleepyRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const webAudioRef= useRef<HTMLAudioElement | null>(null);
   const playingRef = useRef(false);
   const paraIdxRef = useRef(0);
 
-  // Breathe animation for main emoji
+  // Breathe animation
   const breathe = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
         Animated.timing(breathe, { toValue: 1.06, duration: 2200, useNativeDriver: false, easing: Easing.inOut(Easing.sin) }),
-        Animated.timing(breathe, { toValue: 1, duration: 2200, useNativeDriver: false, easing: Easing.inOut(Easing.sin) }),
+        Animated.timing(breathe, { toValue: 1,    duration: 2200, useNativeDriver: false, easing: Easing.inOut(Easing.sin) }),
       ]),
     ).start();
   }, [breathe]);
 
-  // Sleepy animation loop
+  // Sleepy animation
   useEffect(() => {
     sleepyRef.current = setInterval(() => {
       setSleepyFrame((f) => Math.min(f + 1, SLEEPY_FRAMES.length - 1));
@@ -66,12 +117,9 @@ export default function StoryPlayer() {
     return () => { if (sleepyRef.current) clearInterval(sleepyRef.current); };
   }, []);
 
-  // Reset sleepy when story plays
-  useEffect(() => {
-    if (playing) setSleepyFrame(0);
-  }, [playing]);
+  useEffect(() => { if (playing) setSleepyFrame(0); }, [playing]);
 
-  // Scene detection based on elapsed
+  // Scene detection
   useEffect(() => {
     if (!story) return;
     let idx = 0;
@@ -81,13 +129,10 @@ export default function StoryPlayer() {
     setSceneIdx(idx);
   }, [elapsed, story]);
 
-  // Auto-dim after 2 minutes of playing
+  // Auto-dim
   useEffect(() => {
-    if (playing) {
-      dimRef.current = setTimeout(() => setDimmed(true), 120_000);
-    } else {
-      if (dimRef.current) clearTimeout(dimRef.current);
-    }
+    if (playing) { dimRef.current = setTimeout(() => setDimmed(true), 120_000); }
+    else { if (dimRef.current) clearTimeout(dimRef.current); }
     return () => { if (dimRef.current) clearTimeout(dimRef.current); };
   }, [playing]);
 
@@ -105,12 +150,10 @@ export default function StoryPlayer() {
     }, 1000);
   }, [stopTimer, totalSec]);
 
-  // Play a single paragraph via TTS, return duration
   const playParagraph = useCallback(async (idx: number): Promise<void> => {
     if (!story || !playingRef.current) return;
     const text = paragraphs[idx];
     if (!text) {
-      // All done
       playingRef.current = false;
       setPlaying(false);
       setFinished(true);
@@ -120,45 +163,24 @@ export default function StoryPlayer() {
       });
       return;
     }
-
     try {
       const voice = profile?.hero === "girl" ? "nova" : "echo";
-      const { audioBase64, mimeType } = await ttsSpeak({
-        text,
-        voice,
-        // @ts-ignore – custom param
-        maxChars: 700,
-      });
+      const { audioBase64, mimeType } = await ttsSpeak({ text, voice, maxChars: 700 } as any);
       if (!playingRef.current) return;
-      const uri = `data:${mimeType || "audio/mpeg"};base64,${audioBase64}`;
-
-      if (typeof window !== "undefined") {
-        if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
-        const audio = new Audio(uri);
-        audioRef.current = audio;
-        audio.playbackRate = 0.85;
-
-        await new Promise<void>((resolve) => {
-          audio.onended = () => resolve();
-          audio.onerror = () => resolve();
-          audio.play().catch(() => resolve());
-        });
-      }
-
+      await playAudioCrossPlatform(audioBase64, mimeType || "audio/mpeg", webAudioRef, 0.85);
       if (playingRef.current) {
-        const nextIdx = idx + 1;
-        paraIdxRef.current = nextIdx;
-        setParaIdx(nextIdx);
-        await playParagraph(nextIdx);
+        const next = idx + 1;
+        paraIdxRef.current = next;
+        setParaIdx(next);
+        await playParagraph(next);
       }
     } catch (e) {
       console.warn("[story tts]", e);
-      // Try next paragraph anyway
       if (playingRef.current) {
-        const nextIdx = idx + 1;
-        paraIdxRef.current = nextIdx;
-        setParaIdx(nextIdx);
-        await playParagraph(nextIdx);
+        const next = idx + 1;
+        paraIdxRef.current = next;
+        setParaIdx(next);
+        await playParagraph(next);
       }
     }
   }, [story, paragraphs, profile, id, stopTimer]);
@@ -168,38 +190,36 @@ export default function StoryPlayer() {
     playingRef.current = true;
     setPlaying(true);
     startTimer();
-    try {
-      await playParagraph(paraIdxRef.current);
-    } finally {
-      setLoading(false);
-    }
+    try { await playParagraph(paraIdxRef.current); }
+    finally { setLoading(false); }
   }, [playParagraph, startTimer]);
 
   const pausePlayback = useCallback(() => {
     playingRef.current = false;
     setPlaying(false);
     stopTimer();
-    if (typeof window !== "undefined" && audioRef.current) {
-      audioRef.current.pause();
+    // Stop web audio
+    if (Platform.OS === "web" && webAudioRef.current) {
+      webAudioRef.current.pause();
     }
+    // Stop native audio
+    stopNativePlayer();
   }, [stopTimer]);
 
   const togglePlay = async () => {
-    if (playing) {
-      pausePlayback();
-    } else {
-      await startPlayback();
-    }
+    if (playing) { pausePlayback(); }
+    else { await startPlayback(); }
   };
 
   useEffect(() => {
     return () => {
       playingRef.current = false;
       stopTimer();
-      if (typeof window !== "undefined" && audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
+      if (Platform.OS === "web" && webAudioRef.current) {
+        webAudioRef.current.pause();
+        webAudioRef.current.src = "";
       }
+      stopNativePlayer();
     };
   }, [stopTimer]);
 
@@ -228,7 +248,7 @@ export default function StoryPlayer() {
 
           {/* Header */}
           <View style={{ flexDirection: "row", alignItems: "center", padding: 16, gap: 12 }}>
-            <Pressable onPress={() => router.back()} style={({ pressed }) => ({ width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}>
+            <Pressable onPress={() => { pausePlayback(); router.back(); }} style={({ pressed }) => ({ width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}>
               <Ionicons name="chevron-back" size={22} color="#FFF" />
             </Pressable>
             <Text style={{ flex: 1, color: "#FFF", fontWeight: "800", fontSize: 16 }} numberOfLines={1}>
@@ -245,7 +265,6 @@ export default function StoryPlayer() {
               <Text style={{ fontSize: 120 }}>{currentScene.emoji}</Text>
             </Animated.View>
 
-            {/* Current paragraph text */}
             {paragraphs[paraIdx] && (
               <View style={{ marginHorizontal: 24, backgroundColor: "rgba(0,0,0,0.35)", borderRadius: 16, padding: 14 }}>
                 <Text style={{ color: "#FFF", fontSize: 14, lineHeight: 22, textAlign: lang === "ar" ? "right" : "left", opacity: 0.9 }} numberOfLines={4}>
@@ -274,7 +293,6 @@ export default function StoryPlayer() {
 
           {/* Controls */}
           <View style={{ padding: 24, gap: 16 }}>
-            {/* Progress bar */}
             <View style={{ gap: 6 }}>
               <View style={{ height: 5, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 3, overflow: "hidden" }}>
                 <View style={{ width: `${progress * 100}%`, height: "100%", backgroundColor: "#a78bfa", borderRadius: 3 }} />
@@ -285,7 +303,6 @@ export default function StoryPlayer() {
               </View>
             </View>
 
-            {/* Play / Pause */}
             <Pressable
               onPress={togglePlay}
               disabled={loading}
