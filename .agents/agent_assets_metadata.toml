@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "QSOjYab9bvDn71EdSS3DF"
@@ -18,3 +17,9 @@ id = "H7A_sD_TYZOvMvxWwVVng"
 uri = "file://artifacts/adam/assets/images/icon.png"
 type = "image"
 title = "generated_image"
+
+[[outputs]]
+id = "qpJ9wv70z2TMtkx2Eo6hB"
+uri = "file://my-hero-project.tar.gz"
+type = "unspecified"
+title = "My Hero – Full Project Source Code"
