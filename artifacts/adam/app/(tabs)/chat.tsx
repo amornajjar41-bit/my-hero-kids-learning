@@ -141,6 +141,29 @@ function VoiceTutorial({ visible, onDismiss, lang, heroName }: { visible: boolea
   );
 }
 
+// ── Native recorder (imperative, module-level) ──────────────────────────────
+let _nativeRec: any = null;
+
+async function nativeStartRecording(): Promise<void> {
+  const { AudioModule, AudioRecorder, RecordingPresets } = await import("expo-audio");
+  await AudioModule.requestRecordingPermissionsAsync();
+  await AudioModule.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+  _nativeRec = new AudioRecorder(RecordingPresets.HIGH_QUALITY);
+  await _nativeRec.prepareToRecordAsync();
+  _nativeRec.record();
+}
+
+async function nativeStopRecording(): Promise<{ base64: string; mimeType: string }> {
+  if (!_nativeRec) throw new Error("no native recorder");
+  const result = await _nativeRec.stop();
+  _nativeRec = null;
+  const uri: string = result?.uri ?? result;
+  const { readAsStringAsync, EncodingType } = await import("expo-file-system");
+  const base64 = await readAsStringAsync(uri, { encoding: EncodingType.Base64 });
+  const mimeType = uri.endsWith(".mp3") ? "audio/mp3" : "audio/m4a";
+  return { base64, mimeType };
+}
+
 // ── Web WAV recorder using Web Audio API ─────────────────────────────────────
 // MediaRecorder produces webm/opus which causes conversion issues.
 // Instead we capture raw PCM via ScriptProcessorNode and encode as WAV.
@@ -241,8 +264,6 @@ export default function Chat() {
   const recStartTime = useRef<number>(0);
   const pttScale = useRef(new Animated.Value(1)).current;
 
-  // Native recorder (only used on native)
-  const [nativeRecorder, setNativeRecorder] = useState<any>(null);
 
   useEffect(() => {
     (async () => {
@@ -364,65 +385,68 @@ export default function Chat() {
     recStartTime.current = Date.now();
     Animated.spring(pttScale, { toValue: 0.92, useNativeDriver: false, tension: 200 }).start();
 
-    if (Platform.OS === "web") {
-      try {
+    try {
+      if (Platform.OS === "web") {
         await webStartRecording();
-        setIsRecording(true);
-      } catch (e: any) {
-        const denied = e?.name === "NotAllowedError" || e?.message?.includes("permission");
-        setMicError(denied
-          ? (lang === "ar" ? "📵 يرجى السماح بالميكروفون في إعدادات المتصفح" : "📵 Please allow microphone in browser settings")
-          : (lang === "ar" ? "⚠️ المايك ما اشتغل، جرب مرة ثانية" : "⚠️ Mic failed, try again"));
-        setTimeout(() => setMicError(null), 4000);
+      } else {
+        await nativeStartRecording();
       }
-    } else {
-      try {
-        const { AudioModule, useAudioRecorder, RecordingPresets } = await import("expo-audio");
-        // Dynamic import to avoid web bundling issues
-        setIsRecording(true);
-      } catch (e) {
-        console.warn("native rec error", e);
-      }
+      setIsRecording(true);
+    } catch (e: any) {
+      const denied = e?.name === "NotAllowedError" || e?.message?.includes("permission") || e?.message?.includes("denied");
+      setMicError(denied
+        ? (lang === "ar" ? "📵 يرجى السماح بالميكروفون في الإعدادات" : "📵 Please allow microphone access in Settings")
+        : (lang === "ar" ? "⚠️ المايك ما اشتغل، جرب مرة ثانية" : "⚠️ Mic failed, try again"));
+      setAdamPose("normal");
+      setTimeout(() => setMicError(null), 4000);
     }
   };
 
   const stopRec = async () => {
     Animated.spring(pttScale, { toValue: 1, useNativeDriver: false, tension: 200 }).start();
     const duration = Date.now() - recStartTime.current;
+    setIsRecording(false);
 
-    if (Platform.OS === "web") {
-      setIsRecording(false);
-      if (duration < 800) {
+    if (duration < 700) {
+      setTooShort(true);
+      setTimeout(() => setTooShort(false), 2200);
+      // Clean up native recorder if started
+      if (Platform.OS !== "web" && _nativeRec) {
+        try { await _nativeRec.stop(); } catch { /* ignore */ }
+        _nativeRec = null;
+      }
+      return;
+    }
+
+    try {
+      setBusy(true);
+      setAdamPose("thinking");
+      const { base64, mimeType } = Platform.OS === "web"
+        ? await webStopRecording()
+        : await nativeStopRecording();
+
+      if (!base64) { setTooShort(true); setTimeout(() => setTooShort(false), 2200); setBusy(false); return; }
+
+      const { text } = await transcribe({ audioBase64: base64, mimeType });
+      setBusy(false);
+      if (text?.trim()) {
+        await send(text);
+      } else {
         setTooShort(true);
-        setTimeout(() => setTooShort(false), 2200);
-        return;
+        setAdamPose("normal");
+        setTimeout(() => setTooShort(false), 2500);
       }
-      try {
-        const { base64, mimeType } = await webStopRecording();
-        if (!base64) { setTooShort(true); setTimeout(() => setTooShort(false), 2200); return; }
-        setBusy(true);
-        const { text } = await transcribe({ audioBase64: base64, mimeType });
-        setBusy(false);
-        if (text?.trim()) {
-          await send(text);
-        } else {
-          setTooShort(true);
-          setTimeout(() => setTooShort(false), 2500);
-        }
-      } catch (e) {
-        console.warn("[ptt web] transcribe failed", e);
-        setBusy(false);
-        setMicError(lang === "ar" ? "⚠️ ما قدرت أفهم الصوت، حاول مرة ثانية" : "⚠️ Couldn't understand audio, try again");
-        setTimeout(() => setMicError(null), 3000);
-      }
-    } else {
-      setIsRecording(false);
-      // Native: expo-audio handles this
+    } catch (e) {
+      console.warn("[ptt] transcribe failed", e);
+      setBusy(false);
+      setAdamPose("normal");
+      setMicError(lang === "ar" ? "⚠️ ما قدرت أفهم الصوت، حاول مرة ثانية" : "⚠️ Couldn't understand audio, try again");
+      setTimeout(() => setMicError(null), 3000);
     }
   };
 
   const { height: screenH } = useWindowDimensions();
-  const charSize = Math.min(Math.max(screenH * 0.16, 100), 130);
+  const charSize = Math.min(Math.max(screenH * 0.11, 80), 95);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
