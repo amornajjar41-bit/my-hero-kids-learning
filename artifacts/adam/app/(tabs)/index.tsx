@@ -1,5 +1,7 @@
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
+import { playChime } from "@/lib/chime";
 import React, { useCallback, useMemo } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -152,77 +154,85 @@ export default function Home() {
 
         <View style={{ flexDirection: "row", gap: 12 }}>
           <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); router.push("/(tabs)/chat"); }}
+            onPress={() => { playChime("tap"); router.push("/(tabs)/chat"); }}
             style={({ pressed }) => ({
-              flex: 1,
-              backgroundColor: c.primary,
-              borderRadius: c.radius,
-              padding: 16,
-              opacity: pressed ? 0.85 : 1,
+              flex: 1, backgroundColor: c.primary, borderRadius: c.radius, padding: 16, opacity: pressed ? 0.85 : 1,
             })}
           >
             <Text style={{ fontSize: 32 }}>📚</Text>
-            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 16, marginTop: 6 }}>
-              {t("homeworkHelper")}
-            </Text>
-            <Text style={{ color: "#FFF", opacity: 0.85, marginTop: 4, fontSize: 12 }}>
-              {t("homeworkHelperSub")}
-            </Text>
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 16, marginTop: 6 }}>{t("homeworkHelper")}</Text>
+            <Text style={{ color: "#FFF", opacity: 0.85, marginTop: 4, fontSize: 12 }}>{t("homeworkHelperSub")}</Text>
           </Pressable>
           <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); router.push("/(tabs)/games"); }}
+            onPress={() => { playChime("tap"); router.push("/(tabs)/games"); }}
             style={({ pressed }) => ({
-              flex: 1,
-              backgroundColor: c.pink,
-              borderRadius: c.radius,
-              padding: 16,
-              opacity: pressed ? 0.85 : 1,
+              flex: 1, backgroundColor: c.pink, borderRadius: c.radius, padding: 16, opacity: pressed ? 0.85 : 1,
             })}
           >
             <Text style={{ fontSize: 32 }}>🎮</Text>
-            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 16, marginTop: 6 }}>
-              {t("playAndLearn")}
-            </Text>
-            <Text style={{ color: "#FFF", opacity: 0.85, marginTop: 4, fontSize: 12 }}>
-              4 fun games
-            </Text>
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 16, marginTop: 6 }}>{t("playAndLearn")}</Text>
+            <Text style={{ color: "#FFF", opacity: 0.85, marginTop: 4, fontSize: 12 }}>4 fun games</Text>
           </Pressable>
         </View>
 
         <View style={{ flexDirection: "row", gap: 12 }}>
           <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); router.push("/learn/english"); }}
+            onPress={() => { playChime("tap"); router.push("/learn/english"); }}
             style={({ pressed }) => ({
-              flex: 1,
-              backgroundColor: c.blue,
-              borderRadius: c.radius,
-              padding: 16,
-              opacity: pressed ? 0.85 : 1,
+              flex: 1, backgroundColor: c.blue, borderRadius: c.radius, padding: 16, opacity: pressed ? 0.85 : 1,
             })}
           >
             <Text style={{ fontSize: 28 }}>🇬🇧</Text>
-            <Text style={{ color: "#FFF", fontWeight: "800", marginTop: 6 }}>
-              {t("learnEnglish")}
-            </Text>
+            <Text style={{ color: "#FFF", fontWeight: "800", marginTop: 6 }}>{t("learnEnglish")}</Text>
           </Pressable>
           <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); router.push("/learn/arabic"); }}
+            onPress={() => { playChime("tap"); router.push("/learn/arabic"); }}
             style={({ pressed }) => ({
-              flex: 1,
-              backgroundColor: c.green,
-              borderRadius: c.radius,
-              padding: 16,
-              opacity: pressed ? 0.85 : 1,
+              flex: 1, backgroundColor: c.green, borderRadius: c.radius, padding: 16, opacity: pressed ? 0.85 : 1,
             })}
           >
             <Text style={{ fontSize: 28 }}>🇸🇦</Text>
-            <Text style={{ color: "#FFF", fontWeight: "800", marginTop: 6 }}>
-              {t("learnArabic")}
-            </Text>
+            <Text style={{ color: "#FFF", fontWeight: "800", marginTop: 6 }}>{t("learnArabic")}</Text>
           </Pressable>
         </View>
 
         <BadgeShelf />
+
+        {/* Learning Competitions – Coming Soon */}
+        <View style={{ borderRadius: 24, overflow: "hidden" }}>
+          <LinearGradient colors={["#7c3aed", "#4f46e5", "#2563eb"]} style={{ padding: 20 }}>
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.15, backgroundColor: "#000" }} />
+            {/* Coming Soon badge */}
+            <View style={{ position: "absolute", top: 14, right: 14, backgroundColor: "#F59E0B", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 }}>
+              <Text style={{ color: "#000", fontWeight: "900", fontSize: 11 }}>
+                {lang === "ar" ? "قريباً 🚀" : "COMING SOON 🚀"}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 36, marginBottom: 10 }}>🏅</Text>
+            <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 20, marginBottom: 6 }}>
+              {lang === "ar" ? "منافسات التعلم" : "Learning Competitions"}
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, lineHeight: 19, marginBottom: 16 }}>
+              {lang === "ar"
+                ? "تحدَّ أصدقاءك في مسابقات تعليمية ممتعة! من سيكون بطل الأسبوع؟ 🥇"
+                : "Challenge friends in fun learning contests! Who will be this week's champion? 🥇"}
+            </Text>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              {["🧮", "📖", "🔤", "🌍"].map((e, i) => (
+                <View key={i} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ fontSize: 22 }}>{e}</Text>
+                </View>
+              ))}
+            </View>
+            {/* Locked overlay */}
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: 24, backgroundColor: "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ fontSize: 44 }}>🔒</Text>
+              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14, marginTop: 6 }}>
+                {lang === "ar" ? "يتم التطوير..." : "In development..."}
+              </Text>
+            </View>
+          </LinearGradient>
+        </View>
 
         <SoftCard>
           <Text style={{ fontWeight: "800", color: c.text, fontSize: 16 }}>

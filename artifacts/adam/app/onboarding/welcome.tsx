@@ -157,6 +157,18 @@ export default function Welcome() {
               </Text>
             </Pressable>
 
+            {/* Parent story / message */}
+            <View style={{ backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 20, padding: 18, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" }}>
+              <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 13, marginBottom: 8 }}>
+                {isAr ? "💌 رسالة إلى الوالدين" : "💌 A message to parents"}
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, lineHeight: 20 }}>
+                {isAr
+                  ? "أطفالنا يستحقون أكثر من مجرد شاشة — يستحقون رفيقاً يعلّم، يشجّع، ويحمي. My Hero صُمِّم بعناية ليحوّل وقت الشاشة إلى تجربة تعلّم حقيقية، آمنة وممتعة. لأن مستقبل طفلك يستحق أفضل التقنية."
+                  : "Children deserve more than a screen — they deserve a companion that teaches, encourages, and protects. My Hero is carefully designed to turn screen time into real, safe, joyful learning. Because your child's future deserves the best of technology."}
+              </Text>
+            </View>
+
             {/* Trust line */}
             <Text style={{ color: "rgba(255,255,255,0.5)", textAlign: "center", fontSize: 11 }}>
               {isAr ? "🔒 آمن للأطفال · ٣ أيام مجانية · بدون إعلانات" : "🔒 Child-safe · 3-day free trial · Ad-free"}
