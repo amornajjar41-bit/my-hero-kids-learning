@@ -1,24 +1,30 @@
 {
   "expo": {
-    "name": "Adam – Kids Learning",
+    "name": "My Hero",
     "slug": "adam",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "adam",
+    "scheme": "myhero",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FF7A45"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.myhero.kids"
     },
-    "android": {},
+    "android": {
+      "package": "com.myhero.kids"
+    },
     "web": {
-      "favicon": "./assets/images/icon.png"
+      "favicon": "./assets/images/icon.png",
+      "name": "My Hero – Kids Learning",
+      "shortName": "My Hero",
+      "description": "The superhero learning companion for kids 5–15"
     },
     "plugins": [
       [

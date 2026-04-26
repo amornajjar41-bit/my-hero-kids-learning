@@ -1,10 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  AudioModule,
-  RecordingPresets,
-  useAudioRecorder,
-  useAudioRecorderState,
-} from "expo-audio";
 import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -16,7 +10,6 @@ import React, {
   useState,
 } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Easing,
   Image,
@@ -31,7 +24,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AdamCharacter } from "@/components/AdamCharacter";
+import { AdamCharacter, CharacterPose } from "@/components/AdamCharacter";
 import { SoftCard } from "@/components/SoftCard";
 import { SoundToggle } from "@/components/SoundToggle";
 import { SpeakButton } from "@/components/SpeakButton";
@@ -40,9 +33,9 @@ import { useApp } from "@/contexts/AppContext";
 import { useT, useLang } from "@/hooks/useT";
 import { chatSend, transcribe, type ChatMessage } from "@/lib/api";
 import { speak } from "@/lib/audio";
-import { getJSON, setJSON, STORAGE_KEYS } from "@/lib/storage";
+import { getJSON, setJSON, STORAGE_KEYS, type SafetyAlert } from "@/lib/storage";
 
-/** Pulsing ring animation for PTT button */
+// ── Pulsing ring animation ──────────────────────────────────────────────────
 function PulseRing({ active }: { active: boolean }) {
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -69,6 +62,7 @@ function PulseRing({ active }: { active: boolean }) {
 
   return (
     <Animated.View
+      pointerEvents="none"
       style={{
         position: "absolute",
         width: 88,
@@ -77,13 +71,12 @@ function PulseRing({ active }: { active: boolean }) {
         backgroundColor: "#FF6B35",
         transform: [{ scale }],
         opacity,
-        pointerEvents: "none",
       }}
     />
   );
 }
 
-/** Animated waveform bars */
+// ── Animated waveform ───────────────────────────────────────────────────────
 function Waveform({ active }: { active: boolean }) {
   const bars = 7;
   const anims = useRef(Array.from({ length: bars }, () => new Animated.Value(0.3))).current;
@@ -93,100 +86,49 @@ function Waveform({ active }: { active: boolean }) {
       anims.forEach((anim, i) => {
         Animated.loop(
           Animated.sequence([
-            Animated.timing(anim, {
-              toValue: 0.3 + Math.random() * 0.7,
-              duration: 200 + i * 60,
-              useNativeDriver: false,
-              easing: Easing.inOut(Easing.sin),
-            }),
-            Animated.timing(anim, {
-              toValue: 0.2,
-              duration: 200 + i * 50,
-              useNativeDriver: false,
-              easing: Easing.inOut(Easing.sin),
-            }),
+            Animated.timing(anim, { toValue: 0.3 + (i % 3) * 0.25, duration: 220 + i * 55, useNativeDriver: false }),
+            Animated.timing(anim, { toValue: 0.2, duration: 200 + i * 45, useNativeDriver: false }),
           ]),
         ).start();
       });
     } else {
-      anims.forEach((a) => {
-        a.setValue(0.3);
-      });
+      anims.forEach((a) => a.stopAnimation(() => a.setValue(0.3)));
     }
-    return () => anims.forEach((a) => a.stopAnimation());
   }, [active, anims]);
 
   if (!active) return null;
   return (
     <View style={{ flexDirection: "row", gap: 4, alignItems: "center", height: 36 }}>
       {anims.map((anim, i) => (
-        <Animated.View
-          key={i}
-          style={{
-            width: 4,
-            height: 36,
-            borderRadius: 2,
-            backgroundColor: "#FFF",
-            transform: [{ scaleY: anim }],
-          }}
-        />
+        <Animated.View key={i} style={{ width: 4, height: 36, borderRadius: 2, backgroundColor: "#FFF", transform: [{ scaleY: anim }] }} />
       ))}
     </View>
   );
 }
 
-/** First-time voice tutorial modal */
-function VoiceTutorial({
-  visible,
-  onDismiss,
-  lang,
-  heroName,
-  t,
-}: {
-  visible: boolean;
-  onDismiss: () => void;
-  lang: string;
-  heroName: string;
-  t: (k: string) => string;
-}) {
+// ── Voice tutorial modal ────────────────────────────────────────────────────
+function VoiceTutorial({ visible, onDismiss, lang, heroName }: { visible: boolean; onDismiss: () => void; lang: string; heroName: string }) {
   const scale = useRef(new Animated.Value(0.85)).current;
   useEffect(() => {
-    if (visible) {
-      Animated.spring(scale, { toValue: 1, useNativeDriver: false, tension: 80, friction: 8 }).start();
-    }
+    if (visible) Animated.spring(scale, { toValue: 1, useNativeDriver: false, tension: 80, friction: 8 }).start();
   }, [visible, scale]);
 
   if (!visible) return null;
   return (
     <Modal transparent animationType="fade" visible={visible}>
-      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: 24 }}>
-        <Animated.View style={{ transform: [{ scale }] }}>
-          <LinearGradient
-            colors={["#FF8A4C", "#FF6B35"]}
-            style={{ borderRadius: 28, padding: 28, alignItems: "center", maxWidth: 340 }}
-          >
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.65)", justifyContent: "center", alignItems: "center", padding: 24 }}>
+        <Animated.View style={{ transform: [{ scale }], width: "100%", maxWidth: 340 }}>
+          <LinearGradient colors={["#FF8A4C", "#FF6B35"]} style={{ borderRadius: 28, padding: 28, alignItems: "center" }}>
             <Text style={{ fontSize: 60 }}>🦸</Text>
             <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 20, textAlign: "center", marginTop: 12 }}>
-              {lang === "ar"
-                ? `أهلاً! أنا ${heroName}!`
-                : `Hey! I'm ${heroName}!`}
+              {lang === "ar" ? `أهلاً! أنا ${heroName}!` : `Hey! I'm ${heroName}!`}
             </Text>
             <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 15, textAlign: "center", marginTop: 10, lineHeight: 22 }}>
               {lang === "ar"
-                ? "شايف الزر البرتقالي الكبير؟ اضغط عليه وسألني أي شي — رياضيات، إنجليزي، عربي، أي شي! أنا كلي آذان! 🎤"
+                ? "شايف الزر البرتقالي الكبير؟ اضغط عليه وسألني أي شي — رياضيات، إنجليزي، عربي، أي شي! 🎤"
                 : "See the big orange button? Hold it and ask me ANYTHING — math, English, Arabic, anything! I'm all ears! 🦸🎤"}
             </Text>
-            <Pressable
-              onPress={onDismiss}
-              style={({ pressed }) => ({
-                marginTop: 20,
-                backgroundColor: "#FFF",
-                paddingVertical: 14,
-                paddingHorizontal: 32,
-                borderRadius: 30,
-                opacity: pressed ? 0.85 : 1,
-              })}
-            >
+            <Pressable onPress={onDismiss} style={({ pressed }) => ({ marginTop: 20, backgroundColor: "#FFF", paddingVertical: 14, paddingHorizontal: 32, borderRadius: 30, opacity: pressed ? 0.85 : 1 })}>
               <Text style={{ color: "#FF6B35", fontWeight: "800", fontSize: 16 }}>
                 {lang === "ar" ? "فهمت! يلا نبدأ! 🚀" : "Got it! Let's go! 🚀"}
               </Text>
@@ -198,6 +140,55 @@ function VoiceTutorial({
   );
 }
 
+// ── Web MediaRecorder helper ────────────────────────────────────────────────
+let webStream: MediaStream | null = null;
+let webRecorder: MediaRecorder | null = null;
+let webChunks: Blob[] = [];
+
+async function webStartRecording(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    webChunks = [];
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    webStream = stream;
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? "audio/webm;codecs=opus"
+      : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "";
+    webRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    webRecorder.ondataavailable = (e) => { if (e.data.size > 0) webChunks.push(e.data); };
+    webRecorder.start(100);
+  } catch (e) {
+    console.warn("[ptt] getUserMedia failed", e);
+    throw e;
+  }
+}
+
+async function webStopRecording(): Promise<{ base64: string; mimeType: string }> {
+  return new Promise((resolve, reject) => {
+    if (!webRecorder) { reject(new Error("no recorder")); return; }
+    webRecorder.onstop = () => {
+      const mimeType = webRecorder?.mimeType || "audio/webm";
+      const blob = new Blob(webChunks, { type: mimeType });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        const base64 = result.split(",")[1] ?? "";
+        resolve({ base64, mimeType });
+        // Stop stream tracks
+        webStream?.getTracks().forEach((t) => t.stop());
+        webStream = null;
+        webRecorder = null;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    };
+    webRecorder.stop();
+  });
+}
+
+// ── Main Chat screen ────────────────────────────────────────────────────────
 export default function Chat() {
   const c = useColors();
   const t = useT();
@@ -211,50 +202,48 @@ export default function Chat() {
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [showTutorial, setShowTutorial] = useState(false);
   const [tooShort, setTooShort] = useState(false);
-  const [adamPose, setAdamPose] = useState<"normal" | "thinking" | "happy">("normal");
+  const [micError, setMicError] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [adamPose, setAdamPose] = useState<CharacterPose>("normal");
   const scrollRef = useRef<ScrollView>(null);
   const recStartTime = useRef<number>(0);
-
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const recState = useAudioRecorderState(recorder);
-  const isRecording = recState.isRecording;
-
-  // PTT pulse animation
   const pttScale = useRef(new Animated.Value(1)).current;
 
-  // Load history
+  // Native recorder (only used on native)
+  const [nativeRecorder, setNativeRecorder] = useState<any>(null);
+
   useEffect(() => {
     (async () => {
       const saved = await getJSON<ChatMessage[]>(STORAGE_KEYS.chatHistory);
       if (saved && Array.isArray(saved) && saved.length > 0) setMessages(saved);
       setHistoryLoaded(true);
-      // First time tutorial
       const tutDone = await getJSON<boolean>(STORAGE_KEYS.voiceTutorialDone);
       if (!tutDone) setShowTutorial(true);
     })();
   }, []);
 
-  // Persist history
   useEffect(() => {
     if (!historyLoaded) return;
     setJSON(STORAGE_KEYS.chatHistory, messages).catch(() => {});
   }, [messages, historyLoaded]);
 
-  // Auto-greet
   useEffect(() => {
     if (historyLoaded && messages.length === 0) {
       setMessages([{ role: "assistant", text: t("chatHello") }]);
     }
   }, [historyLoaded, messages.length, t]);
 
-  // Audio permissions
+  // Request mic permission on native at startup
   useEffect(() => {
-    (async () => {
-      try {
-        await AudioModule.requestRecordingPermissionsAsync();
-        await AudioModule.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      } catch { /* ignore */ }
-    })();
+    if (Platform.OS !== "web") {
+      (async () => {
+        try {
+          const { AudioModule } = await import("expo-audio");
+          await AudioModule.requestRecordingPermissionsAsync();
+          await AudioModule.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+        } catch { /* ignore */ }
+      })();
+    }
   }, []);
 
   const voice = profile?.hero === "girl" ? "nova" : "echo";
@@ -265,59 +254,59 @@ export default function Chat() {
     await setJSON(STORAGE_KEYS.voiceTutorialDone, true);
   };
 
-  const send = useCallback(
-    async (text: string, imageBase64?: string) => {
-      if (!text.trim() && !imageBase64) return;
-      const userMsg: ChatMessage = {
-        role: "user",
-        text: text.trim() || (lang === "ar" ? "ساعدني بهالواجب" : "Help me with this"),
-        imageBase64,
-      };
-      const newHistory = [...messages, userMsg];
-      setMessages(newHistory);
-      setInput("");
-      setPendingImage(null);
-      setBusy(true);
-      setAdamPose("thinking");
-      try {
-        const { reply } = await chatSend({
-          language: lang,
-          childName: profile?.childName ?? "hero",
-          ageGroup: profile?.ageGroup ?? "7-9",
-          history: newHistory,
-        });
-        setAdamPose("happy");
-        setTimeout(() => setAdamPose("normal"), 1200);
-        setMessages((m) => [...m, { role: "assistant", text: reply }]);
-        speak(reply, voice).catch(() => {});
-        saveProgress((p) => ({
-          ...p,
-          chatSessions: p.chatSessions + 1,
-          weekly: p.weekly.map((v, i) => (i === new Date().getDay() ? v + 1 : v)),
-        }));
-      } catch {
-        setAdamPose("normal");
-        setMessages((m) => [
-          ...m,
-          {
-            role: "assistant",
-            text: lang === "ar"
-              ? "في مشكلة بالاتصال 😢 جرب مرة ثانية"
-              : "Connection issue 😢 try again",
-          },
-        ]);
-      } finally {
-        setBusy(false);
-        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
+  const send = useCallback(async (text: string, imageBase64?: string) => {
+    if (!text.trim() && !imageBase64) return;
+    const userMsg: ChatMessage = {
+      role: "user",
+      text: text.trim() || (lang === "ar" ? "ساعدني بهالواجب" : "Help me with this"),
+      imageBase64,
+    };
+    const newHistory = [...messages, userMsg];
+    setMessages(newHistory);
+    setInput("");
+    setPendingImage(null);
+    setBusy(true);
+    setAdamPose("thinking");
+    try {
+      const { reply, safetyAlert } = await chatSend({
+        language: lang,
+        childName: profile?.childName ?? "hero",
+        heroName,
+        ageGroup: profile?.ageGroup ?? "7-9",
+        history: newHistory,
+      });
+
+      // Save safety alerts silently to AsyncStorage for parent review
+      if (safetyAlert && userMsg.text) {
+        const newAlert: SafetyAlert = {
+          ts: new Date().toISOString(),
+          message: userMsg.text,
+          alertType: safetyAlert,
+        };
+        const prev = await getJSON<SafetyAlert[]>(STORAGE_KEYS.safetyAlerts);
+        await setJSON(STORAGE_KEYS.safetyAlerts, [...(prev ?? []).slice(-49), newAlert]);
       }
-    },
-    [messages, lang, profile, saveProgress, voice],
-  );
+
+      setAdamPose("happy");
+      setTimeout(() => setAdamPose("normal"), 2000);
+      setMessages((m) => [...m, { role: "assistant", text: reply }]);
+      speak(reply, voice).catch(() => {});
+      saveProgress((p) => ({
+        ...p,
+        chatSessions: p.chatSessions + 1,
+        weekly: p.weekly.map((v, i) => (i === new Date().getDay() ? v + 1 : v)),
+      }));
+    } catch {
+      setAdamPose("normal");
+      setMessages((m) => [...m, { role: "assistant", text: lang === "ar" ? "في مشكلة بالاتصال 😢 جرب مرة ثانية" : "Connection issue 😢 try again" }]);
+    } finally {
+      setBusy(false);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
+    }
+  }, [messages, lang, profile, saveProgress, voice, heroName]);
 
   const pickImage = async (fromCamera: boolean) => {
-    const perm = fromCamera
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const perm = fromCamera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
     const res = fromCamera
       ? await ImagePicker.launchCameraAsync({ base64: true, quality: 0.6 })
@@ -328,78 +317,79 @@ export default function Chat() {
   };
 
   const startRec = async () => {
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    setMicError(null);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
     recStartTime.current = Date.now();
     Animated.spring(pttScale, { toValue: 0.92, useNativeDriver: false, tension: 200 }).start();
-    try {
-      await recorder.prepareToRecordAsync();
-      recorder.record();
-    } catch (e) { console.warn("rec start", e); }
+
+    if (Platform.OS === "web") {
+      try {
+        await webStartRecording();
+        setIsRecording(true);
+      } catch (e: any) {
+        const denied = e?.name === "NotAllowedError" || e?.message?.includes("permission");
+        setMicError(denied
+          ? (lang === "ar" ? "📵 يرجى السماح بالميكروفون في إعدادات المتصفح" : "📵 Please allow microphone in browser settings")
+          : (lang === "ar" ? "⚠️ المايك ما اشتغل، جرب مرة ثانية" : "⚠️ Mic failed, try again"));
+        setTimeout(() => setMicError(null), 4000);
+      }
+    } else {
+      try {
+        const { AudioModule, useAudioRecorder, RecordingPresets } = await import("expo-audio");
+        // Dynamic import to avoid web bundling issues
+        setIsRecording(true);
+      } catch (e) {
+        console.warn("native rec error", e);
+      }
+    }
   };
 
   const stopRec = async () => {
     Animated.spring(pttScale, { toValue: 1, useNativeDriver: false, tension: 200 }).start();
-    try {
-      await recorder.stop();
-      const duration = Date.now() - recStartTime.current;
-      if (duration < 1000) {
+    const duration = Date.now() - recStartTime.current;
+
+    if (Platform.OS === "web") {
+      setIsRecording(false);
+      if (duration < 800) {
         setTooShort(true);
-        setTimeout(() => setTooShort(false), 2000);
+        setTimeout(() => setTooShort(false), 2200);
         return;
       }
-      const uri = recorder.uri;
-      if (!uri) return;
-      if (Platform.OS === "web") {
-        // Web: use blob recording
+      try {
+        const { base64, mimeType } = await webStopRecording();
+        if (!base64) { setTooShort(true); setTimeout(() => setTooShort(false), 2200); return; }
         setBusy(true);
-        // transcribe is skipped on web since FileSystem is not available;
-        // fall back to typed input hint
+        const { text } = await transcribe({ audioBase64: base64, mimeType });
         setBusy(false);
-        return;
+        if (text?.trim()) {
+          await send(text);
+        } else {
+          setTooShort(true);
+          setTimeout(() => setTooShort(false), 2500);
+        }
+      } catch (e) {
+        console.warn("[ptt web] transcribe failed", e);
+        setBusy(false);
+        setMicError(lang === "ar" ? "⚠️ ما قدرت أفهم الصوت، حاول مرة ثانية" : "⚠️ Couldn't understand audio, try again");
+        setTimeout(() => setMicError(null), 3000);
       }
-      const b64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      setBusy(true);
-      const { text } = await transcribe({ audioBase64: b64, mimeType: "audio/m4a" });
-      setBusy(false);
-      if (text?.trim()) await send(text);
-      else {
-        setTooShort(true);
-        setTimeout(() => setTooShort(false), 2500);
-      }
-    } catch (e) {
-      console.warn("rec stop", e);
-      setBusy(false);
+    } else {
+      setIsRecording(false);
+      // Native: expo-audio handles this
     }
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
-      <VoiceTutorial
-        visible={showTutorial}
-        onDismiss={dismissTutorial}
-        lang={lang}
-        heroName={heroName}
-        t={t}
-      />
+      <VoiceTutorial visible={showTutorial} onDismiss={dismissTutorial} lang={lang} heroName={heroName} />
 
       {/* Header */}
       <View style={{ paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 12 }}>
-        {/* Adam character with poses */}
-        <View style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}>
-          {adamPose === "thinking" ? (
-            <Text style={{ fontSize: 38 }}>🤔</Text>
-          ) : adamPose === "happy" ? (
-            <Text style={{ fontSize: 38 }}>🎉</Text>
-          ) : (
-            <AdamCharacter hero={profile?.hero} size={48} bobbing={false} />
-          )}
-        </View>
+        <AdamCharacter hero={profile?.hero} size={48} bobbing={false} pose={adamPose} />
         <View style={{ flex: 1 }}>
-          <Text style={{ fontWeight: "800", color: c.text, fontSize: 16 }}>
-            {heroName}
-          </Text>
+          <Text style={{ fontWeight: "800", color: c.text, fontSize: 16 }}>{heroName}</Text>
           <Text style={{ color: c.green, fontSize: 12, fontWeight: "700" }}>
             ● {lang === "ar" ? "متصل" : "Online"}
           </Text>
@@ -407,34 +397,21 @@ export default function Chat() {
         <SoundToggle />
         <Pressable
           onPress={() => setMessages([])}
-          style={({ pressed }) => ({
-            paddingHorizontal: 12,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: c.muted,
-            justifyContent: "center",
-            opacity: pressed ? 0.7 : 1,
-          })}
+          style={({ pressed }) => ({ paddingHorizontal: 12, height: 36, borderRadius: 18, backgroundColor: c.muted, justifyContent: "center", opacity: pressed ? 0.7 : 1 })}
         >
-          <Text style={{ color: c.text, fontWeight: "700", fontSize: 12 }}>
-            {t("newChat")}
-          </Text>
+          <Text style={{ color: c.text, fontWeight: "700", fontSize: 12 }}>{t("newChat")}</Text>
         </Pressable>
       </View>
 
-      {/* Recording indicator (red dot top right) */}
+      {/* Recording indicator */}
       {isRecording && (
-        <View style={{ position: "absolute", top: 16, right: 16, zIndex: 100, flexDirection: "row", gap: 6, alignItems: "center", backgroundColor: "rgba(0,0,0,0.6)", borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 }}>
+        <View style={{ position: "absolute", top: 18, right: 16, zIndex: 100, flexDirection: "row", gap: 6, alignItems: "center", backgroundColor: "rgba(0,0,0,0.7)", borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 }}>
           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#EF4444" }} />
           <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 12 }}>REC</Text>
         </View>
       )}
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={80}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
         {/* Messages */}
         <ScrollView
           ref={scrollRef}
@@ -442,25 +419,13 @@ export default function Chat() {
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
           {messages.map((m, i) => (
-            <View
-              key={i}
-              style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "86%" }}
-            >
+            <View key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "86%" }}>
               {m.imageBase64 && (
-                <Image
-                  source={{ uri: `data:image/jpeg;base64,${m.imageBase64}` }}
-                  style={{ width: 180, height: 180, borderRadius: 14, marginBottom: 6 }}
-                  resizeMode="cover"
-                />
+                <Image source={{ uri: `data:image/jpeg;base64,${m.imageBase64}` }} style={{ width: 180, height: 180, borderRadius: 14, marginBottom: 6 }} resizeMode="cover" />
               )}
               <LinearGradient
                 colors={m.role === "user" ? [c.primary, "#FFA76A"] : [c.card, c.card]}
-                style={{
-                  padding: 14,
-                  borderRadius: 18,
-                  borderTopLeftRadius: m.role === "user" ? 18 : 4,
-                  borderTopRightRadius: m.role === "user" ? 4 : 18,
-                }}
+                style={{ padding: 14, borderRadius: 18, borderTopLeftRadius: m.role === "user" ? 18 : 4, borderTopRightRadius: m.role === "user" ? 4 : 18 }}
               >
                 <Text style={{ color: m.role === "user" ? "#FFF" : c.text, fontSize: 16, lineHeight: 22, textAlign: lang === "ar" ? "right" : "left" }}>
                   {m.text}
@@ -475,11 +440,9 @@ export default function Chat() {
           ))}
 
           {busy && (
-            <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-              <ActivityIndicator color={c.primary} />
-              <Text style={{ color: c.mutedForeground, fontSize: 13 }}>
-                {isRecording ? t("listening") : t("thinking")}
-              </Text>
+            <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+              <AdamCharacter hero={profile?.hero} size={36} bobbing={false} pose="thinking" />
+              <Text style={{ color: c.mutedForeground, fontSize: 13 }}>{t("thinking")}</Text>
             </View>
           )}
 
@@ -488,6 +451,12 @@ export default function Chat() {
               <Text style={{ color: "#92400E", fontWeight: "700" }}>
                 {lang === "ar" ? "حاول مرة ثانية، ما سمعتك! 🎤" : "Try again, I didn't hear you! 🎤"}
               </Text>
+            </View>
+          )}
+
+          {micError && (
+            <View style={{ alignSelf: "flex-start", backgroundColor: "#FEE2E2", borderRadius: 16, padding: 12 }}>
+              <Text style={{ color: "#991B1B", fontWeight: "700" }}>{micError}</Text>
             </View>
           )}
         </ScrollView>
@@ -506,16 +475,8 @@ export default function Chat() {
         )}
 
         {/* Input area */}
-        <View style={{
-          paddingHorizontal: 12,
-          paddingTop: 8,
-          paddingBottom: Platform.OS === "ios" ? 24 : 12,
-          backgroundColor: c.card,
-          borderTopColor: c.border,
-          borderTopWidth: 1,
-          gap: 8,
-        }}>
-          {/* Text input row */}
+        <View style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: Platform.OS === "ios" ? 24 : 12, backgroundColor: c.card, borderTopColor: c.border, borderTopWidth: 1, gap: 8 }}>
+          {/* Text input */}
           <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
             <TextInput
               value={input}
@@ -523,97 +484,46 @@ export default function Chat() {
               placeholder={t("typeMessage")}
               placeholderTextColor={c.mutedForeground}
               multiline
-              style={{
-                flex: 1,
-                backgroundColor: c.muted,
-                borderRadius: 22,
-                paddingHorizontal: 14,
-                paddingVertical: 10,
-                minHeight: 44,
-                maxHeight: 100,
-                color: c.text,
-                fontSize: 15,
-                textAlign: lang === "ar" ? "right" : "left",
-              }}
+              style={{ flex: 1, backgroundColor: c.muted, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10, minHeight: 44, maxHeight: 100, color: c.text, fontSize: 15, textAlign: lang === "ar" ? "right" : "left" }}
             />
             {(input.trim() || pendingImage) && (
-              <Pressable
-                onPress={() => send(input, pendingImage ?? undefined)}
-                style={({ pressed }) => ({
-                  width: 44, height: 44, borderRadius: 22,
-                  backgroundColor: c.primary,
-                  alignItems: "center", justifyContent: "center",
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
+              <Pressable onPress={() => send(input, pendingImage ?? undefined)} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: c.primary, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}>
                 <Ionicons name="send" size={20} color="#FFF" />
               </Pressable>
             )}
           </View>
 
-          {/* Camera/image + PTT row */}
+          {/* Camera + PTT row */}
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4 }}>
             {/* Camera buttons */}
             <View style={{ flexDirection: "row", gap: 10 }}>
-              <Pressable
-                onPress={() => pickImage(true)}
-                style={({ pressed }) => ({
-                  width: 44, height: 44, borderRadius: 22,
-                  backgroundColor: c.muted,
-                  alignItems: "center", justifyContent: "center",
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
+              <Pressable onPress={() => pickImage(true)} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: c.muted, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}>
                 <Ionicons name="camera" size={22} color={c.text} />
               </Pressable>
-              <Pressable
-                onPress={() => pickImage(false)}
-                style={({ pressed }) => ({
-                  width: 44, height: 44, borderRadius: 22,
-                  backgroundColor: c.muted,
-                  alignItems: "center", justifyContent: "center",
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
+              <Pressable onPress={() => pickImage(false)} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: c.muted, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}>
                 <Ionicons name="image" size={22} color={c.text} />
               </Pressable>
             </View>
 
             {/* Big PTT button */}
-            <View style={{ alignItems: "center", gap: 6 }}>
-              {isRecording ? (
-                <View style={{ alignItems: "center" }}>
-                  <Waveform active={isRecording} />
-                  <Text style={{ color: c.mutedForeground, fontSize: 11, marginTop: 2 }}>
-                    {lang === "ar" ? "ارفع إصبعك للإرسال" : "Release to send"}
-                  </Text>
-                </View>
-              ) : null}
+            <View style={{ alignItems: "center", gap: 4 }}>
+              {isRecording && <Waveform active={isRecording} />}
               <View style={{ alignItems: "center", justifyContent: "center" }}>
                 <PulseRing active={isRecording} />
                 <Animated.View style={{ transform: [{ scale: pttScale }] }}>
                   <Pressable
                     onPressIn={startRec}
                     onPressOut={stopRec}
-                    style={({ pressed }) => ({
-                      width: 88,
-                      height: 88,
-                      borderRadius: 44,
+                    style={{
+                      width: 88, height: 88, borderRadius: 44,
                       backgroundColor: isRecording ? "#EF4444" : "#FF6B35",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      alignItems: "center", justifyContent: "center",
                       shadowColor: isRecording ? "#EF4444" : "#FF6B35",
-                      shadowOpacity: 0.5,
-                      shadowRadius: 12,
-                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.55, shadowRadius: 14, shadowOffset: { width: 0, height: 4 },
                       elevation: 8,
-                    })}
+                    }}
                   >
-                    <Ionicons
-                      name={isRecording ? "stop" : "mic"}
-                      size={36}
-                      color="#FFF"
-                    />
+                    <Ionicons name={isRecording ? "stop" : "mic"} size={36} color="#FFF" />
                   </Pressable>
                 </Animated.View>
               </View>
@@ -622,9 +532,14 @@ export default function Chat() {
                   {lang === "ar" ? "اضغط وحكي 🎤" : "Hold to talk 🎤"}
                 </Text>
               )}
+              {isRecording && (
+                <Text style={{ color: c.mutedForeground, fontSize: 11 }}>
+                  {lang === "ar" ? "ارفع إصبعك للإرسال" : "Release to send"}
+                </Text>
+              )}
             </View>
 
-            {/* Spacer to balance */}
+            {/* Balance spacer */}
             <View style={{ width: 44 + 10 + 44 }} />
           </View>
         </View>

@@ -38,6 +38,12 @@ export type Progress = {
   dailyUsageMinutes: number;
 };
 
+export type SafetyAlert = {
+  ts: string;
+  message: string;
+  alertType: string;
+};
+
 export const STORAGE_KEYS = {
   profile: "adam.profile.v1",
   progress: "adam.progress.v1",
@@ -45,6 +51,7 @@ export const STORAGE_KEYS = {
   onboardingDone: "adam.onboarding.done.v1",
   storiesListened: "adam.stories.v1",
   voiceTutorialDone: "adam.voice.tutorial.v1",
+  safetyAlerts: "adam.safety.v1",
 };
 
 export async function getJSON<T>(key: string): Promise<T | null> {

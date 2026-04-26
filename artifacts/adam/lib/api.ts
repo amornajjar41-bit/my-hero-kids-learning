@@ -43,7 +43,7 @@ export async function chatSend(opts: {
   heroName?: string;
   ageGroup: "4-6" | "7-9" | "10-12";
   history: ChatMessage[];
-}): Promise<{ reply: string }> {
+}): Promise<{ reply: string; safetyAlert: string | null }> {
   // Convert to server format (messages with content + optional imageBase64 at root)
   const last = opts.history[opts.history.length - 1];
   const imageBase64 = last?.imageBase64;
@@ -62,8 +62,18 @@ export async function ttsSpeak(opts: {
   text: string;
   voice?: "echo" | "nova";
   speed?: number;
+  maxChars?: number;
 }): Promise<{ audioBase64: string; mimeType: string }> {
   return postJSON("/api/tts", opts);
+}
+
+export async function reportSafetyAlert(opts: {
+  childName: string;
+  parentEmail: string;
+  message: string;
+  alertType: string;
+}): Promise<void> {
+  return postJSON("/api/safety-alert", opts);
 }
 
 export async function transcribe(opts: {

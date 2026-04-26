@@ -10,7 +10,7 @@ function cacheKey(text: string, voice: string) {
   return `${voice}::${text}`;
 }
 
-function summarizeForSpeech(text: string, maxChars = 220): string {
+function summarizeForSpeech(text: string, maxChars = 260): string {
   // Strip emojis and special markdown for cleaner speech
   const cleaned = text
     // eslint-disable-next-line no-misleading-character-class
@@ -38,10 +38,12 @@ router.post("/tts", async (req, res) => {
       text,
       voice = "echo",
       speed = 1.1,
+      maxChars,
     } = req.body as {
       text: string;
       voice?: string;
       speed?: number;
+      maxChars?: number;
     };
 
     if (!text || typeof text !== "string") {
@@ -49,7 +51,8 @@ router.post("/tts", async (req, res) => {
       return;
     }
 
-    const speechText = summarizeForSpeech(text);
+    const limit = typeof maxChars === "number" && maxChars > 0 ? Math.min(maxChars, 800) : 260;
+    const speechText = summarizeForSpeech(text, limit);
     const key = cacheKey(speechText, voice);
 
     if (cache.has(key)) {

@@ -51,7 +51,7 @@ export default function WordPuzzle() {
         setScore((s) => s + 1);
         speak(lang === "ar" ? "ممتاز!" : "Yes!", voice).catch(() => {});
         setTimeout(() => {
-          if (round + 1 >= 5) setDone(true);
+          if (round + 1 >= 10) setDone(true);
           else setRound((r) => r + 1);
         }, 700);
       } else {
@@ -123,7 +123,7 @@ export default function WordPuzzle() {
                 marginTop: 6,
               }}
             >
-              ⭐ {score}/5
+              ⭐ {score}/10
             </Text>
           </SoftCard>
           <PrimaryButton title={t("done")} fullWidth onPress={finish} />
@@ -138,7 +138,7 @@ export default function WordPuzzle() {
                 fontSize: 12,
               }}
             >
-              {t("level")} {round + 1} / 5
+              {t("level")} {round + 1} / 10
             </Text>
             <Text
               style={{

@@ -1,7 +1,7 @@
 export type Lang = "en" | "ar";
 
 export const t = {
-  appName: { en: "Adam", ar: "آدم" },
+  appName: { en: "My Hero", ar: "My Hero" },
 
   // Onboarding
   welcomeTitle: { en: "Hi hero! I'm Adam!", ar: "أهلاً يا بطل! أنا آدم!" },

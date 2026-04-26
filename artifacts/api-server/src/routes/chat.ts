@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { openai } from "../lib/openai";
+import { quickSafetyCheck } from "./safety";
 
 const router: IRouter = Router();
 
@@ -153,7 +154,17 @@ router.post("/chat", async (req, res) => {
     });
 
     const reply = response.choices[0]?.message?.content ?? "";
-    res.json({ reply });
+
+    // Safety scanning — check the last user message
+    const lastUserMsg = messages.filter((m) => m.role === "user").pop();
+    const lastText = typeof lastUserMsg?.content === "string"
+      ? lastUserMsg.content
+      : Array.isArray(lastUserMsg?.content)
+        ? lastUserMsg.content.find((c: any) => c.type === "text")?.text ?? ""
+        : "";
+
+    const safetyResult = quickSafetyCheck(lastText);
+    res.json({ reply, safetyAlert: safetyResult.flagged ? safetyResult.type : null });
   } catch (err) {
     req.log.error({ err }, "chat error");
     res.status(500).json({
