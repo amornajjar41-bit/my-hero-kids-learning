@@ -11,7 +11,7 @@ import { puzzleWords } from "@/constants/games-data";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang, useT } from "@/hooks/useT";
-import { speak } from "@/lib/audio";
+import { speak, stop as stopAudio } from "@/lib/audio";
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -40,6 +40,9 @@ export default function WordPuzzle() {
   const target = item.word.replace(/\s+/g, "");
   const letters = useMemo(() => shuffle(target.split("")), [target, round]);
   const current = picked.map((i) => letters[i]).join("");
+
+  // FIX 3: Stop audio when navigating away
+  useEffect(() => () => stopAudio(), []);
 
   useEffect(() => {
     setPicked([]);

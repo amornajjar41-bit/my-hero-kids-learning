@@ -11,7 +11,7 @@ import { letterMatchPairs } from "@/constants/games-data";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang, useT } from "@/hooks/useT";
-import { speak } from "@/lib/audio";
+import { speak, stop as stopAudio } from "@/lib/audio";
 
 export default function LetterMatch() {
   const c = useColors();
@@ -53,6 +53,9 @@ export default function LetterMatch() {
       setTimeout(() => setFeedback(""), 600);
     }
   };
+
+  // FIX 3: Stop audio when navigating away
+  useEffect(() => () => stopAudio(), []);
 
   useEffect(() => {
     if (done) {

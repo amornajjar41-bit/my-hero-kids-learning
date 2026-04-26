@@ -11,7 +11,7 @@ import { mathLevels } from "@/constants/games-data";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useT } from "@/hooks/useT";
-import { speak } from "@/lib/audio";
+import { speak, stop as stopAudio } from "@/lib/audio";
 
 type Q = { a: number; b: number; op: string; ans: number };
 
@@ -90,6 +90,9 @@ export default function MathBlast() {
       setTimeout(() => setFeedback(""), 700);
     }
   };
+
+  // FIX 3: Stop audio when navigating away
+  useEffect(() => () => stopAudio(), []);
 
   useEffect(() => {
     if (done) {

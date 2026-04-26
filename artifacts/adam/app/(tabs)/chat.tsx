@@ -34,7 +34,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useT, useLang } from "@/hooks/useT";
 import { chatSend, transcribe, type ChatMessage } from "@/lib/api";
-import { speak } from "@/lib/audio";
+import { speak, stop as stopAudio } from "@/lib/audio";
 import { getJSON, setJSON, STORAGE_KEYS, type SafetyAlert, type ChildMemory, defaultChildMemory } from "@/lib/storage";
 
 // ── Typing indicator (3 bouncing dots) ─────────────────────────────────────
@@ -240,8 +240,15 @@ async function webStartRecording(): Promise<void> {
   if (typeof window === "undefined") return;
   try {
     _wavChunks = [];
+    // FIX 4: Better audio constraints — explicit 16kHz mono for best Whisper accuracy
     _wavStream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      audio: {
+        channelCount: 1,
+        sampleRate: 16000,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
     });
     const track = _wavStream.getAudioTracks()[0];
     _wavSR = (track.getSettings().sampleRate) || 16000;
@@ -334,6 +341,11 @@ export default function Chat() {
       setMessages([{ role: "assistant", text: t("chatHello") }]);
     }
   }, [historyLoaded, messages.length, t]);
+
+  // FIX 3: Stop all audio when this screen unmounts / navigates away
+  useEffect(() => {
+    return () => { stopAudio(); };
+  }, []);
 
   // Request mic permission on native at startup
   useEffect(() => {
@@ -484,9 +496,10 @@ export default function Chat() {
     const duration = Date.now() - recStartTime.current;
     setIsRecording(false);
 
-    if (duration < 700) {
+    // FIX 4: 1.5 second minimum for reliable Whisper transcription
+    if (duration < 1500) {
       setTooShort(true);
-      setTimeout(() => setTooShort(false), 2200);
+      setTimeout(() => setTooShort(false), 2800);
       // Clean up native recorder if started
       if (Platform.OS !== "web" && _nativeRec) {
         try { await _nativeRec.stop(); } catch { /* ignore */ }
@@ -637,7 +650,7 @@ export default function Chat() {
           {tooShort && (
             <View style={{ alignSelf: "flex-start", backgroundColor: "#FEF3C7", borderRadius: 16, padding: 12 }}>
               <Text style={{ color: "#92400E", fontWeight: "700" }}>
-                {lang === "ar" ? "حاول مرة ثانية، ما سمعتك! 🎤" : "Try again, I didn't hear you! 🎤"}
+                {lang === "ar" ? "اضغط المايك لمدة أطول وأنت تتكلم! 🎤" : "Hold the button longer while you speak! 🎤"}
               </Text>
             </View>
           )}
