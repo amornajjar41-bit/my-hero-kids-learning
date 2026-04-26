@@ -79,6 +79,7 @@ export async function reportSafetyAlert(opts: {
 export async function transcribe(opts: {
   audioBase64: string;
   mimeType?: string;
+  language?: "en" | "ar";
 }): Promise<{ text: string }> {
   return postJSON("/api/transcribe", opts);
 }

@@ -473,7 +473,7 @@ export default function Chat() {
 
       if (!base64) { setTooShort(true); setTimeout(() => setTooShort(false), 2200); setBusy(false); return; }
 
-      const { text } = await transcribe({ audioBase64: base64, mimeType });
+      const { text } = await transcribe({ audioBase64: base64, mimeType, language: lang });
       setBusy(false);
       if (text?.trim()) {
         await send(text);

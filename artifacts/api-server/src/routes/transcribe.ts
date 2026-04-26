@@ -33,9 +33,10 @@ function toWavBase64(inputBase64: string, inputExt: string): string {
 
 router.post("/transcribe", async (req, res) => {
   try {
-    const { audioBase64, mimeType = "audio/wav" } = req.body as {
+    const { audioBase64, mimeType = "audio/wav", language } = req.body as {
       audioBase64: string;
       mimeType?: string;
+      language?: "en" | "ar";
     };
 
     if (!audioBase64) {
@@ -63,6 +64,10 @@ router.post("/transcribe", async (req, res) => {
       finalFmt = "wav";
     }
 
+    const langInstruction = language === "ar"
+      ? "The speaker is using ARABIC. You MUST transcribe Arabic speech only and return Arabic text in Arabic script. Do NOT transliterate or translate. If the speech sounds like Arabic, output it in Arabic."
+      : "The speaker is using English. Transcribe English speech only.";
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await (openai.chat.completions.create as any)({
       model: "gpt-audio-mini",
@@ -71,7 +76,7 @@ router.post("/transcribe", async (req, res) => {
         {
           role: "system",
           content:
-            "You are a transcription engine. " +
+            `You are a speech transcription engine. ${langInstruction} ` +
             "Return ONLY the exact words spoken — no labels, no punctuation commentary, no extra text. " +
             "If silent or unclear, return an empty string.",
         },
