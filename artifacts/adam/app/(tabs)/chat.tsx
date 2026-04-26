@@ -141,25 +141,51 @@ function VoiceTutorial({ visible, onDismiss, lang, heroName }: { visible: boolea
   );
 }
 
-// ── Web MediaRecorder helper ────────────────────────────────────────────────
-let webStream: MediaStream | null = null;
-let webRecorder: MediaRecorder | null = null;
-let webChunks: Blob[] = [];
+// ── Web WAV recorder using Web Audio API ─────────────────────────────────────
+// MediaRecorder produces webm/opus which causes conversion issues.
+// Instead we capture raw PCM via ScriptProcessorNode and encode as WAV.
+let _wavCtx: AudioContext | null = null;
+let _wavStream: MediaStream | null = null;
+let _wavProcessor: ScriptProcessorNode | null = null;
+let _wavSource: MediaStreamAudioSourceNode | null = null;
+let _wavChunks: Float32Array[] = [];
+let _wavSR = 16000;
+
+function _encodeWAV(samples: Float32Array, sr: number): ArrayBuffer {
+  const buf = new ArrayBuffer(44 + samples.length * 2);
+  const v = new DataView(buf);
+  const ws = (o: number, s: string) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  ws(0, "RIFF"); v.setUint32(4, 36 + samples.length * 2, true);
+  ws(8, "WAVE"); ws(12, "fmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true);
+  v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  ws(36, "data"); v.setUint32(40, samples.length * 2, true);
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return buf;
+}
 
 async function webStartRecording(): Promise<void> {
   if (typeof window === "undefined") return;
   try {
-    webChunks = [];
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    webStream = stream;
-    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-      ? "audio/webm;codecs=opus"
-      : MediaRecorder.isTypeSupported("audio/webm")
-        ? "audio/webm"
-        : "";
-    webRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-    webRecorder.ondataavailable = (e) => { if (e.data.size > 0) webChunks.push(e.data); };
-    webRecorder.start(100);
+    _wavChunks = [];
+    _wavStream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+    });
+    const track = _wavStream.getAudioTracks()[0];
+    _wavSR = (track.getSettings().sampleRate) || 16000;
+    // @ts-ignore — AudioContext is available in web
+    _wavCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: _wavSR });
+    _wavSource = _wavCtx.createMediaStreamSource(_wavStream);
+    _wavProcessor = _wavCtx.createScriptProcessor(4096, 1, 1);
+    _wavProcessor.onaudioprocess = (e) => {
+      _wavChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+    };
+    _wavSource.connect(_wavProcessor);
+    _wavProcessor.connect(_wavCtx.destination);
   } catch (e) {
     console.warn("[ptt] getUserMedia failed", e);
     throw e;
@@ -167,26 +193,31 @@ async function webStartRecording(): Promise<void> {
 }
 
 async function webStopRecording(): Promise<{ base64: string; mimeType: string }> {
-  return new Promise((resolve, reject) => {
-    if (!webRecorder) { reject(new Error("no recorder")); return; }
-    webRecorder.onstop = () => {
-      const mimeType = webRecorder?.mimeType || "audio/webm";
-      const blob = new Blob(webChunks, { type: mimeType });
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        const base64 = result.split(",")[1] ?? "";
-        resolve({ base64, mimeType });
-        // Stop stream tracks
-        webStream?.getTracks().forEach((t) => t.stop());
-        webStream = null;
-        webRecorder = null;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    };
-    webRecorder.stop();
-  });
+  _wavSource?.disconnect();
+  _wavProcessor?.disconnect();
+  _wavStream?.getTracks().forEach((t) => t.stop());
+  _wavCtx?.close().catch(() => {});
+
+  // Merge all captured PCM chunks
+  const total = _wavChunks.reduce((a, c) => a + c.length, 0);
+  const merged = new Float32Array(total);
+  let off = 0;
+  for (const c of _wavChunks) { merged.set(c, off); off += c.length; }
+
+  const wavBuf = _encodeWAV(merged, _wavSR);
+
+  // base64-encode in chunks to avoid stack overflow on large audio
+  const u8 = new Uint8Array(wavBuf);
+  let binary = "";
+  const CHUNK = 8192;
+  for (let i = 0; i < u8.length; i += CHUNK) {
+    binary += String.fromCharCode(...(u8.subarray(i, i + CHUNK) as unknown as number[]));
+  }
+  const base64 = btoa(binary);
+
+  _wavCtx = null; _wavStream = null; _wavProcessor = null; _wavSource = null; _wavChunks = [];
+
+  return { base64, mimeType: "audio/wav" };
 }
 
 // ── Main Chat screen ────────────────────────────────────────────────────────

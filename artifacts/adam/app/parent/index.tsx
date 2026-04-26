@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/components/PrimaryButton";
@@ -22,7 +22,7 @@ export default function ParentDashboard() {
   const c = useColors();
   const router = useRouter();
   const t = useT();
-  const { profile, progress } = useApp();
+  const { profile, progress, resetAll } = useApp();
   const [sentMsg, setSentMsg] = useState<string>("");
   const [sending, setSending] = useState(false);
   const [safetyAlerts, setSafetyAlerts] = useState<SafetyAlert[]>([]);
@@ -213,6 +213,46 @@ export default function ParentDashboard() {
           loading={sending}
           onPress={sendReport}
         />
+
+        {/* Logout / Switch Profile */}
+        <Pressable
+          onPress={() => {
+            Alert.alert(
+              lang === "ar" ? "تسجيل الخروج" : "Switch Profile",
+              lang === "ar"
+                ? "هل تريد مسح البيانات والبدء من جديد؟"
+                : "This will clear all data and return to the welcome screen so you can set up a new profile.",
+              [
+                { text: lang === "ar" ? "إلغاء" : "Cancel", style: "cancel" },
+                {
+                  text: lang === "ar" ? "نعم، اخرج" : "Yes, reset",
+                  style: "destructive",
+                  onPress: async () => {
+                    await resetAll();
+                    router.replace("/onboarding/welcome" as never);
+                  },
+                },
+              ],
+            );
+          }}
+          style={({ pressed }) => ({
+            marginTop: 4,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            paddingVertical: 14,
+            borderRadius: 16,
+            borderWidth: 1.5,
+            borderColor: "#EF4444",
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+          <Text style={{ color: "#EF4444", fontWeight: "700", fontSize: 15 }}>
+            {lang === "ar" ? "تغيير الشخصية / تسجيل خروج" : "Switch Character / Log Out"}
+          </Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );

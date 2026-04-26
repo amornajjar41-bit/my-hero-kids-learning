@@ -7,45 +7,33 @@ import { openai } from "../lib/openai";
 
 const router: IRouter = Router();
 
-// Derive a file extension from MIME type
 function extFromMime(mime: string): string {
-  if (mime.includes("webm")) return "webm";
   if (mime.includes("wav"))  return "wav";
   if (mime.includes("mp3"))  return "mp3";
+  if (mime.includes("webm")) return "webm";
   if (mime.includes("ogg"))  return "ogg";
   if (mime.includes("flac")) return "flac";
   if (mime.includes("m4a") || mime.includes("mp4")) return "m4a";
-  return "webm";
+  return "wav";
 }
 
-/**
- * Convert any audio to 16-kHz mono WAV using ffmpeg.
- * The Replit AI proxy only accepts 'wav' or 'mp3' as input_audio format.
- * Returns base64-encoded WAV.
- */
-function toWav(inputBase64: string, inputExt: string): string {
-  const id   = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const inp  = join(tmpdir(), `adam-in-${id}.${inputExt}`);
-  const out  = join(tmpdir(), `adam-out-${id}.wav`);
-
+/** Convert any audio → 16-kHz mono WAV via ffmpeg (fallback for native formats). */
+function toWavBase64(inputBase64: string, inputExt: string): string {
+  const id  = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const inp = join(tmpdir(), `adam-in-${id}.${inputExt}`);
+  const out = join(tmpdir(), `adam-out-${id}.wav`);
   writeFileSync(inp, Buffer.from(inputBase64, "base64"));
   try {
-    execSync(
-      `ffmpeg -y -i "${inp}" -ar 16000 -ac 1 -f wav "${out}"`,
-      { stdio: "pipe" },
-    );
-    const wav = readFileSync(out);
-    return wav.toString("base64");
+    execSync(`ffmpeg -y -i "${inp}" -ar 16000 -ac 1 -f wav "${out}"`, { stdio: "pipe" });
+    return readFileSync(out).toString("base64");
   } finally {
-    for (const f of [inp, out]) {
-      try { unlinkSync(f); } catch { /* ignore */ }
-    }
+    for (const f of [inp, out]) { try { unlinkSync(f); } catch { /* ignore */ } }
   }
 }
 
 router.post("/transcribe", async (req, res) => {
   try {
-    const { audioBase64, mimeType = "audio/webm" } = req.body as {
+    const { audioBase64, mimeType = "audio/wav" } = req.body as {
       audioBase64: string;
       mimeType?: string;
     };
@@ -57,10 +45,24 @@ router.post("/transcribe", async (req, res) => {
 
     const ext = extFromMime(mimeType);
 
-    // Convert to WAV (supported by proxy; webm/m4a/ogg are NOT)
-    const wavBase64 = toWav(audioBase64, ext);
+    // The proxy only accepts "wav" or "mp3".
+    // Web client now sends WAV directly — no conversion needed.
+    // For native (m4a, ogg, webm), convert with ffmpeg.
+    let finalBase64 = audioBase64;
+    let finalFmt: "wav" | "mp3" = "wav";
 
-    // Use gpt-audio-mini via chat completions with audio INPUT + text OUTPUT
+    if (ext === "wav") {
+      finalBase64 = audioBase64;
+      finalFmt = "wav";
+    } else if (ext === "mp3") {
+      finalBase64 = audioBase64;
+      finalFmt = "mp3";
+    } else {
+      // Convert to WAV via ffmpeg
+      finalBase64 = toWavBase64(audioBase64, ext);
+      finalFmt = "wav";
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await (openai.chat.completions.create as any)({
       model: "gpt-audio-mini",
@@ -70,15 +72,15 @@ router.post("/transcribe", async (req, res) => {
           role: "system",
           content:
             "You are a transcription engine. " +
-            "Return ONLY the exact words spoken in the audio — nothing else. " +
-            "If the audio is silent or completely unclear, return an empty string.",
+            "Return ONLY the exact words spoken — no labels, no punctuation commentary, no extra text. " +
+            "If silent or unclear, return an empty string.",
         },
         {
           role: "user",
           content: [
             {
               type: "input_audio",
-              input_audio: { data: wavBase64, format: "wav" },
+              input_audio: { data: finalBase64, format: finalFmt },
             },
           ],
         },
