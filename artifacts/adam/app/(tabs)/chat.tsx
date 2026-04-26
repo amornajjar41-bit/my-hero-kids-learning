@@ -3,6 +3,7 @@ import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
+import { useWindowDimensions } from "react-native";
 import React, {
   useCallback,
   useEffect,
@@ -287,10 +288,17 @@ export default function Chat() {
         await setJSON(STORAGE_KEYS.safetyAlerts, [...(prev ?? []).slice(-49), newAlert]);
       }
 
-      setAdamPose("happy");
-      setTimeout(() => setAdamPose("normal"), 2000);
       setMessages((m) => [...m, { role: "assistant", text: reply }]);
-      speak(reply, voice).catch(() => {});
+      setAdamPose("talking");
+      speak(reply, voice)
+        .then(() => {
+          setAdamPose("happy");
+          setTimeout(() => setAdamPose("normal"), 1800);
+        })
+        .catch(() => {
+          setAdamPose("happy");
+          setTimeout(() => setAdamPose("normal"), 1800);
+        });
       saveProgress((p) => ({
         ...p,
         chatSessions: p.chatSessions + 1,
@@ -318,6 +326,7 @@ export default function Chat() {
 
   const startRec = async () => {
     setMicError(null);
+    setAdamPose("excited");
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
@@ -381,16 +390,18 @@ export default function Chat() {
     }
   };
 
+  const { height: screenH } = useWindowDimensions();
+  const charSize = Math.min(Math.max(screenH * 0.28, 160), 220);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
       <VoiceTutorial visible={showTutorial} onDismiss={dismissTutorial} lang={lang} heroName={heroName} />
 
-      {/* Header */}
-      <View style={{ paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <AdamCharacter hero={profile?.hero} size={48} bobbing={false} pose={adamPose} />
+      {/* Top bar: name + controls */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, flexDirection: "row", alignItems: "center", gap: 12 }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontWeight: "800", color: c.text, fontSize: 16 }}>{heroName}</Text>
-          <Text style={{ color: c.green, fontSize: 12, fontWeight: "700" }}>
+          <Text style={{ fontWeight: "900", color: c.text, fontSize: 18 }}>{heroName}</Text>
+          <Text style={{ color: "#22C55E", fontSize: 12, fontWeight: "700" }}>
             ● {lang === "ar" ? "متصل" : "Online"}
           </Text>
         </View>
@@ -403,13 +414,63 @@ export default function Chat() {
         </Pressable>
       </View>
 
-      {/* Recording indicator */}
-      {isRecording && (
-        <View style={{ position: "absolute", top: 18, right: 16, zIndex: 100, flexDirection: "row", gap: 6, alignItems: "center", backgroundColor: "rgba(0,0,0,0.7)", borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 }}>
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#EF4444" }} />
-          <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 12 }}>REC</Text>
+      {/* ── CHARACTER STAGE ─────────────────────────────── */}
+      <LinearGradient
+        colors={
+          profile?.hero === "girl"
+            ? ["#FDF2F8", "#FCE7F3", "#F3E8FF"]
+            : ["#EFF6FF", "#DBEAFE", "#EDE9FE"]
+        }
+        style={{
+          alignItems: "center",
+          justifyContent: "flex-end",
+          height: charSize + 20,
+          overflow: "visible",
+          paddingBottom: 0,
+          borderRadius: 24,
+          marginHorizontal: 12,
+          marginBottom: 6,
+          position: "relative",
+        }}
+      >
+        {/* Recording pulse ring behind character */}
+        {isRecording && (
+          <View style={{ position: "absolute", bottom: 10, alignItems: "center", justifyContent: "center" }}>
+            <PulseRing active />
+          </View>
+        )}
+
+        <AdamCharacter
+          hero={profile?.hero}
+          size={charSize}
+          pose={adamPose}
+          style={{ marginBottom: -10 }}
+        />
+
+        {/* Pose label badge */}
+        <View style={{
+          position: "absolute", top: 10, left: 14,
+          backgroundColor: "rgba(255,255,255,0.85)",
+          borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
+        }}>
+          <Text style={{ fontSize: 11, fontWeight: "700", color: c.text }}>
+            {busy ? (lang === "ar" ? "💭 يفكر..." : "💭 Thinking...") :
+             isRecording ? (lang === "ar" ? "🎤 يسمع..." : "🎤 Listening...") :
+             adamPose === "happy" ? (lang === "ar" ? "😊 سعيد!" : "😊 Happy!") :
+             adamPose === "excited" ? (lang === "ar" ? "🎉 متحمس!" : "🎉 Excited!") :
+             (lang === "ar" ? "💚 جاهز" : "💚 Ready")}
+          </Text>
         </View>
-      )}
+
+        {/* Recording indicator */}
+        {isRecording && (
+          <View style={{ position: "absolute", top: 10, right: 14, flexDirection: "row", gap: 5, alignItems: "center", backgroundColor: "rgba(0,0,0,0.65)", borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 }}>
+            <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#EF4444" }} />
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 11 }}>REC</Text>
+          </View>
+        )}
+      </LinearGradient>
+      {/* ──────────────────────────────────────────────── */}
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
         {/* Messages */}
@@ -440,9 +501,9 @@ export default function Chat() {
           ))}
 
           {busy && (
-            <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
-              <AdamCharacter hero={profile?.hero} size={36} bobbing={false} pose="thinking" />
-              <Text style={{ color: c.mutedForeground, fontSize: 13 }}>{t("thinking")}</Text>
+            <View style={{ flexDirection: "row", gap: 10, alignItems: "center", paddingLeft: 8 }}>
+              <Text style={{ color: c.mutedForeground, fontSize: 22 }}>💭</Text>
+              <Text style={{ color: c.mutedForeground, fontSize: 14, fontWeight: "700" }}>{t("thinking")}</Text>
             </View>
           )}
 

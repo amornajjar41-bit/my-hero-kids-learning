@@ -33,7 +33,7 @@ router.post("/transcribe", async (req, res) => {
     });
 
     const result = await openai.audio.transcriptions.create({
-      model: "gpt-4o-mini-transcribe",
+      model: "whisper-1",
       file,
       response_format: "json",
     });

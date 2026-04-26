@@ -2,6 +2,7 @@
  * Lightweight TTS playback layer.
  * On native: uses expo-audio.
  * On web: uses HTML5 Audio (more reliable for data URIs).
+ * Returns a Promise that resolves when playback finishes.
  */
 import { Platform } from "react-native";
 import { createAudioPlayer, AudioModule } from "expo-audio";
@@ -42,7 +43,7 @@ export async function speak(
   text: string,
   voice: "echo" | "nova" = "echo",
   speed = 1.05,
-) {
+): Promise<void> {
   if (!soundEnabled || !text) return;
   if (Platform.OS !== "web") {
     try {
@@ -54,7 +55,7 @@ export async function speak(
       // ignore
     }
   }
-  const key = `${voice}:${text}`;
+  const key = `${voice}:${text.slice(0, 120)}`;
   let uri = cache.get(key);
   if (!uri) {
     const { audioBase64, mimeType } = await ttsSpeak({ text, voice, speed });
@@ -67,16 +68,30 @@ export async function speak(
     cache.set(key, uri);
   }
   stop();
-  try {
-    if (Platform.OS === "web") {
-      const audio = new Audio(uri);
-      currentWebAudio = audio;
-      await audio.play();
-    } else {
-      currentPlayer = createAudioPlayer({ uri });
-      currentPlayer.play();
+  return new Promise<void>((resolve) => {
+    try {
+      if (Platform.OS === "web") {
+        const audio = new Audio(uri);
+        currentWebAudio = audio;
+        audio.onended = () => { currentWebAudio = null; resolve(); };
+        audio.onerror = () => { currentWebAudio = null; resolve(); };
+        audio.play().catch(() => resolve());
+      } else {
+        const player = createAudioPlayer({ uri });
+        currentPlayer = player;
+        player.addListener("playbackStatusUpdate", (status: any) => {
+          if (status.didJustFinish || status.isLoaded === false) {
+            currentPlayer = null;
+            resolve();
+          }
+        });
+        player.play();
+        // Fallback: if no event fires, resolve after estimated time
+        setTimeout(resolve, Math.max(text.length * 60, 2000));
+      }
+    } catch (e) {
+      console.warn("[audio] play failed", e);
+      resolve();
     }
-  } catch (e) {
-    console.warn("[audio] play failed", e);
-  }
+  });
 }
