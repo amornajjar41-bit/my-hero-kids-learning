@@ -36,6 +36,7 @@ export type Progress = {
   // Daily usage tracking (for screen time limit)
   dailyUsageDate: string; // YYYY-MM-DD
   dailyUsageMinutes: number;
+  storiesListened: number;
 };
 
 export type SafetyAlert = {
@@ -86,4 +87,5 @@ export const defaultProgress: Progress = {
   badgesEarned: [],
   dailyUsageDate: "",
   dailyUsageMinutes: 0,
+  storiesListened: 0,
 };
