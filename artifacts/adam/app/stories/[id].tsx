@@ -98,6 +98,19 @@ export default function StoryPlayer() {
   const playingRef = useRef(false);
   const paraIdxRef = useRef(0);
 
+  // Stop all audio when navigating away from the story
+  useEffect(() => {
+    return () => {
+      // Stop story's own player
+      stopNativePlayer();
+      if (webAudioRef.current) {
+        try { webAudioRef.current.pause(); webAudioRef.current.src = ""; } catch { /* no-op */ }
+        webAudioRef.current = null;
+      }
+      playingRef.current = false;
+    };
+  }, []);
+
   // Breathe animation
   const breathe = useRef(new Animated.Value(1)).current;
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,7 +14,7 @@ import { curriculum, lessonTitle } from "@/constants/curriculum";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang, useT } from "@/hooks/useT";
-import { speak } from "@/lib/audio";
+import { speak, stopAll } from "@/lib/audio";
 
 type StepType = "hook" | "introduce" | "repeat" | "see" | "challenge" | "celebrate";
 
@@ -66,6 +66,9 @@ export default function LessonPlayer() {
   const [stepIdx, setStepIdx] = useState(0);
   const [stars, setStars] = useState(0);
   const [feedback, setFeedback] = useState<"" | "ok" | "no">("");
+
+  // Stop audio when navigating away from the lesson
+  useEffect(() => () => { stopAll(); }, []);
 
   const step = steps[stepIdx];
   const progressVal = stepIdx / (steps.length - 1);

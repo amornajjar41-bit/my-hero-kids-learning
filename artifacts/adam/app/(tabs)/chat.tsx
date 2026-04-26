@@ -34,7 +34,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useT, useLang } from "@/hooks/useT";
 import { chatSend, transcribe, type ChatMessage } from "@/lib/api";
-import { speak, stop as stopAudio } from "@/lib/audio";
+import { speak, stopAll as stopAudio } from "@/lib/audio";
 import { getJSON, setJSON, STORAGE_KEYS, type SafetyAlert, type ChildMemory, defaultChildMemory } from "@/lib/storage";
 
 // ── Typing indicator (3 bouncing dots) ─────────────────────────────────────

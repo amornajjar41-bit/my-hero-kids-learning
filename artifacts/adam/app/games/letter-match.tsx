@@ -11,7 +11,7 @@ import { letterMatchPairs } from "@/constants/games-data";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang, useT } from "@/hooks/useT";
-import { speak, stop as stopAudio } from "@/lib/audio";
+import { speak, stopAll as stopAudio } from "@/lib/audio";
 
 export default function LetterMatch() {
   const c = useColors();

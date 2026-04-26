@@ -10,13 +10,16 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useT } from "@/hooks/useT";
-import { speak } from "@/lib/audio";
+import { speak, stopAll } from "@/lib/audio";
 
 export default function BirthdayCelebration() {
   const c = useColors();
   const router = useRouter();
   const t = useT();
   const { profile } = useApp();
+
+  // Stop audio on unmount / navigation away
+  useEffect(() => () => { stopAll(); }, []);
 
   useEffect(() => {
     const voice = profile?.hero === "girl" ? "nova" : "echo";

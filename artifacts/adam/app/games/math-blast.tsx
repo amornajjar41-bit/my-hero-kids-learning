@@ -11,7 +11,7 @@ import { mathLevels } from "@/constants/games-data";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useT } from "@/hooks/useT";
-import { speak, stop as stopAudio } from "@/lib/audio";
+import { speak, stopAll as stopAudio } from "@/lib/audio";
 
 type Q = { a: number; b: number; op: string; ans: number };
 

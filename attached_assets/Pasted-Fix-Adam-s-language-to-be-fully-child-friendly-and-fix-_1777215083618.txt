@@ -1,0 +1,27 @@
+Fix Adam’s language to be fully child-friendly and fix all audio glitches:
+FIX 1 — Remove All Non-Child-Friendly Phrases:
+Adam is currently using adult therapy and mindfulness language that sounds completely wrong for children. Remove and replace every instance of these phrases from Adam’s responses permanently:
+FORBIDDEN PHRASES — never use these ever:
+	•	“Take a deep breath”
+	•	“Let’s slow down”
+	•	“I understand your frustration”
+	•	“Let’s pause for a moment”
+	•	“Take your time”
+	•	“That’s okay, breathe”
+	•	“Let’s reset”
+	•	“I hear you”
+	•	“That must be difficult”
+	•	“Let’s be mindful”
+	•	Any therapy-style or adult wellness language
+REPLACE WITH child-friendly alternatives:
+	•	Instead of “Take a deep breath” → “Heyyy no worries superhero! Let’s try a different way! 💪”
+	•	Instead of “Let’s slow down” → “Ooh wait wait wait — let’s look at this together! 🔍”
+	•	Instead of “I understand your frustration” → “Ugh I know, tricky stuff! But YOU can do this! 🌟”
+	•	Instead of “That’s okay, breathe” → “No biggie! Even superheroes need to try twice! 🦸”
+	•	Instead of “Let’s pause” → “Hmm let me think… 🤔 OH I have an idea!”
+Update Adam’s system prompt to strictly forbid any language that sounds like adult therapy, meditation, or corporate communication. Adam must always sound like an excited knowledgeable best friend who is also a superhero — never like a therapist or a robot.
+FIX 2 — Complete Audio Glitch Fix:
+There is a persistent audio glitch where multiple audio streams play simultaneously causing overlapping sounds and distortion. Fix this with a complete rewrite of the audio management system:
+Create a single global AudioManager class that is the ONLY way audio is played anywhere in the entire app. This class must: keep track of exactly one active audio instance at all times, before playing any new sound call stop() and then set the src to empty string on the current audio instance to fully release it from memory, wait 50 milliseconds after stopping before starting new audio to prevent overlap, never create new Audio() objects — reuse the same single instance for all speech, use a separate single instance only for short UI sound effects like clicks and celebrations. The AudioManager must be imported and used by every single component that plays audio — chat, lessons, games, stories, push to talk. No component is allowed to create its own Audio() object independently.
+FIX 3 — Fix Audio Glitch on Screen Navigation:
+Every time the user navigates to a different screen or component unmounts, call AudioManager.stopAll() immediately. Add this cleanup to: every game component, the chat component, the lesson component, the stories player, and the push to talk component. This ensures zero audio bleeds from one screen to another under any circumstances.
