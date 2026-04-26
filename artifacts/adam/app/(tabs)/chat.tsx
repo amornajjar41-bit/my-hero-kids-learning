@@ -391,7 +391,7 @@ export default function Chat() {
   };
 
   const { height: screenH } = useWindowDimensions();
-  const charSize = Math.min(Math.max(screenH * 0.28, 160), 220);
+  const charSize = Math.min(Math.max(screenH * 0.16, 100), 130);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
