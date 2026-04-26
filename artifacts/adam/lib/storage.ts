@@ -45,6 +45,24 @@ export type SafetyAlert = {
   alertType: string;
 };
 
+export type ChildMemory = {
+  strongSubjects: string[];
+  weakSubjects: string[];
+  interests: string[];
+  learningPace: "fast" | "normal" | "slow";
+  recentTopics: string[];
+  lastUpdated: string;
+};
+
+export const defaultChildMemory: ChildMemory = {
+  strongSubjects: [],
+  weakSubjects: [],
+  interests: [],
+  learningPace: "normal",
+  recentTopics: [],
+  lastUpdated: "",
+};
+
 export const STORAGE_KEYS = {
   profile: "adam.profile.v1",
   progress: "adam.progress.v1",
@@ -53,6 +71,8 @@ export const STORAGE_KEYS = {
   storiesListened: "adam.stories.v1",
   voiceTutorialDone: "adam.voice.tutorial.v1",
   safetyAlerts: "adam.safety.v1",
+  childMemory: "adam.memory.v1",
+  termsAccepted: "adam.terms.v1",
 };
 
 export async function getJSON<T>(key: string): Promise<T | null> {

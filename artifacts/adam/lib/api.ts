@@ -37,14 +37,22 @@ export type ChatMessage = {
   imageBase64?: string;
 };
 
+export type ChildMemoryForApi = {
+  strongSubjects?: string[];
+  weakSubjects?: string[];
+  interests?: string[];
+  learningPace?: "fast" | "normal" | "slow";
+  recentTopics?: string[];
+};
+
 export async function chatSend(opts: {
   language: "en" | "ar";
   childName: string;
   heroName?: string;
   ageGroup: "4-6" | "7-9" | "10-12";
   history: ChatMessage[];
+  childMemory?: ChildMemoryForApi | null;
 }): Promise<{ reply: string; safetyAlert: string | null }> {
-  // Convert to server format (messages with content + optional imageBase64 at root)
   const last = opts.history[opts.history.length - 1];
   const imageBase64 = last?.imageBase64;
   const messages = opts.history.map((m) => ({ role: m.role, content: m.text }));
@@ -55,6 +63,7 @@ export async function chatSend(opts: {
     heroName: opts.heroName,
     ageGroup: opts.ageGroup,
     imageBase64,
+    childMemory: opts.childMemory ?? null,
   });
 }
 
@@ -63,6 +72,7 @@ export async function ttsSpeak(opts: {
   voice?: "echo" | "nova";
   speed?: number;
   maxChars?: number;
+  contentType?: "explanation" | "greeting" | "celebration" | "story";
 }): Promise<{ audioBase64: string; mimeType: string }> {
   return postJSON("/api/tts", opts);
 }

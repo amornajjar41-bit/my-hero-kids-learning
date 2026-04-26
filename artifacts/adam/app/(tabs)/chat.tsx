@@ -35,7 +35,7 @@ import { useApp } from "@/contexts/AppContext";
 import { useT, useLang } from "@/hooks/useT";
 import { chatSend, transcribe, type ChatMessage } from "@/lib/api";
 import { speak } from "@/lib/audio";
-import { getJSON, setJSON, STORAGE_KEYS, type SafetyAlert } from "@/lib/storage";
+import { getJSON, setJSON, STORAGE_KEYS, type SafetyAlert, type ChildMemory, defaultChildMemory } from "@/lib/storage";
 
 // ── Typing indicator (3 bouncing dots) ─────────────────────────────────────
 function TypingBubble({ lang }: { lang: string }) {
@@ -305,6 +305,7 @@ export default function Chat() {
   const [micError, setMicError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [adamPose, setAdamPose] = useState<CharacterPose>("normal");
+  const [childMemory, setChildMemory] = useState<ChildMemory>(defaultChildMemory);
   const scrollRef = useRef<ScrollView>(null);
   const recStartTime = useRef<number>(0);
   const pttScale = useRef(new Animated.Value(1)).current;
@@ -317,6 +318,9 @@ export default function Chat() {
       setHistoryLoaded(true);
       const tutDone = await getJSON<boolean>(STORAGE_KEYS.voiceTutorialDone);
       if (!tutDone) setShowTutorial(true);
+      // Load child memory profile
+      const mem = await getJSON<ChildMemory>(STORAGE_KEYS.childMemory);
+      if (mem) setChildMemory(mem);
     })();
   }, []);
 
@@ -372,7 +376,34 @@ export default function Chat() {
         heroName,
         ageGroup: profile?.ageGroup ?? "7-9",
         history: newHistory,
+        childMemory,
       });
+
+      // Update child memory with recent topic
+      const userText = userMsg.text.toLowerCase();
+      const topicHints: Record<string, string[]> = {
+        "math": ["math","number","add","subtract","multiply","divide","fraction","equation","رياضيات","جمع","طرح","ضرب","قسمة"],
+        "science": ["science","biology","chemistry","physics","planet","space","علوم","فيزياء","كيمياء","فضاء"],
+        "english": ["english","grammar","sentence","word","verb","noun","إنجليزي","grammar","جملة"],
+        "arabic": ["arabic","عربي","نحو","صرف","قراءة"],
+        "history": ["history","تاريخ"],
+        "geography": ["geography","جغرافيا"],
+      };
+      let detectedTopic: string | null = null;
+      for (const [topic, keywords] of Object.entries(topicHints)) {
+        if (keywords.some(k => userText.includes(k))) { detectedTopic = topic; break; }
+      }
+      if (detectedTopic) {
+        setChildMemory(prev => {
+          const updated = {
+            ...prev,
+            recentTopics: [...(prev.recentTopics ?? []).filter(t => t !== detectedTopic).slice(-4), detectedTopic!],
+            lastUpdated: new Date().toISOString(),
+          };
+          setJSON(STORAGE_KEYS.childMemory, updated).catch(() => {});
+          return updated;
+        });
+      }
 
       // Save safety alerts silently to AsyncStorage for parent review
       if (safetyAlert && userMsg.text) {

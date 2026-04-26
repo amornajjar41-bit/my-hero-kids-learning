@@ -8,6 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BadgeShelf } from "@/components/BadgeShelf";
 import { Greeting } from "@/components/Greeting";
+import { HeroLogo } from "@/components/HeroLogo";
 import { SoftCard } from "@/components/SoftCard";
 import { SoundToggle } from "@/components/SoundToggle";
 import { StreakCard } from "@/components/StreakCard";
@@ -92,6 +93,11 @@ export default function Home() {
         contentContainerStyle={{ padding: 18, gap: 16, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* Logo row */}
+        <View style={{ alignItems: "center", paddingVertical: 4 }}>
+          <HeroLogo size="md" />
+        </View>
+
         <View
           style={{
             flexDirection: "row",
@@ -99,15 +105,11 @@ export default function Home() {
             alignItems: "center",
           }}
         >
-          <Text
-            style={{ color: c.mutedForeground, fontWeight: "700", fontSize: 12 }}
-          >
-            {t("appName").toUpperCase()}
-          </Text>
+          <View />
           <View style={{ flexDirection: "row", gap: 10 }}>
             <SoundToggle />
             <Pressable
-              onPress={() => router.push("/parent")}
+              onPress={() => { playChime("tap"); router.push("/parent"); }}
               style={({ pressed }) => ({
                 paddingHorizontal: 14,
                 height: 44,

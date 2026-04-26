@@ -28,10 +28,16 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 ## Adam – Kids Learning App (artifacts/adam)
 
-Expo mobile app for ages 5–15: bilingual EN/AR homework helper (guides, never gives answers) + Learn EN/AR + 4 games (Word Puzzle, Math Blast, Letter Match, Jigsaw) + parent dashboard.
+Expo mobile app for ages 3–15: bilingual EN/AR homework helper (guides, never gives answers) + Learn EN/AR + 6 games + parent dashboard. Brand: "My Hero".
 
 - **Stack**: Expo SDK 54 + expo-router, AsyncStorage, expo-audio, expo-image-picker, expo-haptics, expo-linear-gradient, react-native-reanimated.
-- **Backend routes** (artifacts/api-server): `/api/chat` (text+image, hint-only), `/api/tts` (echo=boy, nova=girl), `/api/transcribe`, `/api/parent/weekly-report`.
-- **Trial / Paywall**: 3-day free trial → $19.99/mo or $189/yr (demo only — no charges).
-- **Screens**: onboarding (welcome→hero→parent→child→birthday→done), tabs (home/chat/learn/games), learn/[language], learn/lesson/[id] with Hook→Introduce→See→Challenge→Celebrate flow, dictionary, 4 games, parent (dashboard/controls/upgrade/why-adam), blocked (screen-time), birthday-celebration.
-- **Storage**: profile + progress in AsyncStorage; weekly bar chart, streaks, badges, monthly active days.
+- **Backend routes** (artifacts/api-server): `/api/chat` (text+image, hint-only, childMemory injection), `/api/tts` (echo=boy, nova=girl, contentType param for speed control), `/api/transcribe`, `/api/parent/weekly-report`.
+- **Trial / Paywall**: 7-day free trial → $19.99/mo or $189/yr (demo only — no charges).
+- **Screens**: onboarding (welcome→hero→parent[T&C checkbox]→child→birthday→done), tabs (home/chat/learn/games), learn/[language], learn/lesson/[id] with Hook→Introduce→See→Challenge→Celebrate flow, dictionary, 6 games, parent (dashboard/controls/upgrade/why-adam), terms, blocked (screen-time), birthday-celebration.
+- **Storage keys**: profile, progress, chatHistory, onboardingDone, storiesListened, voiceTutorialDone, safetyAlerts, childMemory (learning profile), termsAccepted.
+- **Games**: Word Puzzle, Math Blast, Letter Match, Jigsaw, Story Builder (📖 branching narrative + science facts), Memory Champion (🧠 Word Flash + Color Sequence + Story Memory).
+- **AI chat**: Upgraded system prompt with Socratic teaching, emotional intelligence, age adaptation (3-5/6-8/9-12 rules). Child memory profile (strong/weak subjects, interests, pace, recent topics) loaded and sent with every request. Memory auto-updated from detected keywords.
+- **TTS**: contentType param → "explanation" = slow+calm teacher, "story" = soothing storyteller, "celebration" = energetic, "greeting" = warm. Pauses inserted between sentences.
+- **Sound effects**: chime.ts synthesizes all sounds client-side via Web Audio API — tap/pop, success, unlock, sparkle, whoosh, bell, wrong, celebration.
+- **Logo**: HeroLogo component (shield + gradient + star) displayed at top of home screen.
+- **Terms**: Full bilingual T&C page at /terms. Checkbox required during onboarding. Link in parent dashboard.

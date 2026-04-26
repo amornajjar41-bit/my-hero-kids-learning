@@ -206,6 +206,21 @@ export default function ParentDashboard() {
           </SoftCard>
         </Pressable>
 
+        <Pressable onPress={() => router.push("/terms" as any)} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+          <SoftCard style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Text style={{ fontSize: 30 }}>📋</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: "800", color: c.text, fontSize: 16 }}>
+                {lang === "ar" ? "الشروط والأحكام" : "Terms & Conditions"}
+              </Text>
+              <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
+                {lang === "ar" ? "الخصوصية، الاشتراك، حقوق الأطفال" : "Privacy, subscription & children's rights"}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={c.mutedForeground} />
+          </SoftCard>
+        </Pressable>
+
         <PrimaryButton
           title={sentMsg || t("sendWeeklyReport")}
           variant="secondary"
