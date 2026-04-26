@@ -206,6 +206,21 @@ export const t = {
     ar: "اليوم يومك الخاص! اتمنى أمنية… ويلا نحتفل طول اليوم! 🌟🚀💫",
   },
 
+  // Stories
+  bedtimeStories: { en: "Stories 📖", ar: "قصص 📖" },
+  storiesTitle: { en: "Bedtime Stories 🌙", ar: "قصص قبل النوم 🌙" },
+
+  // Voice tutorial
+  voiceTutorialTitle: { en: "Your voice is my superpower! 🎤", ar: "صوتك قوتي الخارقة! 🎤" },
+  voiceTutorialBody: {
+    en: "See the big orange button? Hold it and ask me ANYTHING — math, English, Arabic, anything! I'm all ears! 🦸",
+    ar: "شايف الزر البرتقالي الكبير؟ اضغط عليه وسألني أي شي — رياضيات، إنجليزي، عربي، أي شي! أنا كلي آذان! 🦸",
+  },
+  voiceTutorialGo: { en: "Got it! Let's go! 🚀", ar: "فهمت! يلا نبدأ! 🚀" },
+  holdToTalk: { en: "Hold to talk 🎤", ar: "اضغط وحكي 🎤" },
+  recording: { en: "Listening… release to send", ar: "أستمع… ارفع إصبعك للإرسال" },
+  tooShort: { en: "Try again, I didn't hear you! 🎤", ar: "حاول مرة ثانية، ما سمعتك! 🎤" },
+
   // Misc
   loading: { en: "Loading…", ar: "تحميل…" },
 };

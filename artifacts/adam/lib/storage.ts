@@ -43,6 +43,8 @@ export const STORAGE_KEYS = {
   progress: "adam.progress.v1",
   chatHistory: "adam.chat.v1",
   onboardingDone: "adam.onboarding.done.v1",
+  storiesListened: "adam.stories.v1",
+  voiceTutorialDone: "adam.voice.tutorial.v1",
 };
 
 export async function getJSON<T>(key: string): Promise<T | null> {
