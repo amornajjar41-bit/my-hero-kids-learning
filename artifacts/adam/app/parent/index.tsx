@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/components/PrimaryButton";
@@ -14,10 +14,17 @@ import { getJSON, STORAGE_KEYS, type SafetyAlert } from "@/lib/storage";
 import { trialDaysLeft } from "@/lib/utils";
 import ParentPin from "./pin";
 
+function getBaseUrl(): string {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  return domain ? `https://${domain}` : "";
+}
+
 export type { SafetyAlert };
 
 const dayLabelsEn = ["S", "M", "T", "W", "T", "F", "S"];
 const dayLabelsAr = ["ح", "ن", "ث", "ر", "خ", "ج", "س"];
+
+type AdminJob = "lessons" | "stories" | null;
 
 export default function ParentDashboard() {
   const c = useColors();
@@ -31,6 +38,61 @@ export default function ParentDashboard() {
   const [sentMsg, setSentMsg] = useState<string>("");
   const [sending, setSending] = useState(false);
   const [safetyAlerts, setSafetyAlerts] = useState<SafetyAlert[]>([]);
+
+  // Admin audio generation
+  const [adminJob, setAdminJob] = useState<AdminJob>(null);
+  const [adminLog, setAdminLog] = useState<string[]>([]);
+  const [adminDone, setAdminDone] = useState<{ lessons?: boolean; stories?: boolean }>({});
+  const abortRef = useRef<AbortController | null>(null);
+
+  const runAdminJob = async (job: AdminJob) => {
+    if (!job || adminJob) return;
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setAdminJob(job);
+    setAdminLog([`Starting ${job}…`]);
+    const endpoint = job === "lessons" ? "/api/admin/generate-lesson-audio" : "/api/admin/generate-stories";
+    try {
+      const base = getBaseUrl();
+      const res = await fetch(`${base}${endpoint}`, {
+        method: "POST",
+        signal: ctrl.signal,
+        headers: { Accept: "text/event-stream" },
+      });
+      if (!res.body) throw new Error("No stream");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const raw = line.slice(6).trim();
+            try {
+              const ev = JSON.parse(raw) as { type: string; message?: string; total?: number; done?: number };
+              if (ev.type === "progress" && ev.message) {
+                setAdminLog((prev) => [...prev.slice(-19), ev.message!]);
+              } else if (ev.type === "complete") {
+                setAdminLog((prev) => [...prev, "✅ Done!"]);
+                setAdminDone((d) => ({ ...d, [job]: true }));
+              } else if (ev.type === "error" && ev.message) {
+                setAdminLog((prev) => [...prev, `⚠️ ${ev.message}`]);
+              }
+            } catch { /* ignore non-JSON */ }
+          }
+        }
+      }
+    } catch (e: any) {
+      if (e?.name !== "AbortError") setAdminLog((prev) => [...prev, `Error: ${e?.message}`]);
+    } finally {
+      setAdminJob(null);
+    }
+  };
 
   useEffect(() => {
     getJSON<SafetyAlert[]>(STORAGE_KEYS.safetyAlerts).then((v) => {
@@ -303,6 +365,56 @@ export default function ParentDashboard() {
           loading={sending}
           onPress={sendReport}
         />
+
+        {/* Admin: Audio Generation */}
+        <SoftCard>
+          <Text style={{ fontWeight: "800", color: c.text, fontSize: 15, marginBottom: 10 }}>
+            🎙️ {lang === "ar" ? "توليد الصوت (للمطور)" : "Audio Generation (Admin)"}
+          </Text>
+          <View style={{ gap: 10 }}>
+            <Pressable
+              disabled={!!adminJob}
+              onPress={() => runAdminJob("lessons")}
+              style={({ pressed }) => ({
+                backgroundColor: adminDone.lessons ? c.green : c.primary,
+                borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16,
+                flexDirection: "row", alignItems: "center", gap: 8,
+                opacity: adminJob && adminJob !== "lessons" ? 0.4 : pressed ? 0.85 : 1,
+              })}
+            >
+              {adminJob === "lessons" && <ActivityIndicator color="#FFF" size="small" />}
+              <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 14 }}>
+                {adminDone.lessons ? "✅ " : ""}{lang === "ar" ? "توليد صوت الدروس والألعاب" : "Generate Lesson & Game Audio"}
+              </Text>
+            </Pressable>
+            <Pressable
+              disabled={!!adminJob}
+              onPress={() => runAdminJob("stories")}
+              style={({ pressed }) => ({
+                backgroundColor: adminDone.stories ? c.green : "#1A0F3F",
+                borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16,
+                flexDirection: "row", alignItems: "center", gap: 8,
+                opacity: adminJob && adminJob !== "stories" ? 0.4 : pressed ? 0.85 : 1,
+              })}
+            >
+              {adminJob === "stories" && <ActivityIndicator color="#FFF" size="small" />}
+              <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 14 }}>
+                {adminDone.stories ? "✅ " : ""}{lang === "ar" ? "توليد صوت القصص" : "Generate Stories Audio"}
+              </Text>
+            </Pressable>
+          </View>
+          {adminLog.length > 0 && (
+            <View style={{ marginTop: 10, backgroundColor: c.muted, borderRadius: 10, padding: 10, maxHeight: 140 }}>
+              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                {adminLog.map((line, i) => (
+                  <Text key={i} style={{ color: c.mutedForeground, fontSize: 11, fontFamily: "monospace", lineHeight: 16 }}>
+                    {line}
+                  </Text>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+        </SoftCard>
 
         {/* Logout / Switch Profile */}
         <Pressable

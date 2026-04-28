@@ -58,5 +58,17 @@ Expo SDK 54 + expo-router mobile app for ages 3–15: bilingual EN/AR homework h
 - **Screens**: onboarding (welcome→hero→parent→child→birthday→done), tabs (home/chat/learn/games), learn/[language], learn/lesson/[id], 6 games, parent (PIN+dashboard+controls+why-adam+upgrade), terms, blocked (4B sleeping screen), birthday-celebration (4D party hat+confetti).
 - **DB Tables**: users, children, messages, ai_cache, lesson_progress, safety_alerts, app_settings, curriculum_cache, daily_tips.
 - **New Components**: Tour.tsx (4C), DailyTip.tsx (4D).
-- **New Screens**: parent/pin.tsx (5A).
+- **New Screens**: parent/pin.tsx (5A), stories/index.tsx + stories/[id].tsx (6B).
 - **Sound effects**: chime.ts synthesizes all sounds client-side via Web Audio API. Tour/birthday audio via expo-speech (device TTS, zero API calls).
+- **6A – Pre-Generated Lesson/Game Audio**:
+  - `lib/lessonAudio.ts` — in-memory preloader/cache. Calls POST /api/audio/batch to batch-fetch base64 MP3s from Supabase Storage and caches them in memory. `playPreloaded(path, fallback?)` plays in <100ms; falls back to live TTS if not cached.
+  - Games updated: word-puzzle plays hint on display + reveal on correct; letter-match plays pronunciation on card flip + celebration phrase on correct; math-blast reads aloud number+operator+number on question load; jigsaw plays fun-fact audio on puzzle completion.
+  - Lesson player updated: preloads all word audio on mount, plays pronunciation/hint/reveal from cache.
+  - Admin SSE endpoints: POST /api/admin/generate-lesson-audio (lessons+games), POST /api/admin/generate-stories, GET /api/admin/status — stream progress via SSE.
+  - Batch proxy: POST /api/audio/batch — fetches up to 200 Supabase Storage objects per call, returns `{ audios: { path: base64 } }`. 2000-item server-side LRU cache.
+- **6B – Bedtime Stories**:
+  - `constants/stories.ts` — 10 story definitions (5 Arabic + 5 English) with id, lang, title, emoji, moral, sentences[].
+  - `app/stories/index.tsx` — list screen grouped by language with emoji, title, and moral preview.
+  - `app/stories/[id].tsx` — sentence-by-sentence reader with auto-play, manual prev/next/tap controls, progress dots, full story list, and "The End" confetti screen.
+  - Learn tab has a new "Bedtime Stories" card (dark navy) linking to /stories.
+  - Parent dashboard has admin section at bottom for triggering SSE audio generation with real-time log output.

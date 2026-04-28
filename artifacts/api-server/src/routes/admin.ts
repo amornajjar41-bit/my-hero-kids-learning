@@ -1,0 +1,575 @@
+/**
+ * Admin routes — pre-generate lesson audio (6A) and story audio (6B)
+ * POST /api/admin/generate-lesson-audio  → SSE stream
+ * POST /api/admin/generate-stories       → SSE stream
+ * GET  /api/admin/status                 → {lessonsAudioGenerated, storiesGenerated}
+ */
+import { Router, type IRouter, type Request, type Response } from "express";
+import { synthesize } from "../lib/edge-tts";
+import { supabase } from "../lib/supabase";
+
+const router: IRouter = Router();
+
+// ── Voices ────────────────────────────────────────────────────────────────────
+const LESSON_VOICE_EN = "en-US-AnaNeural";
+const LESSON_VOICE_AR = "ar-SA-ZariyahNeural";
+const STORY_VOICE_EN  = "en-US-JennyNeural";
+const STORY_VOICE_AR  = "ar-SA-ZariyahNeural";
+
+// ── Number-to-words helpers ───────────────────────────────────────────────────
+const EN_ONES = ["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+const EN_TENS = ["","","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
+
+function numToEnWords(n: number): string {
+  if (n < 20) return EN_ONES[n]!;
+  if (n < 100) return EN_TENS[Math.floor(n / 10)]! + (n % 10 ? " " + EN_ONES[n % 10]! : "");
+  return "one hundred";
+}
+
+const AR_ONES = ["صفر","واحد","اثنان","ثلاثة","أربعة","خمسة","ستة","سبعة","ثمانية","تسعة","عشرة","أحد عشر","اثنا عشر","ثلاثة عشر","أربعة عشر","خمسة عشر","ستة عشر","سبعة عشر","ثمانية عشر","تسعة عشر"];
+const AR_TENS = ["","","عشرون","ثلاثون","أربعون","خمسون","ستون","سبعون","ثمانون","تسعون"];
+
+function numToArWords(n: number): string {
+  if (n < 20) return AR_ONES[n]!;
+  if (n < 100) return EN_TENS[Math.floor(n / 10)]! + (n % 10 ? " و" + AR_ONES[n % 10]! : AR_TENS[Math.floor(n / 10)]!);
+  return "مئة";
+}
+
+// ── Lesson curriculum data ────────────────────────────────────────────────────
+type WordItem = { lessonId: string; wordIndex: number; en: string; ar: string };
+
+const LESSON_WORDS: WordItem[] = [
+  // en-u1-l1 Colors
+  { lessonId:"en-u1-l1", wordIndex:0, en:"Red", ar:"أحمر" },
+  { lessonId:"en-u1-l1", wordIndex:1, en:"Blue", ar:"أزرق" },
+  { lessonId:"en-u1-l1", wordIndex:2, en:"Green", ar:"أخضر" },
+  { lessonId:"en-u1-l1", wordIndex:3, en:"Yellow", ar:"أصفر" },
+  { lessonId:"en-u1-l1", wordIndex:4, en:"Purple", ar:"بنفسجي" },
+  { lessonId:"en-u1-l1", wordIndex:5, en:"Orange", ar:"برتقالي" },
+  { lessonId:"en-u1-l1", wordIndex:6, en:"Pink", ar:"وردي" },
+  { lessonId:"en-u1-l1", wordIndex:7, en:"White", ar:"أبيض" },
+  { lessonId:"en-u1-l1", wordIndex:8, en:"Black", ar:"أسود" },
+  // en-u1-l2 Numbers
+  { lessonId:"en-u1-l2", wordIndex:0, en:"One", ar:"واحد" },
+  { lessonId:"en-u1-l2", wordIndex:1, en:"Two", ar:"اثنان" },
+  { lessonId:"en-u1-l2", wordIndex:2, en:"Three", ar:"ثلاثة" },
+  { lessonId:"en-u1-l2", wordIndex:3, en:"Four", ar:"أربعة" },
+  { lessonId:"en-u1-l2", wordIndex:4, en:"Five", ar:"خمسة" },
+  { lessonId:"en-u1-l2", wordIndex:5, en:"Six", ar:"ستة" },
+  { lessonId:"en-u1-l2", wordIndex:6, en:"Seven", ar:"سبعة" },
+  { lessonId:"en-u1-l2", wordIndex:7, en:"Eight", ar:"ثمانية" },
+  { lessonId:"en-u1-l2", wordIndex:8, en:"Nine", ar:"تسعة" },
+  { lessonId:"en-u1-l2", wordIndex:9, en:"Ten", ar:"عشرة" },
+  // en-u1-l3 Animals
+  { lessonId:"en-u1-l3", wordIndex:0, en:"Cat", ar:"قطة" },
+  { lessonId:"en-u1-l3", wordIndex:1, en:"Dog", ar:"كلب" },
+  { lessonId:"en-u1-l3", wordIndex:2, en:"Elephant", ar:"فيل" },
+  { lessonId:"en-u1-l3", wordIndex:3, en:"Lion", ar:"أسد" },
+  { lessonId:"en-u1-l3", wordIndex:4, en:"Bird", ar:"طائر" },
+  { lessonId:"en-u1-l3", wordIndex:5, en:"Fish", ar:"سمكة" },
+  { lessonId:"en-u1-l3", wordIndex:6, en:"Rabbit", ar:"أرنب" },
+  { lessonId:"en-u1-l3", wordIndex:7, en:"Horse", ar:"حصان" },
+  // en-u1-l4 My Body
+  { lessonId:"en-u1-l4", wordIndex:0, en:"Head", ar:"رأس" },
+  { lessonId:"en-u1-l4", wordIndex:1, en:"Eyes", ar:"عيون" },
+  { lessonId:"en-u1-l4", wordIndex:2, en:"Nose", ar:"أنف" },
+  { lessonId:"en-u1-l4", wordIndex:3, en:"Mouth", ar:"فم" },
+  { lessonId:"en-u1-l4", wordIndex:4, en:"Ears", ar:"أذنان" },
+  { lessonId:"en-u1-l4", wordIndex:5, en:"Hands", ar:"يدان" },
+  { lessonId:"en-u1-l4", wordIndex:6, en:"Feet", ar:"قدمان" },
+  // en-u1-l5 Family
+  { lessonId:"en-u1-l5", wordIndex:0, en:"Mom", ar:"ماما" },
+  { lessonId:"en-u1-l5", wordIndex:1, en:"Dad", ar:"بابا" },
+  { lessonId:"en-u1-l5", wordIndex:2, en:"Brother", ar:"أخ" },
+  { lessonId:"en-u1-l5", wordIndex:3, en:"Sister", ar:"أخت" },
+  { lessonId:"en-u1-l5", wordIndex:4, en:"Grandma", ar:"تيتا" },
+  { lessonId:"en-u1-l5", wordIndex:5, en:"Grandpa", ar:"جدو" },
+  // en-u2-l6 Morning Routine
+  { lessonId:"en-u2-l6", wordIndex:0, en:"Wake up", ar:"أستيقظ" },
+  { lessonId:"en-u2-l6", wordIndex:1, en:"Brush teeth", ar:"أنظف أسناني" },
+  { lessonId:"en-u2-l6", wordIndex:2, en:"Breakfast", ar:"أتناول الفطور" },
+  { lessonId:"en-u2-l6", wordIndex:3, en:"Go to school", ar:"أذهب للمدرسة" },
+  // en-u2-l7 Food & Drinks
+  { lessonId:"en-u2-l7", wordIndex:0, en:"Bread", ar:"خبز" },
+  { lessonId:"en-u2-l7", wordIndex:1, en:"Milk", ar:"حليب" },
+  { lessonId:"en-u2-l7", wordIndex:2, en:"Apple", ar:"تفاحة" },
+  { lessonId:"en-u2-l7", wordIndex:3, en:"Rice", ar:"أرز" },
+  { lessonId:"en-u2-l7", wordIndex:4, en:"Water", ar:"ماء" },
+  { lessonId:"en-u2-l7", wordIndex:5, en:"Juice", ar:"عصير" },
+  { lessonId:"en-u2-l7", wordIndex:6, en:"Egg", ar:"بيضة" },
+  { lessonId:"en-u2-l7", wordIndex:7, en:"Cheese", ar:"جبنة" },
+  // en-u2-l8 Places
+  { lessonId:"en-u2-l8", wordIndex:0, en:"School", ar:"مدرسة" },
+  { lessonId:"en-u2-l8", wordIndex:1, en:"Home", ar:"بيت" },
+  { lessonId:"en-u2-l8", wordIndex:2, en:"Park", ar:"حديقة" },
+  { lessonId:"en-u2-l8", wordIndex:3, en:"Hospital", ar:"مستشفى" },
+  { lessonId:"en-u2-l8", wordIndex:4, en:"Market", ar:"سوق" },
+  { lessonId:"en-u2-l8", wordIndex:5, en:"Mosque", ar:"مسجد" },
+  // en-u2-l9 Feelings
+  { lessonId:"en-u2-l9", wordIndex:0, en:"Happy", ar:"سعيد" },
+  { lessonId:"en-u2-l9", wordIndex:1, en:"Sad", ar:"حزين" },
+  { lessonId:"en-u2-l9", wordIndex:2, en:"Angry", ar:"غاضب" },
+  { lessonId:"en-u2-l9", wordIndex:3, en:"Scared", ar:"خائف" },
+  { lessonId:"en-u2-l9", wordIndex:4, en:"Excited", ar:"متحمس" },
+  { lessonId:"en-u2-l9", wordIndex:5, en:"Tired", ar:"متعب" },
+  { lessonId:"en-u2-l9", wordIndex:6, en:"Surprised", ar:"متفاجئ" },
+  // en-u2-l10 Weather
+  { lessonId:"en-u2-l10", wordIndex:0, en:"Sunny", ar:"مشمس" },
+  { lessonId:"en-u2-l10", wordIndex:1, en:"Rainy", ar:"ممطر" },
+  { lessonId:"en-u2-l10", wordIndex:2, en:"Cloudy", ar:"غائم" },
+  { lessonId:"en-u2-l10", wordIndex:3, en:"Windy", ar:"عاصف" },
+  { lessonId:"en-u2-l10", wordIndex:4, en:"Snowy", ar:"ثلجي" },
+  { lessonId:"en-u2-l10", wordIndex:5, en:"Hot", ar:"حار" },
+  { lessonId:"en-u2-l10", wordIndex:6, en:"Cold", ar:"بارد" },
+  // en-u3-l11 Greetings
+  { lessonId:"en-u3-l11", wordIndex:0, en:"Hello", ar:"مرحبا" },
+  { lessonId:"en-u3-l11", wordIndex:1, en:"Good morning", ar:"صباح الخير" },
+  { lessonId:"en-u3-l11", wordIndex:2, en:"Good night", ar:"تصبح على خير" },
+  { lessonId:"en-u3-l11", wordIndex:3, en:"See you", ar:"إلى اللقاء" },
+  { lessonId:"en-u3-l11", wordIndex:4, en:"Goodbye", ar:"وداعاً" },
+  { lessonId:"en-u3-l11", wordIndex:5, en:"Nice to meet you", ar:"تشرفنا" },
+  // en-u3-l12 Action Words
+  { lessonId:"en-u3-l12", wordIndex:0, en:"Run", ar:"يركض" },
+  { lessonId:"en-u3-l12", wordIndex:1, en:"Jump", ar:"يقفز" },
+  { lessonId:"en-u3-l12", wordIndex:2, en:"Eat", ar:"يأكل" },
+  { lessonId:"en-u3-l12", wordIndex:3, en:"Sleep", ar:"ينام" },
+  { lessonId:"en-u3-l12", wordIndex:4, en:"Read", ar:"يقرأ" },
+  { lessonId:"en-u3-l12", wordIndex:5, en:"Write", ar:"يكتب" },
+  { lessonId:"en-u3-l12", wordIndex:6, en:"Play", ar:"يلعب" },
+  { lessonId:"en-u3-l12", wordIndex:7, en:"Laugh", ar:"يضحك" },
+  // ar-u1-l1 Letters Alif-Baa
+  { lessonId:"ar-u1-l1", wordIndex:0, en:"Alif", ar:"أ" },
+  { lessonId:"ar-u1-l1", wordIndex:1, en:"Baa", ar:"ب" },
+  { lessonId:"ar-u1-l1", wordIndex:2, en:"Taa", ar:"ت" },
+  { lessonId:"ar-u1-l1", wordIndex:3, en:"Thaa", ar:"ث" },
+  // ar-u1-l2 Letters Jeem-Thal
+  { lessonId:"ar-u1-l2", wordIndex:0, en:"Jeem", ar:"ج" },
+  { lessonId:"ar-u1-l2", wordIndex:1, en:"Haa", ar:"ح" },
+  { lessonId:"ar-u1-l2", wordIndex:2, en:"Khaa", ar:"خ" },
+  { lessonId:"ar-u1-l2", wordIndex:3, en:"Daal", ar:"د" },
+  { lessonId:"ar-u1-l2", wordIndex:4, en:"Thaal", ar:"ذ" },
+  // ar-u1-l3 Letters Raa-Sheen
+  { lessonId:"ar-u1-l3", wordIndex:0, en:"Raa", ar:"ر" },
+  { lessonId:"ar-u1-l3", wordIndex:1, en:"Zay", ar:"ز" },
+  { lessonId:"ar-u1-l3", wordIndex:2, en:"Seen", ar:"س" },
+  { lessonId:"ar-u1-l3", wordIndex:3, en:"Sheen", ar:"ش" },
+  // ar-u1-l4 Strong Letters
+  { lessonId:"ar-u1-l4", wordIndex:0, en:"Saad", ar:"ص" },
+  { lessonId:"ar-u1-l4", wordIndex:1, en:"Daad", ar:"ض" },
+  { lessonId:"ar-u1-l4", wordIndex:2, en:"Taa heavy", ar:"ط" },
+  { lessonId:"ar-u1-l4", wordIndex:3, en:"Zaa heavy", ar:"ظ" },
+  // ar-u2-l5 Colors AR
+  { lessonId:"ar-u2-l5", wordIndex:0, en:"Red", ar:"أحمر" },
+  { lessonId:"ar-u2-l5", wordIndex:1, en:"Blue", ar:"أزرق" },
+  { lessonId:"ar-u2-l5", wordIndex:2, en:"Green", ar:"أخضر" },
+  { lessonId:"ar-u2-l5", wordIndex:3, en:"Yellow", ar:"أصفر" },
+  { lessonId:"ar-u2-l5", wordIndex:4, en:"Purple", ar:"بنفسجي" },
+  { lessonId:"ar-u2-l5", wordIndex:5, en:"Orange", ar:"برتقالي" },
+  // ar-u2-l6 Numbers AR
+  { lessonId:"ar-u2-l6", wordIndex:0, en:"One", ar:"واحد" },
+  { lessonId:"ar-u2-l6", wordIndex:1, en:"Two", ar:"اثنان" },
+  { lessonId:"ar-u2-l6", wordIndex:2, en:"Three", ar:"ثلاثة" },
+  { lessonId:"ar-u2-l6", wordIndex:3, en:"Four", ar:"أربعة" },
+  { lessonId:"ar-u2-l6", wordIndex:4, en:"Five", ar:"خمسة" },
+  { lessonId:"ar-u2-l6", wordIndex:5, en:"Six", ar:"ستة" },
+  { lessonId:"ar-u2-l6", wordIndex:6, en:"Seven", ar:"سبعة" },
+  { lessonId:"ar-u2-l6", wordIndex:7, en:"Eight", ar:"ثمانية" },
+  { lessonId:"ar-u2-l6", wordIndex:8, en:"Nine", ar:"تسعة" },
+  { lessonId:"ar-u2-l6", wordIndex:9, en:"Ten", ar:"عشرة" },
+  // ar-u2-l7 Animals AR
+  { lessonId:"ar-u2-l7", wordIndex:0, en:"Lion", ar:"أسد" },
+  { lessonId:"ar-u2-l7", wordIndex:1, en:"Cat", ar:"قطة" },
+  { lessonId:"ar-u2-l7", wordIndex:2, en:"Dog", ar:"كلب" },
+  { lessonId:"ar-u2-l7", wordIndex:3, en:"Elephant", ar:"فيل" },
+  { lessonId:"ar-u2-l7", wordIndex:4, en:"Bird", ar:"طير" },
+  { lessonId:"ar-u2-l7", wordIndex:5, en:"Fish", ar:"سمكة" },
+  // ar-u2-l8 Body AR
+  { lessonId:"ar-u2-l8", wordIndex:0, en:"Head", ar:"رأس" },
+  { lessonId:"ar-u2-l8", wordIndex:1, en:"Eyes", ar:"عيون" },
+  { lessonId:"ar-u2-l8", wordIndex:2, en:"Nose", ar:"أنف" },
+  { lessonId:"ar-u2-l8", wordIndex:3, en:"Mouth", ar:"فم" },
+  { lessonId:"ar-u2-l8", wordIndex:4, en:"Hands", ar:"يدان" },
+  { lessonId:"ar-u2-l8", wordIndex:5, en:"Feet", ar:"قدمان" },
+  // ar-u2-l9 Family AR
+  { lessonId:"ar-u2-l9", wordIndex:0, en:"Mom", ar:"ماما" },
+  { lessonId:"ar-u2-l9", wordIndex:1, en:"Dad", ar:"بابا" },
+  { lessonId:"ar-u2-l9", wordIndex:2, en:"Brother", ar:"أخ" },
+  { lessonId:"ar-u2-l9", wordIndex:3, en:"Sister", ar:"أخت" },
+  { lessonId:"ar-u2-l9", wordIndex:4, en:"Grandma", ar:"تيتا" },
+  { lessonId:"ar-u2-l9", wordIndex:5, en:"Grandpa", ar:"جدو" },
+  // ar-u3-l10 Greetings AR
+  { lessonId:"ar-u3-l10", wordIndex:0, en:"Salaam", ar:"السلام عليكم" },
+  { lessonId:"ar-u3-l10", wordIndex:1, en:"Hello", ar:"مرحبا" },
+  { lessonId:"ar-u3-l10", wordIndex:2, en:"Good morning", ar:"صباح الخير" },
+  { lessonId:"ar-u3-l10", wordIndex:3, en:"Good evening", ar:"مساء الخير" },
+  { lessonId:"ar-u3-l10", wordIndex:4, en:"How are you", ar:"كيفك" },
+  { lessonId:"ar-u3-l10", wordIndex:5, en:"Good night", ar:"تصبح على خير" },
+  // ar-u3-l11 School AR
+  { lessonId:"ar-u3-l11", wordIndex:0, en:"Teacher", ar:"معلم" },
+  { lessonId:"ar-u3-l11", wordIndex:1, en:"Classroom", ar:"صف" },
+  { lessonId:"ar-u3-l11", wordIndex:2, en:"Book", ar:"كتاب" },
+  { lessonId:"ar-u3-l11", wordIndex:3, en:"Pencil", ar:"قلم" },
+  { lessonId:"ar-u3-l11", wordIndex:4, en:"Homework", ar:"واجب" },
+  { lessonId:"ar-u3-l11", wordIndex:5, en:"Exam", ar:"امتحان" },
+  { lessonId:"ar-u3-l11", wordIndex:6, en:"Friend", ar:"صديق" },
+  // ar-u3-l12 Verbs AR
+  { lessonId:"ar-u3-l12", wordIndex:0, en:"Run", ar:"يركض" },
+  { lessonId:"ar-u3-l12", wordIndex:1, en:"Jump", ar:"يقفز" },
+  { lessonId:"ar-u3-l12", wordIndex:2, en:"Eat", ar:"يأكل" },
+  { lessonId:"ar-u3-l12", wordIndex:3, en:"Sleep", ar:"ينام" },
+  { lessonId:"ar-u3-l12", wordIndex:4, en:"Read", ar:"يقرأ" },
+  { lessonId:"ar-u3-l12", wordIndex:5, en:"Write", ar:"يكتب" },
+  { lessonId:"ar-u3-l12", wordIndex:6, en:"Play", ar:"يلعب" },
+  { lessonId:"ar-u3-l12", wordIndex:7, en:"Laugh", ar:"يضحك" },
+];
+
+// ── Story sentences ───────────────────────────────────────────────────────────
+type StorySentence = { storyId: string; index: number; text: string; voice: string; rate: string; pitch: string };
+
+const STORY_SENTENCES: StorySentence[] = [
+  // Story 1 — الأسد الصغير الشجاع (Arabic)
+  ...([
+    "في غابة بعيدة... كان يعيش أسد صغير اسمه ليو.",
+    "كان ليو يحب اللعب... لكنه كان خائفاً من الظلام.",
+    "سمع صوت بكاء عصفور سقط من عشه.",
+    "قال... أنا خائف... لكن العصفور يحتاجني.",
+    "خطا نحو الظلام ووجد العصفور.",
+    "أدرك أن الشجاعة هي فعل الشيء الصحيح حتى وأنت خائف.",
+  ].map((text, index) => ({ storyId: "1", index, text, voice: STORY_VOICE_AR, rate: "-18%", pitch: "-2st" }))),
+  // Story 2 — نجمة المطر (Arabic)
+  ...([
+    "نجمة اسمها لمى بكت من الحنان على الأرض الجافة.",
+    "دموعها صارت مطراً فازهرت الأزهار وضحك الأطفال.",
+    "دموعها لم تكن ضعفاً... كانت هديتها للعالم.",
+  ].map((text, index) => ({ storyId: "2", index, text, voice: STORY_VOICE_AR, rate: "-18%", pitch: "-2st" }))),
+  // Story 3 — الفيل الذي نسي (Arabic)
+  ...([
+    "فيلو ينسى كل شيء.",
+    "جدته قالت: الذاكرة في القلب لا تنسى أبداً.",
+    "هل نسيت أن تحب أصدقاءك؟ لا أبداً.",
+    "إذن أنت لا تنسى ما يهم.",
+  ].map((text, index) => ({ storyId: "3", index, text, voice: STORY_VOICE_AR, rate: "-18%", pitch: "-2st" }))),
+  // Story 4 — الولد الذي زرع قمراً (Arabic)
+  ...([
+    "سامي وجد بذرة تلمع.",
+    "سقاها كل ليلة.",
+    "ضحك الجميع... لكنه لم يتوقف.",
+    "نبت ضوء أضاء القرية.",
+    "كل شيء جميل يحتاج وقتاً ومحبة وصبراً.",
+  ].map((text, index) => ({ storyId: "4", index, text, voice: STORY_VOICE_AR, rate: "-18%", pitch: "-2st" }))),
+  // Story 5 — سر المكتبة (Arabic)
+  ...([
+    "ليلى كرهت القراءة.",
+    "دخلت مكتبة وحيدة.",
+    "الكتب أخذتها في رحلات لعوالم مختلفة.",
+    "صباحاً كانت تمسك كتاباً ولا تستطيع التوقف.",
+  ].map((text, index) => ({ storyId: "5", index, text, voice: STORY_VOICE_AR, rate: "-18%", pitch: "-2st" }))),
+  // Story 6 — The Cloud Who Was Different (English)
+  ...([
+    "Pip the cloud could only make snowflakes.",
+    "Others laughed.",
+    "But on a hot day children danced with joy catching snowflakes.",
+    "Being different was not something to fix. It was something to share.",
+  ].map((text, index) => ({ storyId: "6", index, text, voice: STORY_VOICE_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 7 — The Lighthouse Cat (English)
+  ...([
+    "Mia the cat feared water.",
+    "But on a stormy night she woke keeper Tom to save a ship.",
+    "Love is always bigger than fear.",
+  ].map((text, index) => ({ storyId: "7", index, text, voice: STORY_VOICE_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 8 — The Boy Who Collected Sunsets (English)
+  ...([
+    "Omar drew every sunset.",
+    "People said it was a waste.",
+    "A famous artist saw his wall and said he captured what no camera could.",
+    "How each day felt when it ended.",
+  ].map((text, index) => ({ storyId: "8", index, text, voice: STORY_VOICE_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 9 — The Giant Who Was Lonely (English)
+  ...([
+    "Everyone feared giant Boru except Nadia who waved every day.",
+    "He slowly waved back.",
+    "What they feared was just lonely.",
+    "One wave can change everything.",
+  ].map((text, index) => ({ storyId: "9", index, text, voice: STORY_VOICE_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 10 — The Last Cookie (English)
+  ...([
+    "Zara and Max argued all day over the last cookie.",
+    "They fell asleep exhausted.",
+    "Mother ate it with tea.",
+    "Both children laughed in the morning.",
+    "Some arguments end with nobody winning. That is perfectly fine.",
+  ].map((text, index) => ({ storyId: "10", index, text, voice: STORY_VOICE_EN, rate: "-18%", pitch: "-1st" }))),
+];
+
+// ── Concurrency queue ─────────────────────────────────────────────────────────
+async function runConcurrent<T>(items: T[], maxConcurrent: number, fn: (item: T) => Promise<void>): Promise<void> {
+  const queue = [...items];
+  const workers = Array.from({ length: maxConcurrent }, async () => {
+    while (queue.length > 0) {
+      const item = queue.shift();
+      if (item !== undefined) await fn(item).catch(() => {});
+    }
+  });
+  await Promise.all(workers);
+}
+
+// ── Storage helpers ───────────────────────────────────────────────────────────
+async function fileExists(bucket: string, path: string): Promise<boolean> {
+  try {
+    const { data } = await supabase.storage.from(bucket).list(path.split("/").slice(0, -1).join("/"), {
+      search: path.split("/").pop(),
+    });
+    return (data?.length ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function uploadAudio(bucket: string, path: string, buffer: Buffer): Promise<boolean> {
+  try {
+    const { error } = await supabase.storage.from(bucket).upload(`${path}.mp3`, buffer, {
+      contentType: "audio/mpeg",
+      upsert: true,
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+async function generateAndStore(
+  bucket: string,
+  path: string,
+  text: string,
+  voice: string,
+  rate = "-10%",
+  pitch = "+0Hz",
+  skipIfExists = true,
+): Promise<boolean> {
+  if (skipIfExists) {
+    const exists = await fileExists(bucket, `${path}.mp3`);
+    if (exists) return true;
+  }
+  try {
+    const buffer = await synthesize(text, voice, rate, pitch, 20000);
+    return await uploadAudio(bucket, path, buffer);
+  } catch {
+    return false;
+  }
+}
+
+// ── Build lesson audio items ──────────────────────────────────────────────────
+type AudioItem = { bucket: string; path: string; text: string; voice: string; rate: string; pitch: string; label: string };
+
+function buildLessonItems(): AudioItem[] {
+  const items: AudioItem[] = [];
+  for (const w of LESSON_WORDS) {
+    const isAr = w.lessonId.startsWith("ar-");
+    const voice = isAr ? LESSON_VOICE_AR : LESSON_VOICE_EN;
+    const wordText = isAr ? w.ar : w.en;
+
+    items.push({
+      bucket: "lessons-audio",
+      path: `lesson/${w.lessonId}/${w.wordIndex}/pronunciation-en`,
+      text: w.en,
+      voice: LESSON_VOICE_EN,
+      rate: "-10%", pitch: "+0Hz",
+      label: `${w.lessonId} word ${w.wordIndex} pronunciation EN`,
+    });
+    items.push({
+      bucket: "lessons-audio",
+      path: `lesson/${w.lessonId}/${w.wordIndex}/pronunciation-ar`,
+      text: w.ar,
+      voice: LESSON_VOICE_AR,
+      rate: "-10%", pitch: "+0Hz",
+      label: `${w.lessonId} word ${w.wordIndex} pronunciation AR`,
+    });
+    items.push({
+      bucket: "lessons-audio",
+      path: `lesson/${w.lessonId}/${w.wordIndex}/hint-en`,
+      text: `Can you find ${w.en}? Look carefully!`,
+      voice: LESSON_VOICE_EN,
+      rate: "-10%", pitch: "+0Hz",
+      label: `${w.lessonId} word ${w.wordIndex} hint EN`,
+    });
+    items.push({
+      bucket: "lessons-audio",
+      path: `lesson/${w.lessonId}/${w.wordIndex}/hint-ar`,
+      text: `هل يمكنك إيجاد ${w.ar}؟ انظر بتأنٍّ!`,
+      voice: LESSON_VOICE_AR,
+      rate: "-10%", pitch: "+0Hz",
+      label: `${w.lessonId} word ${w.wordIndex} hint AR`,
+    });
+    items.push({
+      bucket: "lessons-audio",
+      path: `lesson/${w.lessonId}/${w.wordIndex}/reveal-en`,
+      text: `Excellent! That is ${w.en}! Great job!`,
+      voice: LESSON_VOICE_EN,
+      rate: "+0%", pitch: "+0Hz",
+      label: `${w.lessonId} word ${w.wordIndex} reveal EN`,
+    });
+    items.push({
+      bucket: "lessons-audio",
+      path: `lesson/${w.lessonId}/${w.wordIndex}/reveal-ar`,
+      text: `رائع! هذا هو ${w.ar}! أحسنت!`,
+      voice: LESSON_VOICE_AR,
+      rate: "+0%", pitch: "+0Hz",
+      label: `${w.lessonId} word ${w.wordIndex} reveal AR`,
+    });
+  }
+  return items;
+}
+
+function buildGameItems(): AudioItem[] {
+  const items: AudioItem[] = [];
+
+  // Math Blast — numbers 0-100 (EN + AR)
+  for (let n = 0; n <= 100; n++) {
+    items.push({
+      bucket: "lessons-audio",
+      path: `games/math/num-${n}-en`,
+      text: numToEnWords(n),
+      voice: LESSON_VOICE_EN,
+      rate: "-10%", pitch: "+0Hz",
+      label: `math number ${n} EN`,
+    });
+    items.push({
+      bucket: "lessons-audio",
+      path: `games/math/num-${n}-ar`,
+      text: numToArWords(n),
+      voice: LESSON_VOICE_AR,
+      rate: "-10%", pitch: "+0Hz",
+      label: `math number ${n} AR`,
+    });
+  }
+
+  // Math Blast — operators
+  const ops = [
+    { key: "plus", en: "plus", ar: "زائد" },
+    { key: "minus", en: "minus", ar: "ناقص" },
+    { key: "times", en: "times", ar: "ضرب" },
+    { key: "div", en: "divided by", ar: "قسمة" },
+    { key: "equals", en: "equals", ar: "يساوي" },
+  ];
+  for (const op of ops) {
+    items.push({ bucket: "lessons-audio", path: `games/math/op-${op.key}-en`, text: op.en, voice: LESSON_VOICE_EN, rate: "-10%", pitch: "+0Hz", label: `math op ${op.key} EN` });
+    items.push({ bucket: "lessons-audio", path: `games/math/op-${op.key}-ar`, text: op.ar, voice: LESSON_VOICE_AR, rate: "-10%", pitch: "+0Hz", label: `math op ${op.key} AR` });
+  }
+
+  // Math Blast — correct confirmations (5 variations)
+  const mathCorrectEn = ["Correct! Well done!", "Excellent!", "Amazing! You got it!", "Perfect answer!", "Brilliant!"];
+  const mathCorrectAr = ["صحيح! أحسنت!", "ممتاز!", "رائع! أصبت!", "إجابة مثالية!", "عبقري!"];
+  for (let i = 0; i < 5; i++) {
+    items.push({ bucket: "lessons-audio", path: `games/math/correct-${i}-en`, text: mathCorrectEn[i]!, voice: LESSON_VOICE_EN, rate: "+0%", pitch: "+0Hz", label: `math correct ${i} EN` });
+    items.push({ bucket: "lessons-audio", path: `games/math/correct-${i}-ar`, text: mathCorrectAr[i]!, voice: LESSON_VOICE_AR, rate: "+0%", pitch: "+0Hz", label: `math correct ${i} AR` });
+  }
+
+  // Letter Match — celebration phrases (5 variations)
+  const letterCelebEn = ["Excellent! You matched it!", "Amazing work!", "You are so smart!", "Perfect match!", "Keep going, you are doing great!"];
+  const letterCelebAr = ["ممتاز! وجدت التطابق!", "عمل رائع!", "أنت ذكي جداً!", "تطابق مثالي!", "هيا، أنت رائع!"];
+  for (let i = 0; i < 5; i++) {
+    items.push({ bucket: "lessons-audio", path: `games/letter/celebrate-${i}-en`, text: letterCelebEn[i]!, voice: LESSON_VOICE_EN, rate: "+0%", pitch: "+0Hz", label: `letter celebrate ${i} EN` });
+    items.push({ bucket: "lessons-audio", path: `games/letter/celebrate-${i}-ar`, text: letterCelebAr[i]!, voice: LESSON_VOICE_AR, rate: "+0%", pitch: "+0Hz", label: `letter celebrate ${i} AR` });
+  }
+
+  // Jigsaw — fun facts per puzzle
+  const jigsawFacts = [
+    { id: "solar", en: "Did you know Jupiter is SO big, one thousand three hundred Earths could fit inside it!", ar: "هل تعلم أن المشتري ضخم لدرجة أن ألف وثلاثمائة كرة أرضية تنحط جواه!" },
+    { id: "world", en: "Earth is moving one hundred and seven thousand kilometers per hour around the sun right now!", ar: "الأرض تتحرك مئة وسبعة آلاف كيلومتر في الساعة حول الشمس الآن!" },
+    { id: "abc", en: "There are twenty six English letters and twenty eight Arabic letters. You know them all!", ar: "في ستة وعشرون حرفاً إنجليزياً وثمانية وعشرون حرفاً عربياً! أنت تعرفها!" },
+    { id: "ocean", en: "The ocean covers seventy one percent of the Earth's surface. It is huge!", ar: "المحيطات تغطي واحد وسبعين بالمئة من سطح الأرض. إنها ضخمة!" },
+    { id: "jungle", en: "There are more species of animals in a jungle than anywhere else on Earth!", ar: "الغابة الاستوائية فيها أكثر أنواع حيوانات من أي مكان آخر على الأرض!" },
+    { id: "space", en: "It takes eight minutes for sunlight to travel from the sun all the way to Earth!", ar: "يستغرق ضوء الشمس ثماني دقائق ليصل من الشمس إلى الأرض!" },
+  ];
+  for (const jf of jigsawFacts) {
+    items.push({ bucket: "lessons-audio", path: `games/jigsaw/${jf.id}-en`, text: jf.en, voice: LESSON_VOICE_EN, rate: "-10%", pitch: "+0Hz", label: `jigsaw ${jf.id} EN` });
+    items.push({ bucket: "lessons-audio", path: `games/jigsaw/${jf.id}-ar`, text: jf.ar, voice: LESSON_VOICE_AR, rate: "-10%", pitch: "+0Hz", label: `jigsaw ${jf.id} AR` });
+  }
+
+  return items;
+}
+
+// ── SSE helper ────────────────────────────────────────────────────────────────
+function sseWrite(res: Response, data: object) {
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+// ── Routes ────────────────────────────────────────────────────────────────────
+router.get("/api/admin/status", async (_req, res) => {
+  try {
+    const { data } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "lessons_audio_generated")
+      .maybeSingle();
+    const { data: sd } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "stories_generated")
+      .maybeSingle();
+    res.json({
+      lessonsAudioGenerated: data?.value === "true",
+      storiesGenerated: sd?.value === "true",
+    });
+  } catch {
+    res.json({ lessonsAudioGenerated: false, storiesGenerated: false });
+  }
+});
+
+router.post("/api/admin/generate-lesson-audio", async (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  const lessonItems = buildLessonItems();
+  const gameItems = buildGameItems();
+  const allItems = [...lessonItems, ...gameItems];
+  const total = allItems.length;
+  let progress = 0;
+
+  sseWrite(res, { progress: 0, total, message: `Starting generation of ${total} audio files...` });
+
+  await runConcurrent(allItems, 5, async (item) => {
+    await generateAndStore(item.bucket, item.path, item.text, item.voice, item.rate, item.pitch);
+    progress++;
+    if (progress % 10 === 0 || progress === total) {
+      sseWrite(res, { progress, total, message: item.label, percent: Math.round((progress / total) * 100) });
+    }
+  });
+
+  try {
+    await supabase.from("app_settings").upsert({ key: "lessons_audio_generated", value: "true" }, { onConflict: "key" });
+  } catch { /* best effort */ }
+
+  sseWrite(res, { progress: total, total, done: true, message: "All lesson and game audio generated!" });
+  res.end();
+});
+
+router.post("/api/admin/generate-stories", async (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  const total = STORY_SENTENCES.length;
+  let progress = 0;
+
+  sseWrite(res, { progress: 0, total, message: `Starting generation of ${total} story audio segments...` });
+
+  await runConcurrent(STORY_SENTENCES, 5, async (sentence) => {
+    const path = `story-${sentence.storyId}/sentence-${sentence.index}`;
+    await generateAndStore("stories-audio", path, sentence.text, sentence.voice, sentence.rate, sentence.pitch);
+    progress++;
+    sseWrite(res, { progress, total, message: `Story ${sentence.storyId} sentence ${sentence.index}`, percent: Math.round((progress / total) * 100) });
+  });
+
+  try {
+    await supabase.from("app_settings").upsert({ key: "stories_generated", value: "true" }, { onConflict: "key" });
+  } catch { /* best effort */ }
+
+  sseWrite(res, { progress: total, total, done: true, message: "All story audio generated!" });
+  res.end();
+});
+
+export default router;

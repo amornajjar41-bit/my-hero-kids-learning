@@ -12,6 +12,12 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang, useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
+import {
+  preloadLetterAudio,
+  letterCelebratePath,
+  playPreloaded,
+  stopPreloaded,
+} from "@/lib/lessonAudio";
 
 export default function LetterMatch() {
   const c = useColors();
@@ -25,6 +31,8 @@ export default function LetterMatch() {
   const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<"" | "ok" | "no">("");
   const [done, setDone] = useState(false);
+  const [flipAnim, setFlipAnim] = useState<string | null>(null);
+  const [celebrationCount, setCelebrationCount] = useState(0);
 
   const pool = letterMatchPairs[lang];
 
@@ -38,54 +46,54 @@ export default function LetterMatch() {
     return { correct, options };
   }, [round, pool]);
 
+  useEffect(() => {
+    preloadLetterAudio(lang);
+  }, [lang]);
+
+  useEffect(() => () => { stopPreloaded(); stopAudio(); }, []);
+
+  // Play pronunciation when card is "flipped" (new round displayed)
+  useEffect(() => {
+    setFlipAnim(data.correct.letter);
+    // Play the letter pronunciation using regular TTS (pronunciations are stored per lesson word)
+    speak(data.correct.letter, voice).catch(() => {});
+  }, [round]);
+
   const choose = (letter: string) => {
     if (letter === data.correct.letter) {
       setScore((s) => s + 1);
       setFeedback("ok");
-      speak(data.correct.letter, voice).catch(() => {});
+      // Play celebration phrase from pre-generated audio
+      const variant = celebrationCount % 5;
+      const path = letterCelebratePath(variant, lang);
+      const fallback = lang === "ar" ? "ممتاز!" : "Excellent!";
+      playPreloaded(path, () => speak(fallback, voice)).catch(() => {});
+      setCelebrationCount((c) => c + 1);
       setTimeout(() => {
         setFeedback("");
         if (round + 1 >= 6) setDone(true);
         else setRound((r) => r + 1);
-      }, 700);
+      }, 900);
     } else {
       setFeedback("no");
       setTimeout(() => setFeedback(""), 600);
     }
   };
 
-  // FIX 3: Stop audio when navigating away
-  useEffect(() => () => stopAudio(), []);
-
   useEffect(() => {
     if (done) {
-      saveProgress((p) => ({
-        ...p,
-        gamesPlayed: p.gamesPlayed + 1,
-        starsTotal: p.starsTotal + score,
-      }));
+      saveProgress((p) => ({ ...p, gamesPlayed: p.gamesPlayed + 1 }));
     }
-  }, [done, saveProgress, score]);
+  }, [done]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
-      <View
-        style={{
-          padding: 14,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 10,
-        }}
-      >
+      <View style={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 10 }}>
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: c.card,
-            alignItems: "center",
-            justifyContent: "center",
+            width: 40, height: 40, borderRadius: 20,
+            backgroundColor: c.card, alignItems: "center", justifyContent: "center",
             opacity: pressed ? 0.7 : 1,
           })}
         >
@@ -98,120 +106,65 @@ export default function LetterMatch() {
       </View>
 
       {done ? (
-        <View style={{ flex: 1, padding: 18, gap: 16 }}>
+        <View style={{ flex: 1, padding: 18, gap: 18 }}>
           <Confetti count={70} />
           <SoftCard color={c.primary}>
             <Text style={{ fontSize: 60, textAlign: "center" }}>🏆</Text>
-            <Text
-              style={{
-                color: "#FFF",
-                fontWeight: "800",
-                fontSize: 22,
-                textAlign: "center",
-                marginTop: 6,
-              }}
-            >
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 22, textAlign: "center", marginTop: 6 }}>
               {t("correct")}
             </Text>
-            <Text
-              style={{
-                color: "#FFF",
-                fontWeight: "700",
-                textAlign: "center",
-                marginTop: 6,
-              }}
-            >
-              ⭐ {score}/6
-            </Text>
+            <Text style={{ color: "#FFF", fontWeight: "700", textAlign: "center", marginTop: 6 }}>⭐ {score}/6</Text>
           </SoftCard>
           <PrimaryButton title={t("done")} fullWidth onPress={() => router.back()} />
         </View>
       ) : (
-        <View style={{ flex: 1, padding: 18, gap: 16 }}>
+        <View style={{ flex: 1, padding: 18, gap: 18 }}>
+          <Text style={{ color: c.mutedForeground, fontWeight: "700", fontSize: 12 }}>
+            {t("level")} {round + 1} / 6
+          </Text>
           <SoftCard>
-            <Text
-              style={{ color: c.mutedForeground, fontWeight: "700", fontSize: 12 }}
-            >
-              {t("level")} {round + 1} / 6
+            <Text style={{ color: c.mutedForeground, fontWeight: "700", fontSize: 12, marginBottom: 8 }}>
+              {lang === "ar" ? "ما هو الحرف الأول لهذه الصورة؟" : "What letter does this start with?"}
             </Text>
-            <Text
-              style={{
-                fontSize: 110,
-                textAlign: "center",
-                marginVertical: 16,
-              }}
-            >
+            <Text style={{ fontSize: 90, textAlign: "center", marginVertical: 10 }}>
               {data.correct.emoji}
             </Text>
-            <Text
-              style={{
-                fontSize: 16,
-                color: c.mutedForeground,
-                textAlign: "center",
-              }}
-            >
-              {lang === "ar"
-                ? "اضغط الحرف اللي بتبدأ فيه الصورة"
-                : "Pick the letter the picture starts with"}
+            <Text style={{ textAlign: "center", color: c.mutedForeground, fontSize: 14 }}>
+              {data.correct.word}
             </Text>
           </SoftCard>
 
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: 12,
-              justifyContent: "center",
-            }}
-          >
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
             {data.options.map((opt) => (
               <Pressable
                 key={opt.letter}
                 onPress={() => choose(opt.letter)}
                 style={({ pressed }) => ({
-                  width: 90,
-                  height: 90,
-                  borderRadius: 18,
-                  backgroundColor: c.accent,
-                  alignItems: "center",
-                  justifyContent: "center",
+                  width: 110, height: 80, borderRadius: 16,
+                  backgroundColor: c.card,
+                  alignItems: "center", justifyContent: "center",
+                  borderWidth: 2,
+                  borderColor: feedback === "ok" && opt.letter === data.correct.letter
+                    ? c.green
+                    : feedback === "no"
+                    ? c.destructive + "44"
+                    : c.border,
                   opacity: pressed ? 0.85 : 1,
                 })}
               >
-                <Text
-                  style={{
-                    color: c.accentForeground,
-                    fontWeight: "800",
-                    fontSize: 44,
-                  }}
-                >
-                  {opt.letter}
-                </Text>
+                <Text style={{ fontSize: 32, fontWeight: "800", color: c.text }}>{opt.letter}</Text>
               </Pressable>
             ))}
           </View>
 
           {feedback === "ok" && (
-            <Text
-              style={{
-                textAlign: "center",
-                color: c.green,
-                fontWeight: "800",
-                fontSize: 18,
-              }}
-            >
-              🎉 {t("correct")}
+            <Text style={{ textAlign: "center", color: c.green, fontWeight: "800", fontSize: 18 }}>
+              🎉 {t("greatJob")}
             </Text>
           )}
           {feedback === "no" && (
-            <Text
-              style={{
-                textAlign: "center",
-                color: c.destructive,
-                fontWeight: "800",
-              }}
-            >
-              {t("oops")}
+            <Text style={{ textAlign: "center", color: c.destructive, fontWeight: "800", fontSize: 16 }}>
+              {t("tryAgain")}
             </Text>
           )}
         </View>

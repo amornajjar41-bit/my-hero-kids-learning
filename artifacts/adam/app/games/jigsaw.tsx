@@ -12,6 +12,13 @@ import { jigsawImages } from "@/constants/games-data";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang, useT } from "@/hooks/useT";
+import { speak, stopAll as stopAudio } from "@/lib/audio";
+import {
+  preloadJigsawAudio,
+  jigsawFunFactPath,
+  playPreloaded,
+  stopPreloaded,
+} from "@/lib/lessonAudio";
 
 const PALETTES: [string, string][] = [
   ["#FF8A4C", "#FFD93D"],
@@ -33,7 +40,8 @@ export default function Jigsaw() {
   const router = useRouter();
   const t = useT();
   const lang = useLang();
-  const { saveProgress } = useApp();
+  const { profile, saveProgress } = useApp();
+  const voice = profile?.hero === "girl" ? "nova" : "echo";
 
   const [round, setRound] = useState(0);
   const [tiles, setTiles] = useState<number[]>([]);
@@ -44,13 +52,18 @@ export default function Jigsaw() {
   const palette = PALETTES[round % PALETTES.length]!;
 
   useEffect(() => {
+    preloadJigsawAudio(lang);
+  }, [lang]);
+
+  useEffect(() => () => { stopPreloaded(); stopAudio(); }, []);
+
+  useEffect(() => {
     setTiles(shuffle([0, 1, 2, 3]));
     setDone(false);
   }, [round]);
 
   const swap = (i: number) => {
     if (done) return;
-    // simple click-to-select: track first selected by index in state-less local
     if (selectedRef.current === null) {
       selectedRef.current = i;
     } else {
@@ -62,10 +75,15 @@ export default function Jigsaw() {
         const isSolved = next.every((v, idx) => v === idx);
         if (isSolved) {
           setDone(true);
+          // Play fun fact audio when puzzle is solved
+          const puzzleId = item.id ?? `puzzle${round}`;
+          const path = jigsawFunFactPath(puzzleId, lang);
+          const fallbackText = lang === "ar" ? item.funAr : item.funEn;
+          playPreloaded(path, () => speak(fallbackText, voice)).catch(() => {});
           setTimeout(() => {
             if (round + 1 >= jigsawImages.length) setSolvedAll(true);
             else setRound((r) => r + 1);
-          }, 1400);
+          }, 2200);
         }
         return next;
       });
@@ -97,23 +115,12 @@ export default function Jigsaw() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
-      <View
-        style={{
-          padding: 14,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 10,
-        }}
-      >
+      <View style={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 10 }}>
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: c.card,
-            alignItems: "center",
-            justifyContent: "center",
+            width: 40, height: 40, borderRadius: 20,
+            backgroundColor: c.card, alignItems: "center", justifyContent: "center",
             opacity: pressed ? 0.7 : 1,
           })}
         >
@@ -132,15 +139,7 @@ export default function Jigsaw() {
           <Confetti count={70} />
           <SoftCard color={c.primary}>
             <Text style={{ fontSize: 60, textAlign: "center" }}>🏆</Text>
-            <Text
-              style={{
-                color: "#FFF",
-                fontWeight: "800",
-                fontSize: 22,
-                textAlign: "center",
-                marginTop: 6,
-              }}
-            >
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 22, textAlign: "center", marginTop: 6 }}>
               {t("correct")}
             </Text>
           </SoftCard>
@@ -153,62 +152,35 @@ export default function Jigsaw() {
           </Text>
           <View
             style={{
-              width: 280,
-              height: 280,
-              flexDirection: "row",
-              flexWrap: "wrap",
-              borderRadius: 18,
-              overflow: "hidden",
-              shadowColor: "#000",
-              shadowOpacity: 0.18,
-              shadowRadius: 14,
-              shadowOffset: { width: 0, height: 6 },
+              width: 280, height: 280,
+              flexDirection: "row", flexWrap: "wrap",
+              borderRadius: 18, overflow: "hidden",
+              shadowColor: "#000", shadowOpacity: 0.18,
+              shadowRadius: 14, shadowOffset: { width: 0, height: 6 },
               elevation: 6,
             }}
           >
             {tiles.map((v, idx) => (
-              <Pressable
-                key={idx}
-                onPress={() => swap(idx)}
-                style={{ width: "50%", height: "50%" }}
-              >
+              <Pressable key={idx} onPress={() => swap(idx)} style={{ width: "50%", height: "50%" }}>
                 <LinearGradient
                   colors={tileColors[v]!}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={{
-                    flex: 1,
-                    borderWidth: 2,
-                    borderColor: "#FFF",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
+                  style={{ flex: 1, borderWidth: 2, borderColor: "#FFF", alignItems: "center", justifyContent: "center" }}
                 >
-                  {v === 0 && (
-                    <Text style={{ fontSize: 60 }}>{item.emojiCenter}</Text>
-                  )}
+                  {v === 0 && <Text style={{ fontSize: 60 }}>{item.emojiCenter}</Text>}
                 </LinearGradient>
               </Pressable>
             ))}
           </View>
-          <SoftCard color={c.yellow}>
-            <Text style={{ fontWeight: "800", color: "#5B3700" }}>
-              💡 {t("funFact")}
-            </Text>
-            <Text
-              style={{ color: "#5B3700", marginTop: 6, fontSize: 14, lineHeight: 20 }}
-            >
+          <SoftCard color={c.yellow} style={{ width: "100%" }}>
+            <Text style={{ fontWeight: "800", color: "#5B3700" }}>💡 {t("funFact")}</Text>
+            <Text style={{ color: "#5B3700", marginTop: 6, fontSize: 14, lineHeight: 20 }}>
               {lang === "ar" ? item.funAr : item.funEn}
             </Text>
           </SoftCard>
           {done && (
-            <Text
-              style={{
-                color: c.green,
-                fontWeight: "800",
-                fontSize: 18,
-              }}
-            >
+            <Text style={{ color: c.green, fontWeight: "800", fontSize: 18 }}>
               🎉 {t("correct")}
             </Text>
           )}

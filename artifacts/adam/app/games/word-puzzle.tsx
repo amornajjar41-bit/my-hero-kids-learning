@@ -12,6 +12,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang, useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
+import { playPreloaded, stopPreloaded } from "@/lib/lessonAudio";
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -20,6 +21,17 @@ function shuffle<T>(arr: T[]): T[] {
     [a[i], a[j]] = [a[j]!, a[i]!];
   }
   return a;
+}
+
+// Hint texts per word slug (EN words)
+function hintText(word: string, lang: "en" | "ar"): string {
+  if (lang === "ar") return `هل يمكنك تهجئة "${word}"؟ رتّب الأحرف!`;
+  return `Can you spell ${word}? Arrange the letters!`;
+}
+
+function revealText(word: string, lang: "en" | "ar"): string {
+  if (lang === "ar") return `رائع! كلمة "${word}" صحيحة! أحسنت!`;
+  return `Excellent! ${word} is correct! Great job!`;
 }
 
 export default function WordPuzzle() {
@@ -41,22 +53,26 @@ export default function WordPuzzle() {
   const letters = useMemo(() => shuffle(target.split("")), [target, round]);
   const current = picked.map((i) => letters[i]).join("");
 
-  // FIX 3: Stop audio when navigating away
-  useEffect(() => () => stopAudio(), []);
+  useEffect(() => () => { stopPreloaded(); stopAudio(); }, []);
 
   useEffect(() => {
     setPicked([]);
+    // Play hint audio when new image is displayed
+    const hintPath = `games/word-puzzle/hint-${lang}-${item.word.toLowerCase().replace(/\s/g, "-")}`;
+    playPreloaded(hintPath, () => speak(hintText(item.word, lang), voice)).catch(() => {});
   }, [round]);
 
   useEffect(() => {
     if (current.length === target.length) {
       if (current === target) {
         setScore((s) => s + 1);
-        speak(lang === "ar" ? "ممتاز!" : "Yes!", voice).catch(() => {});
+        // Play reveal audio
+        const revealPath = `games/word-puzzle/reveal-${lang}-${item.word.toLowerCase().replace(/\s/g, "-")}`;
+        playPreloaded(revealPath, () => speak(revealText(item.word, lang), voice)).catch(() => {});
         setTimeout(() => {
           if (round + 1 >= 10) setDone(true);
           else setRound((r) => r + 1);
-        }, 700);
+        }, 900);
       } else {
         setTimeout(() => setPicked([]), 600);
       }
@@ -64,41 +80,24 @@ export default function WordPuzzle() {
   }, [current, target, round, lang, voice]);
 
   const finish = () => {
-    saveProgress((p) => ({
-      ...p,
-      gamesPlayed: p.gamesPlayed + 1,
-      starsTotal: p.starsTotal + score,
-    }));
+    saveProgress((p) => ({ ...p, gamesPlayed: p.gamesPlayed + 1, starsTotal: p.starsTotal + score }));
     router.back();
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
-      <View
-        style={{
-          padding: 14,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 10,
-        }}
-      >
+      <View style={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 10 }}>
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: c.card,
-            alignItems: "center",
-            justifyContent: "center",
+            width: 40, height: 40, borderRadius: 20,
+            backgroundColor: c.card, alignItems: "center", justifyContent: "center",
             opacity: pressed ? 0.7 : 1,
           })}
         >
           <Ionicons name="close" size={20} color={c.text} />
         </Pressable>
-        <Text style={{ fontWeight: "800", fontSize: 20, color: c.text, flex: 1 }}>
-          🧩 {t("wordPuzzle")}
-        </Text>
+        <Text style={{ fontWeight: "800", fontSize: 20, color: c.text, flex: 1 }}>🧩 {t("wordPuzzle")}</Text>
         <Text style={{ fontWeight: "800", color: c.text }}>⭐ {score}</Text>
       </View>
 
@@ -107,78 +106,31 @@ export default function WordPuzzle() {
           <Confetti count={70} />
           <SoftCard color={c.primary}>
             <Text style={{ fontSize: 60, textAlign: "center" }}>🏆</Text>
-            <Text
-              style={{
-                color: "#FFF",
-                fontWeight: "800",
-                fontSize: 22,
-                textAlign: "center",
-                marginTop: 6,
-              }}
-            >
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 22, textAlign: "center", marginTop: 6 }}>
               {t("correct")}
             </Text>
-            <Text
-              style={{
-                color: "#FFF",
-                fontWeight: "700",
-                textAlign: "center",
-                marginTop: 6,
-              }}
-            >
-              ⭐ {score}/10
-            </Text>
+            <Text style={{ color: "#FFF", fontWeight: "700", textAlign: "center", marginTop: 6 }}>⭐ {score}/10</Text>
           </SoftCard>
           <PrimaryButton title={t("done")} fullWidth onPress={finish} />
         </View>
       ) : (
         <View style={{ flex: 1, padding: 18, gap: 18 }}>
           <SoftCard>
-            <Text
-              style={{
-                color: c.mutedForeground,
-                fontWeight: "700",
-                fontSize: 12,
-              }}
-            >
+            <Text style={{ color: c.mutedForeground, fontWeight: "700", fontSize: 12 }}>
               {t("level")} {round + 1} / 10
             </Text>
-            <Text
-              style={{
-                fontSize: 100,
-                textAlign: "center",
-                marginVertical: 16,
-              }}
-            >
-              {item.emoji}
-            </Text>
-            <View
-              style={{
-                flexDirection: "row",
-                gap: 6,
-                justifyContent: "center",
-                minHeight: 64,
-              }}
-            >
+            <Text style={{ fontSize: 100, textAlign: "center", marginVertical: 16 }}>{item.emoji}</Text>
+            <View style={{ flexDirection: "row", gap: 6, justifyContent: "center", minHeight: 64 }}>
               {target.split("").map((_, i) => (
                 <View
                   key={i}
                   style={{
-                    width: 44,
-                    height: 56,
-                    borderRadius: 10,
+                    width: 44, height: 56, borderRadius: 10,
                     backgroundColor: picked[i] !== undefined ? c.primary : c.muted,
-                    alignItems: "center",
-                    justifyContent: "center",
+                    alignItems: "center", justifyContent: "center",
                   }}
                 >
-                  <Text
-                    style={{
-                      color: picked[i] !== undefined ? "#FFF" : "transparent",
-                      fontWeight: "800",
-                      fontSize: 24,
-                    }}
-                  >
+                  <Text style={{ color: picked[i] !== undefined ? "#FFF" : "transparent", fontWeight: "800", fontSize: 24 }}>
                     {picked[i] !== undefined ? letters[picked[i]!] : "_"}
                   </Text>
                 </View>
@@ -186,14 +138,7 @@ export default function WordPuzzle() {
             </View>
           </SoftCard>
 
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: 10,
-              justifyContent: "center",
-            }}
-          >
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
             {letters.map((l, i) => {
               const used = picked.includes(i);
               return (
@@ -202,22 +147,13 @@ export default function WordPuzzle() {
                   disabled={used}
                   onPress={() => setPicked((p) => [...p, i])}
                   style={({ pressed }) => ({
-                    width: 56,
-                    height: 56,
-                    borderRadius: 14,
+                    width: 56, height: 56, borderRadius: 14,
                     backgroundColor: used ? c.muted : c.accent,
-                    alignItems: "center",
-                    justifyContent: "center",
+                    alignItems: "center", justifyContent: "center",
                     opacity: used ? 0.4 : pressed ? 0.85 : 1,
                   })}
                 >
-                  <Text
-                    style={{
-                      color: used ? c.mutedForeground : c.accentForeground,
-                      fontWeight: "800",
-                      fontSize: 24,
-                    }}
-                  >
+                  <Text style={{ color: used ? c.mutedForeground : c.accentForeground, fontWeight: "800", fontSize: 24 }}>
                     {l}
                   </Text>
                 </Pressable>
@@ -225,12 +161,7 @@ export default function WordPuzzle() {
             })}
           </View>
 
-          <PrimaryButton
-            title={t("tryAgain")}
-            variant="ghost"
-            fullWidth
-            onPress={() => setPicked([])}
-          />
+          <PrimaryButton title={t("tryAgain")} variant="ghost" fullWidth onPress={() => setPicked([])} />
         </View>
       )}
     </SafeAreaView>

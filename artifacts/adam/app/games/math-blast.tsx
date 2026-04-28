@@ -12,8 +12,20 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
+import {
+  preloadMathAudio,
+  mathNumPath,
+  mathOpPath,
+  mathCorrectPath,
+  playPreloaded,
+  stopPreloaded,
+} from "@/lib/lessonAudio";
 
 type Q = { a: number; b: number; op: string; ans: number };
+
+const OP_KEY: Record<string, "plus" | "minus" | "times" | "div"> = {
+  "+": "plus", "-": "minus", "×": "times", "÷": "div",
+};
 
 function makeQ(levelIdx: number): Q {
   const lvl = mathLevels[levelIdx] ?? mathLevels[0]!;
@@ -26,11 +38,7 @@ function makeQ(levelIdx: number): Q {
     b = Math.floor(Math.random() * 9) + 2;
     a = b * (Math.floor(Math.random() * 9) + 1);
   }
-  const ans =
-    op === "+" ? a + b :
-    op === "-" ? a - b :
-    op === "×" ? a * b :
-    a / b;
+  const ans = op === "+" ? a + b : op === "-" ? a - b : op === "×" ? a * b : a / b;
   return { a, b, op, ans };
 }
 
@@ -48,7 +56,7 @@ export default function MathBlast() {
   const router = useRouter();
   const t = useT();
   const { profile, saveProgress } = useApp();
-  const lang = profile?.language ?? "en";
+  const lang = (profile?.language ?? "en") as "en" | "ar";
   const voice = profile?.hero === "girl" ? "nova" : "echo";
 
   const [levelIdx, setLevelIdx] = useState(0);
@@ -56,6 +64,7 @@ export default function MathBlast() {
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
   const [feedback, setFeedback] = useState<"" | "ok" | "no">("");
+  const [correctCount, setCorrectCount] = useState(0);
 
   const currentLevel = mathLevels[levelIdx] ?? mathLevels[0]!;
   const totalQuestions = mathLevels.reduce((s, l) => s + l.questionsPerLevel, 0);
@@ -64,44 +73,61 @@ export default function MathBlast() {
   const q = useMemo(() => makeQ(levelIdx), [levelIdx, questionNo]);
   const opts = useMemo(() => buildOptions(q.ans), [q]);
 
+  useEffect(() => {
+    preloadMathAudio(lang);
+  }, [lang]);
+
+  useEffect(() => () => { stopPreloaded(); stopAudio(); }, []);
+
+  // Read the question aloud when it changes
+  useEffect(() => {
+    const readQ = async () => {
+      const aNum = Math.min(q.a, 100);
+      const bNum = Math.min(q.b, 100);
+      const opKey = OP_KEY[q.op] ?? "plus";
+
+      const fallbackText = lang === "ar"
+        ? `${q.a} ${q.op} ${q.b}`
+        : `${q.a} ${q.op} ${q.b}`;
+
+      // Play a then operator then b
+      await playPreloaded(mathNumPath(aNum, lang), () => speak(String(q.a), voice));
+      await new Promise<void>((r) => setTimeout(r, 120));
+      await playPreloaded(mathOpPath(opKey, lang), () => speak(q.op, voice));
+      await new Promise<void>((r) => setTimeout(r, 120));
+      await playPreloaded(mathNumPath(bNum, lang), () => speak(String(q.b), voice));
+    };
+    readQ().catch(() => {});
+  }, [levelIdx, questionNo]);
+
   const choose = (n: number) => {
     if (feedback) return;
     if (n === q.ans) {
       setScore((s) => s + 1);
       setFeedback("ok");
-      speak(lang === "ar" ? "ممتاز!" : "Yes!", voice).catch(() => {});
+      const variant = correctCount % 5;
+      const path = mathCorrectPath(variant, lang);
+      playPreloaded(path, () => speak(lang === "ar" ? "ممتاز!" : "Excellent!", voice)).catch(() => {});
+      setCorrectCount((c) => c + 1);
       setTimeout(() => {
         setFeedback("");
         const nextQ = questionNo + 1;
         if (nextQ >= currentLevel.questionsPerLevel) {
           const nextLevel = levelIdx + 1;
-          if (nextLevel >= mathLevels.length) {
-            setDone(true);
-          } else {
-            setLevelIdx(nextLevel);
-            setQuestionNo(0);
-          }
+          if (nextLevel >= mathLevels.length) setDone(true);
+          else { setLevelIdx(nextLevel); setQuestionNo(0); }
         } else {
           setQuestionNo(nextQ);
         }
-      }, 700);
+      }, 800);
     } else {
       setFeedback("no");
       setTimeout(() => setFeedback(""), 700);
     }
   };
 
-  // FIX 3: Stop audio when navigating away
-  useEffect(() => () => stopAudio(), []);
-
   useEffect(() => {
-    if (done) {
-      saveProgress((p) => ({
-        ...p,
-        gamesPlayed: p.gamesPlayed + 1,
-        starsTotal: p.starsTotal + score,
-      }));
-    }
+    if (done) saveProgress((p) => ({ ...p, gamesPlayed: p.gamesPlayed + 1, starsTotal: p.starsTotal + score }));
   }, [done]);
 
   const levelLabel = lang === "ar" ? currentLevel.labelAr : currentLevel.labelEn;
@@ -112,20 +138,14 @@ export default function MathBlast() {
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: c.card,
-            alignItems: "center",
-            justifyContent: "center",
+            width: 40, height: 40, borderRadius: 20,
+            backgroundColor: c.card, alignItems: "center", justifyContent: "center",
             opacity: pressed ? 0.7 : 1,
           })}
         >
           <Ionicons name="close" size={20} color={c.text} />
         </Pressable>
-        <Text style={{ fontWeight: "800", fontSize: 20, color: c.text, flex: 1 }}>
-          💥 {t("mathBlast")}
-        </Text>
+        <Text style={{ fontWeight: "800", fontSize: 20, color: c.text, flex: 1 }}>💥 {t("mathBlast")}</Text>
         <Text style={{ fontWeight: "800", color: c.text }}>⭐ {score}</Text>
       </View>
 
@@ -145,14 +165,12 @@ export default function MathBlast() {
         </View>
       ) : (
         <View style={{ flex: 1, padding: 18, gap: 14 }}>
-          {/* Level badge */}
           <View style={{ backgroundColor: c.accent, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 14, alignSelf: "flex-start" }}>
             <Text style={{ color: c.accentForeground, fontWeight: "800", fontSize: 12 }}>
               {levelLabel} · {questionNo + 1}/{currentLevel.questionsPerLevel}
             </Text>
           </View>
 
-          {/* Progress bar */}
           <View style={{ height: 6, backgroundColor: c.border, borderRadius: 6 }}>
             <View style={{ height: 6, borderRadius: 6, backgroundColor: c.primary, width: `${((globalQ + 1) / totalQuestions) * 100}%` }} />
           </View>
@@ -169,28 +187,20 @@ export default function MathBlast() {
                 key={n}
                 onPress={() => choose(n)}
                 style={({ pressed }) => ({
-                  width: "44%",
-                  paddingVertical: 26,
-                  borderRadius: 18,
+                  width: "44%", paddingVertical: 26, borderRadius: 18,
                   backgroundColor:
                     feedback === "ok" && n === q.ans ? c.green :
-                    feedback === "no" && n === q.ans ? c.destructive :
-                    c.accent,
-                  alignItems: "center",
-                  opacity: pressed ? 0.85 : 1,
+                    feedback === "no" && n === q.ans ? c.destructive : c.accent,
+                  alignItems: "center", opacity: pressed ? 0.85 : 1,
                 })}
               >
-                <Text style={{ color: c.accentForeground, fontWeight: "800", fontSize: 28 }}>
-                  {n}
-                </Text>
+                <Text style={{ color: c.accentForeground, fontWeight: "800", fontSize: 28 }}>{n}</Text>
               </Pressable>
             ))}
           </View>
 
           {feedback === "ok" && (
-            <Text style={{ textAlign: "center", color: c.green, fontWeight: "800", fontSize: 18 }}>
-              🎉 {t("correct")}
-            </Text>
+            <Text style={{ textAlign: "center", color: c.green, fontWeight: "800", fontSize: 18 }}>🎉 {t("correct")}</Text>
           )}
           {feedback === "no" && (
             <Text style={{ textAlign: "center", color: c.destructive, fontWeight: "800" }}>

@@ -8,6 +8,8 @@ import safetyRouter from "./safety";
 import authRouter from "./auth";
 import setupRouter, { runSetup } from "./setup";
 import trialRouter from "./trial";
+import adminRouter from "./admin";
+import audioRouter from "./audio";
 
 const router: IRouter = Router();
 
@@ -20,6 +22,8 @@ router.use(safetyRouter);
 router.use(authRouter);
 router.use(setupRouter);
 router.use(trialRouter);
+router.use(adminRouter);
+router.use(audioRouter);
 
 // Run DB setup on startup (non-blocking)
 runSetup().catch(console.error);
