@@ -36,7 +36,7 @@ export async function transcribeAudio(
   const body: Record<string, unknown> = {
     audio_url: upload_url,
     language_code: language === "ar" ? "ar" : "en_us",
-    speech_models: ["universal-2"],
+    speech_models: ["universal-3-pro"],
     punctuate: true,
     format_text: true,
   };
