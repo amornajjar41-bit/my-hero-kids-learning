@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase";
 const router: IRouter = Router();
 
 // ─── System Prompt ───────────────────────────────────────────────────────────
-const SYSTEM_PROMPT_EN = `You are Adam (or Lulu), a super fun learning hero for children aged 4-14. You are a teaching best friend who explains things clearly and makes learning exciting.
+const SYSTEM_PROMPT_EN = `You are a super fun learning hero for children aged 4-14. Your name will be specified below. You are a teaching best friend who explains things clearly and makes learning exciting.
 
 PERSONALITY: Always excited and positive. Cartoon superhero best friend. Simple words, short sentences, emojis.
 
@@ -46,7 +46,7 @@ FORBIDDEN PHRASES: take a deep breath, let's slow down, I understand your frustr
 WHEN TRULY CONFUSED (input is total noise): 'Hmm, I missed that! Can you type it for me? 😊'
 If audio has only laughter/noise: 'Haha fun sounds! What shall we learn? 🎮'`;
 
-const SYSTEM_PROMPT_AR = `أنت آدم (أو لولو)، بطل تعلّم خارق ممتع للأطفال من ٤ إلى ١٤ سنة. أنت صديق معلّم يشرح الأشياء بوضوح ويجعل التعلم ممتعاً.
+const SYSTEM_PROMPT_AR = `أنت بطل تعلّم خارق ممتع للأطفال من ٤ إلى ١٤ سنة. اسمك سيُحدَّد أدناه. أنت صديق معلّم يشرح الأشياء بوضوح ويجعل التعلم ممتعاً.
 
 الشخصية: متحمّس دائماً وإيجابي. صديق مثل بطل الرسوم المتحركة. كلمات بسيطة، جمل قصيرة، إيموجي.
 
@@ -275,15 +275,17 @@ async function classifyImageAsHomework(
 async function checkCache(
   normalizedInput: string,
   inputHash: string,
-  language: "en" | "ar"
+  language: "en" | "ar",
+  gender: "boy" | "girl"
 ): Promise<{ response_text: string; audio_url: string | null } | null> {
   try {
-    // Exact hash match first
+    // Exact hash match — must match gender so Adam never gets Lulu's cached reply
     const { data: exact } = await supabase
       .from("ai_cache")
-      .select("response_text, audio_url, created_at")
+      .select("response_text, audio_url, created_at, hit_count")
       .eq("input_hash", inputHash)
       .eq("language", language)
+      .eq("gender", gender)
       .maybeSingle();
 
     if (exact) {
@@ -295,17 +297,19 @@ async function checkCache(
           .update({ hit_count: (exact as any).hit_count + 1 })
           .eq("input_hash", inputHash)
           .eq("language", language)
+          .eq("gender", gender)
           .then(() => {})
           .catch(() => {});
         return { response_text: exact.response_text, audio_url: exact.audio_url };
       }
     }
 
-    // Semantic match against last 1000
+    // Semantic match — only search same gender to avoid cross-character contamination
     const { data: candidates } = await supabase
       .from("ai_cache")
       .select("input_text, response_text, audio_url, created_at")
       .eq("language", language)
+      .eq("gender", gender)
       .order("created_at", { ascending: false })
       .limit(1000);
 
@@ -391,9 +395,9 @@ router.post("/chat", async (req, res) => {
     const topic = detectTopic(userText);
     const suggestions = getSuggestions(topic, language as "en" | "ar");
 
-    // Build normalized input for cache
+    // Build normalized input for cache — include gender so Adam/Lulu never share cached replies
     const normalizedInput = normalizeText(userText);
-    const inputHash = hashText(`${normalizedInput}:${language}:${ageGroup}`);
+    const inputHash = hashText(`${normalizedInput}:${language}:${ageGroup}:${gender}`);
 
     // ── Photo homework check ─────────────────────────────────────────────────
     if (imageBase64) {
@@ -423,7 +427,7 @@ router.post("/chat", async (req, res) => {
     let cachedResult: { response_text: string; audio_url: string | null } | null = null;
     if (normalizedInput.length > 3 && !imageBase64) {
       try {
-        cachedResult = await checkCache(normalizedInput, inputHash, language as "en" | "ar");
+        cachedResult = await checkCache(normalizedInput, inputHash, language as "en" | "ar", gender as "boy" | "girl");
       } catch {
         // Non-fatal cache miss
       }
@@ -449,11 +453,11 @@ router.post("/chat", async (req, res) => {
 
     const genderNote = gender === "girl"
       ? language === "ar"
-        ? "\n\nأنتِ لولو — البطلة. خاطبي الطفل بـ'يا بطلة'."
-        : "\n\nYou are Lulu. Address the child as 'champion'."
+        ? "\n\nاسمك: لولو. أنتِ البطلة. خاطبي الطفل دائماً بـ'يا بطلة'. لا تقولي أبداً أنكِ آدم."
+        : "\n\nYour name is Lulu. You are the hero girl. Always call yourself Lulu. Never say you are Adam."
       : language === "ar"
-        ? "\n\nأنتَ آدم — البطل. خاطب الطفل بـ'يا بطل'."
-        : "\n\nYou are Adam. Address the child as 'champ'.";
+        ? "\n\nاسمك: آدم. أنتَ البطل. خاطب الطفل دائماً بـ'يا بطل'. لا تقل أبداً أنك لولو."
+        : "\n\nYour name is Adam. You are the hero boy. Always call yourself Adam. Never say you are Lulu.";
 
     const ageNote =
       language === "ar"
