@@ -585,8 +585,8 @@ export default function ParentDashboard() {
           </Text>
           <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
             {lang === "ar"
-              ? "يولّد إجابات لـ 160 سؤالاً شائعاً في الرياضيات والعلوم واللغة ويحفظها مسبقاً — بعد ذلك تظهر الإجابات فوراً بدون الاتصال بـ OpenAI."
-              : "Generates answers for 160 common math, science, and language questions and saves them — after this, those answers appear instantly without calling OpenAI."}
+              ? "يولّد إجابات لأكثر من 1800 سؤال شامل في الرياضيات والجبر والفيزياء والفضاء والمحيطات والعلوم ويحفظها — بعد ذلك تظهر الإجابات فوراً بدون الاتصال بـ OpenAI."
+              : "Generates answers for 1,800+ questions covering math, algebra, physics, space, ocean life, and science for kids under 14 — answers appear instantly after this, no OpenAI call needed."}
           </Text>
 
           {chatPrewarm.running && (
