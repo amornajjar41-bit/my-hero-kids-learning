@@ -62,16 +62,18 @@ Expo SDK 54 + expo-router mobile app for ages 3–15: bilingual EN/AR homework h
 - **Sound effects**: chime.ts synthesizes all sounds client-side via Web Audio API. Tour/birthday audio via expo-speech (device TTS, zero API calls).
 - **6A – Pre-Generated Lesson/Game Audio**:
   - `lib/lessonAudio.ts` — in-memory preloader/cache. Calls POST /api/audio/batch to batch-fetch base64 MP3s from Supabase Storage and caches them in memory. `playPreloaded(path, fallback?)` plays in <100ms; falls back to live TTS if not cached.
-  - Games updated: word-puzzle plays hint on display + reveal on correct; letter-match plays pronunciation on card flip + celebration phrase on correct; math-blast reads aloud number+operator+number on question load; jigsaw plays fun-fact audio on puzzle completion.
+  - Games updated: word-puzzle uses responsive tile sizing via `useWindowDimensions` (no overflow); letter-match calls `preloadLetterAudio` on mount + uses `playPreloaded(letterCelebratePath)` for celebration; math-blast calls `preloadMathAudio` + `playPreloaded(mathCorrectPath)` for correct answers; jigsaw calls `preloadJigsawAudio` + `playPreloaded(jigsawFunFactPath)` on solve + visual tile selection with `selectedIdx` state + highlighted border.
   - Lesson player updated: preloads all word audio on mount, plays pronunciation/hint/reveal from cache.
   - Admin SSE endpoints: POST /api/admin/generate-lesson-audio (lessons+games), POST /api/admin/generate-stories, GET /api/admin/status — stream progress via SSE.
+  - Admin routes fixed: `routes/admin.ts` now calls Google WaveNet TTS API directly (removed broken edge-tts import). Voices: en-US-Wavenet-F (EN), ar-XA-Wavenet-A (AR). Rate/pitch params converted from edge-tts format ("-18%" → speakingRate=0.82; "-2st" → pitch semitones=-2).
   - Batch proxy: POST /api/audio/batch — fetches up to 200 Supabase Storage objects per call, returns `{ audios: { path: base64 } }`. 2000-item server-side LRU cache.
+  - `lib/audio.ts` safety timeout bumped: `text.length * 100` ms with floor 6000ms and ceiling 30000ms (was 80ms / 4000ms floor — too short for long Arabic phrases).
 - **6B – Bedtime Stories**:
   - `constants/stories.ts` — 10 story definitions (5 Arabic + 5 English) with id, lang, title, emoji, moral, sentences[].
   - `app/stories/index.tsx` — list screen grouped by language with emoji, title, and moral preview.
   - `app/stories/[id].tsx` — sentence-by-sentence reader with auto-play, manual prev/next/tap controls, progress dots, full story list, and "The End" confetti screen.
   - Learn tab has a new "Bedtime Stories" card (dark navy) linking to /stories.
-  - Parent dashboard has admin section at bottom for triggering SSE audio generation with real-time log output.
+  - Parent dashboard admin section (at bottom of parent/index.tsx): "Generate Lesson & Game Audio" + "Generate Stories" buttons. Each reads SSE stream via fetch ReadableStream + TextDecoder (works on both web and native). Shows real-time progress bar (percent + last message), done state, and error state. Uses AbortController for cleanup.
 - **6C – Curriculum Cache + Image Compression + Photo Check**:
   - API server `checkCurriculumCache()` — queries `curriculum_cache` table (Supabase), checks word overlap ≥80% before hitting AI cache. Returns answer_text if hit.
   - API server `classifyImageAsHomework()` — fast gpt-4o-mini vision pre-check on photos; rejects non-educational images with a bilingual message before the main call.

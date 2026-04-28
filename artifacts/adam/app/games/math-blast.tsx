@@ -10,8 +10,14 @@ import { SoftCard } from "@/components/SoftCard";
 import { mathLevels } from "@/constants/games-data";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
-import { useT } from "@/hooks/useT";
+import { useLang, useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
+import {
+  preloadMathAudio,
+  mathCorrectPath,
+  playPreloaded,
+  stopPreloaded,
+} from "@/lib/lessonAudio";
 
 type Q = { a: number; b: number; op: string; ans: number };
 
@@ -43,8 +49,8 @@ export default function MathBlast() {
   const c = useColors();
   const router = useRouter();
   const t = useT();
+  const lang = useLang();
   const { profile, saveProgress, addPoints } = useApp();
-  const lang = (profile?.language ?? "en") as "en" | "ar";
   const voice = profile?.hero === "girl" ? "nova" : "echo";
 
   const [levelIdx, setLevelIdx] = useState(0);
@@ -60,13 +66,28 @@ export default function MathBlast() {
   const q = useMemo(() => makeQ(levelIdx), [levelIdx, questionNo]);
   const opts = useMemo(() => buildOptions(q.ans), [q]);
 
-  useEffect(() => () => { stopAudio(); }, []);
+  useEffect(() => {
+    preloadMathAudio(lang);
+    return () => {
+      stopPreloaded();
+      stopAudio();
+    };
+  }, [lang]);
+
+  // Map operator symbols to spoken words
+  const opWord = (op: string): string => {
+    if (lang === "ar") {
+      const ar: Record<string, string> = { "+": "زائد", "-": "ناقص", "×": "ضرب", "÷": "قسمة" };
+      return ar[op] ?? op;
+    }
+    const en: Record<string, string> = { "+": "plus", "-": "minus", "×": "times", "÷": "divided by" };
+    return en[op] ?? op;
+  };
 
   // Read question aloud — short equation only, with delay so UI renders first
   useEffect(() => {
     const timer = setTimeout(() => {
-      // e.g. "3 + 4" — concise, no extra words
-      speak(`${q.a} ${q.op} ${q.b}`, voice).catch(() => {});
+      speak(`${q.a} ${opWord(q.op)} ${q.b}`, voice).catch(() => {});
     }, 500);
     return () => clearTimeout(timer);
   }, [levelIdx, questionNo]);
@@ -76,7 +97,12 @@ export default function MathBlast() {
     if (n === q.ans) {
       setScore((s) => s + 1);
       setFeedback("ok");
-      speak(lang === "ar" ? "ممتاز!" : "Correct!", voice).catch(() => {});
+      // Play a random pre-generated correct phrase; fall back to short TTS
+      const variant = Math.floor(Math.random() * 5);
+      const path = mathCorrectPath(variant, lang);
+      playPreloaded(path, () =>
+        speak(lang === "ar" ? "ممتاز!" : "Correct!", voice)
+      ).catch(() => {});
       setTimeout(() => {
         setFeedback("");
         const nextQ = questionNo + 1;

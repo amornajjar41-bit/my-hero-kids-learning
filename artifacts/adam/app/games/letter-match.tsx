@@ -12,6 +12,12 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang, useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
+import {
+  preloadLetterAudio,
+  letterCelebratePath,
+  playPreloaded,
+  stopPreloaded,
+} from "@/lib/lessonAudio";
 
 export default function LetterMatch() {
   const c = useColors();
@@ -38,7 +44,13 @@ export default function LetterMatch() {
     return { correct, options };
   }, [round, pool]);
 
-  useEffect(() => () => { stopAudio(); }, []);
+  useEffect(() => {
+    preloadLetterAudio(lang);
+    return () => {
+      stopPreloaded();
+      stopAudio();
+    };
+  }, [lang]);
 
   // Speak just the letter after a short delay so the screen renders first
   useEffect(() => {
@@ -52,8 +64,12 @@ export default function LetterMatch() {
     if (letter === data.correct.letter) {
       setScore((s) => s + 1);
       setFeedback("ok");
-      // Short single-word celebration
-      speak(lang === "ar" ? "ممتاز!" : "Great!", voice).catch(() => {});
+      // Play a random pre-generated celebration phrase; fall back to short phrase
+      const variant = Math.floor(Math.random() * 5);
+      const path = letterCelebratePath(variant, lang);
+      playPreloaded(path, () =>
+        speak(lang === "ar" ? "ممتاز!" : "Great!", voice)
+      ).catch(() => {});
       setTimeout(() => {
         setFeedback("");
         if (round + 1 >= 6) setDone(true);

@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Confetti } from "@/components/Confetti";
@@ -27,6 +27,7 @@ export default function WordPuzzle() {
   const router = useRouter();
   const t = useT();
   const lang = useLang();
+  const { width } = useWindowDimensions();
   const { profile, saveProgress, addPoints } = useApp();
   const voice = profile?.hero === "girl" ? "nova" : "echo";
 
@@ -40,6 +41,10 @@ export default function WordPuzzle() {
   const target = item.word.replace(/\s+/g, "");
   const letters = useMemo(() => shuffle(target.split("")), [target, round]);
   const current = picked.map((i) => letters[i]).join("");
+
+  // Responsive tile size based on word length and screen width
+  const tileSize = Math.max(36, Math.min(52, Math.floor((width - 80) / Math.max(target.length, 1)) - 6));
+  const fontSize = tileSize > 44 ? 22 : tileSize > 36 ? 18 : 15;
 
   useEffect(() => () => { stopAudio(); }, []);
 
@@ -56,7 +61,6 @@ export default function WordPuzzle() {
     if (current.length === target.length) {
       if (current === target) {
         setScore((s) => s + 1);
-        // Short celebration — just one word
         speak(lang === "ar" ? "ممتاز!" : "Correct!", voice).catch(() => {});
         setTimeout(() => {
           if (round + 1 >= 10) setDone(true);
@@ -110,17 +114,19 @@ export default function WordPuzzle() {
               {t("level")} {round + 1} / 10
             </Text>
             <Text style={{ fontSize: 100, textAlign: "center", marginVertical: 16 }}>{item.emoji}</Text>
-            <View style={{ flexDirection: "row", gap: 6, justifyContent: "center", minHeight: 64 }}>
+
+            {/* Answer slots — responsive width */}
+            <View style={{ flexDirection: "row", gap: 4, justifyContent: "center", flexWrap: "nowrap", minHeight: tileSize + 10 }}>
               {target.split("").map((_, i) => (
                 <View
                   key={i}
                   style={{
-                    width: 44, height: 56, borderRadius: 10,
+                    width: tileSize, height: tileSize + 10, borderRadius: 10,
                     backgroundColor: picked[i] !== undefined ? c.primary : c.muted,
                     alignItems: "center", justifyContent: "center",
                   }}
                 >
-                  <Text style={{ color: picked[i] !== undefined ? "#FFF" : "transparent", fontWeight: "800", fontSize: 24 }}>
+                  <Text style={{ color: picked[i] !== undefined ? "#FFF" : "transparent", fontWeight: "800", fontSize }}>
                     {picked[i] !== undefined ? letters[picked[i]!] : "_"}
                   </Text>
                 </View>
@@ -128,6 +134,7 @@ export default function WordPuzzle() {
             </View>
           </SoftCard>
 
+          {/* Letter tiles — also responsive */}
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
             {letters.map((l, i) => {
               const used = picked.includes(i);
@@ -143,7 +150,7 @@ export default function WordPuzzle() {
                     opacity: used ? 0.4 : pressed ? 0.85 : 1,
                   })}
                 >
-                  <Text style={{ color: used ? c.mutedForeground : c.accentForeground, fontWeight: "800", fontSize: 24 }}>
+                  <Text style={{ color: used ? c.mutedForeground : c.accentForeground, fontWeight: "800", fontSize: 22 }}>
                     {l}
                   </Text>
                 </Pressable>

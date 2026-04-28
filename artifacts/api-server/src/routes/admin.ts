@@ -3,18 +3,85 @@
  * POST /api/admin/generate-lesson-audio  → SSE stream
  * POST /api/admin/generate-stories       → SSE stream
  * GET  /api/admin/status                 → {lessonsAudioGenerated, storiesGenerated}
+ *
+ * Uses Google WaveNet TTS (same API as /tts route).
  */
 import { Router, type IRouter, type Request, type Response } from "express";
-import { synthesize } from "../lib/edge-tts";
 import { supabase } from "../lib/supabase";
 
 const router: IRouter = Router();
 
+const GOOGLE_TTS_URL = "https://texttospeech.googleapis.com/v1/text:synthesize";
+
 // ── Voices ────────────────────────────────────────────────────────────────────
-const LESSON_VOICE_EN = "en-US-AnaNeural";
-const LESSON_VOICE_AR = "ar-SA-ZariyahNeural";
-const STORY_VOICE_EN  = "en-US-JennyNeural";
-const STORY_VOICE_AR  = "ar-SA-ZariyahNeural";
+// "en" → Wavenet-F (female English kid-friendly), "ar" → Wavenet-A (female Arabic)
+type LangCode = "en" | "ar";
+const LESSON_LANG_EN: LangCode = "en";
+const LESSON_LANG_AR: LangCode = "ar";
+const STORY_LANG_EN: LangCode  = "en";
+const STORY_LANG_AR: LangCode  = "ar";
+
+// ── Google WaveNet synthesis ──────────────────────────────────────────────────
+function rateToSpeakingRate(rate: string): number {
+  const m = rate.match(/([+-]?\d+(?:\.\d+)?)%/);
+  if (!m) return 1.0;
+  const pct = parseFloat(m[1]!);
+  return Math.max(0.5, Math.min(4.0, 1.0 + pct / 100));
+}
+
+function pitchToSemitones(pitch: string): number {
+  const m = pitch.match(/([+-]?\d+(?:\.\d+)?)st/);
+  if (m) return parseFloat(m[1]!);
+  return 0;
+}
+
+async function synthesizeWavenet(
+  text: string,
+  lang: LangCode,
+  rate = "+0%",
+  pitch = "+0Hz",
+  timeoutMs = 20000,
+): Promise<Buffer> {
+  const apiKey = process.env["GOOGLE_TTS_API_KEY"];
+  if (!apiKey) throw new Error("GOOGLE_TTS_API_KEY not set");
+
+  const female = true; // always female for lesson/story audio (warm, kid-friendly)
+  const voiceParams = lang === "ar"
+    ? { languageCode: "ar-XA", name: "ar-XA-Wavenet-A", ssmlGender: "FEMALE" as const }
+    : { languageCode: "en-US", name: "en-US-Wavenet-F", ssmlGender: "FEMALE" as const };
+
+  const speakingRate = rateToSpeakingRate(rate);
+  const pitchVal = pitchToSemitones(pitch);
+
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${GOOGLE_TTS_URL}?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: { text },
+        voice: voiceParams,
+        audioConfig: {
+          audioEncoding: "MP3",
+          speakingRate,
+          pitch: pitchVal,
+        },
+      }),
+      signal: ctrl.signal,
+    });
+    if (!response.ok) {
+      const err = await response.text().catch(() => "");
+      throw new Error(`WaveNet ${response.status}: ${err}`);
+    }
+    const data = await response.json() as { audioContent?: string };
+    if (!data.audioContent) throw new Error("WaveNet: no audioContent");
+    return Buffer.from(data.audioContent, "base64");
+  } finally {
+    clearTimeout(tid);
+  }
+}
 
 // ── Number-to-words helpers ───────────────────────────────────────────────────
 const EN_ONES = ["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
@@ -31,7 +98,7 @@ const AR_TENS = ["","","عشرون","ثلاثون","أربعون","خمسون","
 
 function numToArWords(n: number): string {
   if (n < 20) return AR_ONES[n]!;
-  if (n < 100) return EN_TENS[Math.floor(n / 10)]! + (n % 10 ? " و" + AR_ONES[n % 10]! : AR_TENS[Math.floor(n / 10)]!);
+  if (n < 100) return AR_TENS[Math.floor(n / 10)]! + (n % 10 ? " و" + AR_ONES[n % 10]! : "");
   return "مئة";
 }
 
@@ -224,10 +291,10 @@ const LESSON_WORDS: WordItem[] = [
 ];
 
 // ── Story sentences ───────────────────────────────────────────────────────────
-type StorySentence = { storyId: string; index: number; text: string; voice: string; rate: string; pitch: string };
+type StorySentence = { storyId: string; index: number; text: string; lang: LangCode; rate: string; pitch: string };
 
 const STORY_SENTENCES: StorySentence[] = [
-  // Story 1 — الأسد الصغير الشجاع (Arabic)
+  // Story 1 — Arabic
   ...([
     "في غابة بعيدة... كان يعيش أسد صغير اسمه ليو.",
     "كان ليو يحب اللعب... لكنه كان خائفاً من الظلام.",
@@ -235,70 +302,70 @@ const STORY_SENTENCES: StorySentence[] = [
     "قال... أنا خائف... لكن العصفور يحتاجني.",
     "خطا نحو الظلام ووجد العصفور.",
     "أدرك أن الشجاعة هي فعل الشيء الصحيح حتى وأنت خائف.",
-  ].map((text, index) => ({ storyId: "1", index, text, voice: STORY_VOICE_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 2 — نجمة المطر (Arabic)
+  ].map((text, index) => ({ storyId: "1", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
+  // Story 2 — Arabic
   ...([
     "نجمة اسمها لمى بكت من الحنان على الأرض الجافة.",
     "دموعها صارت مطراً فازهرت الأزهار وضحك الأطفال.",
     "دموعها لم تكن ضعفاً... كانت هديتها للعالم.",
-  ].map((text, index) => ({ storyId: "2", index, text, voice: STORY_VOICE_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 3 — الفيل الذي نسي (Arabic)
+  ].map((text, index) => ({ storyId: "2", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
+  // Story 3 — Arabic
   ...([
     "فيلو ينسى كل شيء.",
     "جدته قالت: الذاكرة في القلب لا تنسى أبداً.",
     "هل نسيت أن تحب أصدقاءك؟ لا أبداً.",
     "إذن أنت لا تنسى ما يهم.",
-  ].map((text, index) => ({ storyId: "3", index, text, voice: STORY_VOICE_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 4 — الولد الذي زرع قمراً (Arabic)
+  ].map((text, index) => ({ storyId: "3", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
+  // Story 4 — Arabic
   ...([
     "سامي وجد بذرة تلمع.",
     "سقاها كل ليلة.",
     "ضحك الجميع... لكنه لم يتوقف.",
     "نبت ضوء أضاء القرية.",
     "كل شيء جميل يحتاج وقتاً ومحبة وصبراً.",
-  ].map((text, index) => ({ storyId: "4", index, text, voice: STORY_VOICE_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 5 — سر المكتبة (Arabic)
+  ].map((text, index) => ({ storyId: "4", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
+  // Story 5 — Arabic
   ...([
     "ليلى كرهت القراءة.",
     "دخلت مكتبة وحيدة.",
     "الكتب أخذتها في رحلات لعوالم مختلفة.",
     "صباحاً كانت تمسك كتاباً ولا تستطيع التوقف.",
-  ].map((text, index) => ({ storyId: "5", index, text, voice: STORY_VOICE_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 6 — The Cloud Who Was Different (English)
+  ].map((text, index) => ({ storyId: "5", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
+  // Story 6 — English
   ...([
     "Pip the cloud could only make snowflakes.",
     "Others laughed.",
     "But on a hot day children danced with joy catching snowflakes.",
     "Being different was not something to fix. It was something to share.",
-  ].map((text, index) => ({ storyId: "6", index, text, voice: STORY_VOICE_EN, rate: "-18%", pitch: "-1st" }))),
-  // Story 7 — The Lighthouse Cat (English)
+  ].map((text, index) => ({ storyId: "6", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 7 — English
   ...([
     "Mia the cat feared water.",
     "But on a stormy night she woke keeper Tom to save a ship.",
     "Love is always bigger than fear.",
-  ].map((text, index) => ({ storyId: "7", index, text, voice: STORY_VOICE_EN, rate: "-18%", pitch: "-1st" }))),
-  // Story 8 — The Boy Who Collected Sunsets (English)
+  ].map((text, index) => ({ storyId: "7", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 8 — English
   ...([
     "Omar drew every sunset.",
     "People said it was a waste.",
     "A famous artist saw his wall and said he captured what no camera could.",
     "How each day felt when it ended.",
-  ].map((text, index) => ({ storyId: "8", index, text, voice: STORY_VOICE_EN, rate: "-18%", pitch: "-1st" }))),
-  // Story 9 — The Giant Who Was Lonely (English)
+  ].map((text, index) => ({ storyId: "8", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 9 — English
   ...([
     "Everyone feared giant Boru except Nadia who waved every day.",
     "He slowly waved back.",
     "What they feared was just lonely.",
     "One wave can change everything.",
-  ].map((text, index) => ({ storyId: "9", index, text, voice: STORY_VOICE_EN, rate: "-18%", pitch: "-1st" }))),
-  // Story 10 — The Last Cookie (English)
+  ].map((text, index) => ({ storyId: "9", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 10 — English
   ...([
     "Zara and Max argued all day over the last cookie.",
     "They fell asleep exhausted.",
     "Mother ate it with tea.",
     "Both children laughed in the morning.",
     "Some arguments end with nobody winning. That is perfectly fine.",
-  ].map((text, index) => ({ storyId: "10", index, text, voice: STORY_VOICE_EN, rate: "-18%", pitch: "-1st" }))),
+  ].map((text, index) => ({ storyId: "10", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
 ];
 
 // ── Concurrency queue ─────────────────────────────────────────────────────────
@@ -341,8 +408,8 @@ async function generateAndStore(
   bucket: string,
   path: string,
   text: string,
-  voice: string,
-  rate = "-10%",
+  lang: LangCode,
+  rate = "+0%",
   pitch = "+0Hz",
   skipIfExists = true,
 ): Promise<boolean> {
@@ -351,7 +418,7 @@ async function generateAndStore(
     if (exists) return true;
   }
   try {
-    const buffer = await synthesize(text, voice, rate, pitch, 20000);
+    const buffer = await synthesizeWavenet(text, lang, rate, pitch, 20000);
     return await uploadAudio(bucket, path, buffer);
   } catch {
     return false;
@@ -359,61 +426,51 @@ async function generateAndStore(
 }
 
 // ── Build lesson audio items ──────────────────────────────────────────────────
-type AudioItem = { bucket: string; path: string; text: string; voice: string; rate: string; pitch: string; label: string };
+type AudioItem = { bucket: string; path: string; text: string; lang: LangCode; rate: string; pitch: string; label: string };
 
 function buildLessonItems(): AudioItem[] {
   const items: AudioItem[] = [];
   for (const w of LESSON_WORDS) {
     const isAr = w.lessonId.startsWith("ar-");
-    const voice = isAr ? LESSON_VOICE_AR : LESSON_VOICE_EN;
-    const wordText = isAr ? w.ar : w.en;
 
     items.push({
       bucket: "lessons-audio",
       path: `lesson/${w.lessonId}/${w.wordIndex}/pronunciation-en`,
-      text: w.en,
-      voice: LESSON_VOICE_EN,
-      rate: "-10%", pitch: "+0Hz",
+      text: w.en, lang: LESSON_LANG_EN, rate: "-10%", pitch: "+0Hz",
       label: `${w.lessonId} word ${w.wordIndex} pronunciation EN`,
     });
     items.push({
       bucket: "lessons-audio",
       path: `lesson/${w.lessonId}/${w.wordIndex}/pronunciation-ar`,
-      text: w.ar,
-      voice: LESSON_VOICE_AR,
-      rate: "-10%", pitch: "+0Hz",
+      text: w.ar, lang: LESSON_LANG_AR, rate: "-10%", pitch: "+0Hz",
       label: `${w.lessonId} word ${w.wordIndex} pronunciation AR`,
     });
     items.push({
       bucket: "lessons-audio",
       path: `lesson/${w.lessonId}/${w.wordIndex}/hint-en`,
       text: `Can you find ${w.en}? Look carefully!`,
-      voice: LESSON_VOICE_EN,
-      rate: "-10%", pitch: "+0Hz",
+      lang: LESSON_LANG_EN, rate: "-10%", pitch: "+0Hz",
       label: `${w.lessonId} word ${w.wordIndex} hint EN`,
     });
     items.push({
       bucket: "lessons-audio",
       path: `lesson/${w.lessonId}/${w.wordIndex}/hint-ar`,
       text: `هل يمكنك إيجاد ${w.ar}؟ انظر بتأنٍّ!`,
-      voice: LESSON_VOICE_AR,
-      rate: "-10%", pitch: "+0Hz",
+      lang: LESSON_LANG_AR, rate: "-10%", pitch: "+0Hz",
       label: `${w.lessonId} word ${w.wordIndex} hint AR`,
     });
     items.push({
       bucket: "lessons-audio",
       path: `lesson/${w.lessonId}/${w.wordIndex}/reveal-en`,
       text: `Excellent! That is ${w.en}! Great job!`,
-      voice: LESSON_VOICE_EN,
-      rate: "+0%", pitch: "+0Hz",
+      lang: LESSON_LANG_EN, rate: "+0%", pitch: "+0Hz",
       label: `${w.lessonId} word ${w.wordIndex} reveal EN`,
     });
     items.push({
       bucket: "lessons-audio",
       path: `lesson/${w.lessonId}/${w.wordIndex}/reveal-ar`,
       text: `رائع! هذا هو ${w.ar}! أحسنت!`,
-      voice: LESSON_VOICE_AR,
-      rate: "+0%", pitch: "+0Hz",
+      lang: LESSON_LANG_AR, rate: "+0%", pitch: "+0Hz",
       label: `${w.lessonId} word ${w.wordIndex} reveal AR`,
     });
   }
@@ -425,65 +482,51 @@ function buildGameItems(): AudioItem[] {
 
   // Math Blast — numbers 0-100 (EN + AR)
   for (let n = 0; n <= 100; n++) {
-    items.push({
-      bucket: "lessons-audio",
-      path: `games/math/num-${n}-en`,
-      text: numToEnWords(n),
-      voice: LESSON_VOICE_EN,
-      rate: "-10%", pitch: "+0Hz",
-      label: `math number ${n} EN`,
-    });
-    items.push({
-      bucket: "lessons-audio",
-      path: `games/math/num-${n}-ar`,
-      text: numToArWords(n),
-      voice: LESSON_VOICE_AR,
-      rate: "-10%", pitch: "+0Hz",
-      label: `math number ${n} AR`,
-    });
+    items.push({ bucket: "lessons-audio", path: `games/math/num-${n}-en`, text: numToEnWords(n), lang: LESSON_LANG_EN, rate: "-10%", pitch: "+0Hz", label: `math number ${n} EN` });
+    items.push({ bucket: "lessons-audio", path: `games/math/num-${n}-ar`, text: numToArWords(n), lang: LESSON_LANG_AR, rate: "-10%", pitch: "+0Hz", label: `math number ${n} AR` });
   }
 
   // Math Blast — operators
   const ops = [
-    { key: "plus", en: "plus", ar: "زائد" },
-    { key: "minus", en: "minus", ar: "ناقص" },
-    { key: "times", en: "times", ar: "ضرب" },
-    { key: "div", en: "divided by", ar: "قسمة" },
-    { key: "equals", en: "equals", ar: "يساوي" },
+    { key: "plus",   en: "plus",       ar: "زائد" },
+    { key: "minus",  en: "minus",      ar: "ناقص" },
+    { key: "times",  en: "times",      ar: "ضرب" },
+    { key: "div",    en: "divided by", ar: "قسمة" },
+    { key: "equals", en: "equals",     ar: "يساوي" },
   ];
   for (const op of ops) {
-    items.push({ bucket: "lessons-audio", path: `games/math/op-${op.key}-en`, text: op.en, voice: LESSON_VOICE_EN, rate: "-10%", pitch: "+0Hz", label: `math op ${op.key} EN` });
-    items.push({ bucket: "lessons-audio", path: `games/math/op-${op.key}-ar`, text: op.ar, voice: LESSON_VOICE_AR, rate: "-10%", pitch: "+0Hz", label: `math op ${op.key} AR` });
+    items.push({ bucket: "lessons-audio", path: `games/math/op-${op.key}-en`, text: op.en, lang: LESSON_LANG_EN, rate: "-10%", pitch: "+0Hz", label: `math op ${op.key} EN` });
+    items.push({ bucket: "lessons-audio", path: `games/math/op-${op.key}-ar`, text: op.ar, lang: LESSON_LANG_AR, rate: "-10%", pitch: "+0Hz", label: `math op ${op.key} AR` });
   }
 
   // Math Blast — correct confirmations (5 variations)
   const mathCorrectEn = ["Correct! Well done!", "Excellent!", "Amazing! You got it!", "Perfect answer!", "Brilliant!"];
   const mathCorrectAr = ["صحيح! أحسنت!", "ممتاز!", "رائع! أصبت!", "إجابة مثالية!", "عبقري!"];
   for (let i = 0; i < 5; i++) {
-    items.push({ bucket: "lessons-audio", path: `games/math/correct-${i}-en`, text: mathCorrectEn[i]!, voice: LESSON_VOICE_EN, rate: "+0%", pitch: "+0Hz", label: `math correct ${i} EN` });
-    items.push({ bucket: "lessons-audio", path: `games/math/correct-${i}-ar`, text: mathCorrectAr[i]!, voice: LESSON_VOICE_AR, rate: "+0%", pitch: "+0Hz", label: `math correct ${i} AR` });
+    items.push({ bucket: "lessons-audio", path: `games/math/correct-${i}-en`, text: mathCorrectEn[i]!, lang: LESSON_LANG_EN, rate: "+0%", pitch: "+0Hz", label: `math correct ${i} EN` });
+    items.push({ bucket: "lessons-audio", path: `games/math/correct-${i}-ar`, text: mathCorrectAr[i]!, lang: LESSON_LANG_AR, rate: "+0%", pitch: "+0Hz", label: `math correct ${i} AR` });
   }
 
   // Letter Match — celebration phrases (5 variations)
   const letterCelebEn = ["Excellent! You matched it!", "Amazing work!", "You are so smart!", "Perfect match!", "Keep going, you are doing great!"];
   const letterCelebAr = ["ممتاز! وجدت التطابق!", "عمل رائع!", "أنت ذكي جداً!", "تطابق مثالي!", "هيا، أنت رائع!"];
   for (let i = 0; i < 5; i++) {
-    items.push({ bucket: "lessons-audio", path: `games/letter/celebrate-${i}-en`, text: letterCelebEn[i]!, voice: LESSON_VOICE_EN, rate: "+0%", pitch: "+0Hz", label: `letter celebrate ${i} EN` });
-    items.push({ bucket: "lessons-audio", path: `games/letter/celebrate-${i}-ar`, text: letterCelebAr[i]!, voice: LESSON_VOICE_AR, rate: "+0%", pitch: "+0Hz", label: `letter celebrate ${i} AR` });
+    items.push({ bucket: "lessons-audio", path: `games/letter/celebrate-${i}-en`, text: letterCelebEn[i]!, lang: LESSON_LANG_EN, rate: "+0%", pitch: "+0Hz", label: `letter celebrate ${i} EN` });
+    items.push({ bucket: "lessons-audio", path: `games/letter/celebrate-${i}-ar`, text: letterCelebAr[i]!, lang: LESSON_LANG_AR, rate: "+0%", pitch: "+0Hz", label: `letter celebrate ${i} AR` });
   }
 
   // Jigsaw — fun facts per puzzle
   const jigsawFacts = [
     { id: "solar", en: "Did you know Jupiter is SO big, one thousand three hundred Earths could fit inside it!", ar: "هل تعلم أن المشتري ضخم لدرجة أن ألف وثلاثمائة كرة أرضية تنحط جواه!" },
     { id: "world", en: "Earth is moving one hundred and seven thousand kilometers per hour around the sun right now!", ar: "الأرض تتحرك مئة وسبعة آلاف كيلومتر في الساعة حول الشمس الآن!" },
-    { id: "abc", en: "There are twenty six English letters and twenty eight Arabic letters. You know them all!", ar: "في ستة وعشرون حرفاً إنجليزياً وثمانية وعشرون حرفاً عربياً! أنت تعرفها!" },
+    { id: "abc",   en: "There are twenty six English letters and twenty eight Arabic letters. You know them all!", ar: "في ستة وعشرون حرفاً إنجليزياً وثمانية وعشرون حرفاً عربياً! أنت تعرفها!" },
     { id: "ocean", en: "The ocean covers seventy one percent of the Earth's surface. It is huge!", ar: "المحيطات تغطي واحد وسبعين بالمئة من سطح الأرض. إنها ضخمة!" },
-    { id: "jungle", en: "There are more species of animals in a jungle than anywhere else on Earth!", ar: "الغابة الاستوائية فيها أكثر أنواع حيوانات من أي مكان آخر على الأرض!" },
+    { id: "jungle",en: "There are more species of animals in a jungle than anywhere else on Earth!", ar: "الغابة الاستوائية فيها أكثر أنواع حيوانات من أي مكان آخر على الأرض!" },
     { id: "space", en: "It takes eight minutes for sunlight to travel from the sun all the way to Earth!", ar: "يستغرق ضوء الشمس ثماني دقائق ليصل من الشمس إلى الأرض!" },
   ];
   for (const jf of jigsawFacts) {
-    items.push({ bucket: "lessons-audio", path: `games/jigsaw/${jf.id}-en`, text: jf.en, voice: LESSON_VOICE_EN, rate: "-10%", pitch: "+0Hz", label: `jigsaw ${jf.id} EN` });
-    items.push({ bucket: "lessons-audio", path: `games/jigsaw/${jf.id}-ar`, text: jf.ar, voice: LESSON_VOICE_AR, rate: "-10%", pitch: "+0Hz", label: `jigsaw ${jf.id} AR` });
+    items.push({ bucket: "lessons-audio", path: `games/jigsaw/${jf.id}-en`, text: jf.en, lang: LESSON_LANG_EN, rate: "-10%", pitch: "+0Hz", label: `jigsaw ${jf.id} EN` });
+    items.push({ bucket: "lessons-audio", path: `games/jigsaw/${jf.id}-ar`, text: jf.ar, lang: LESSON_LANG_AR, rate: "-10%", pitch: "+0Hz", label: `jigsaw ${jf.id} AR` });
   }
 
   return items;
@@ -530,8 +573,8 @@ router.post("/api/admin/generate-lesson-audio", async (req, res) => {
 
   sseWrite(res, { progress: 0, total, message: `Starting generation of ${total} audio files...` });
 
-  await runConcurrent(allItems, 5, async (item) => {
-    await generateAndStore(item.bucket, item.path, item.text, item.voice, item.rate, item.pitch);
+  await runConcurrent(allItems, 3, async (item) => {
+    await generateAndStore(item.bucket, item.path, item.text, item.lang, item.rate, item.pitch);
     progress++;
     if (progress % 10 === 0 || progress === total) {
       sseWrite(res, { progress, total, message: item.label, percent: Math.round((progress / total) * 100) });
@@ -557,9 +600,9 @@ router.post("/api/admin/generate-stories", async (req, res) => {
 
   sseWrite(res, { progress: 0, total, message: `Starting generation of ${total} story audio segments...` });
 
-  await runConcurrent(STORY_SENTENCES, 5, async (sentence) => {
+  await runConcurrent(STORY_SENTENCES, 3, async (sentence) => {
     const path = `story-${sentence.storyId}/sentence-${sentence.index}`;
-    await generateAndStore("stories-audio", path, sentence.text, sentence.voice, sentence.rate, sentence.pitch);
+    await generateAndStore("stories-audio", path, sentence.text, sentence.lang, sentence.rate, sentence.pitch);
     progress++;
     sseWrite(res, { progress, total, message: `Story ${sentence.storyId} sentence ${sentence.index}`, percent: Math.round((progress / total) * 100) });
   });

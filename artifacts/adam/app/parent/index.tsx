@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -19,18 +19,36 @@ export type { SafetyAlert };
 const dayLabelsEn = ["S", "M", "T", "W", "T", "F", "S"];
 const dayLabelsAr = ["ح", "ن", "ث", "ر", "خ", "ج", "س"];
 
+function getApiBase(): string {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  return domain ? `https://${domain}` : "";
+}
+
+type GenerationState = {
+  running: boolean;
+  percent: number;
+  message: string;
+  done: boolean;
+  error: string;
+};
+
+const GEN_IDLE: GenerationState = { running: false, percent: 0, message: "", done: false, error: "" };
+
 export default function ParentDashboard() {
   const c = useColors();
   const router = useRouter();
   const t = useT();
   const { profile, progress, resetAll } = useApp();
 
-  // 5A – PIN guard: show PIN screen until verified this session
   const [pinVerified, setPinVerified] = useState(false);
-
   const [sentMsg, setSentMsg] = useState<string>("");
   const [sending, setSending] = useState(false);
   const [safetyAlerts, setSafetyAlerts] = useState<SafetyAlert[]>([]);
+
+  const [lessonGen, setLessonGen] = useState<GenerationState>(GEN_IDLE);
+  const [storyGen, setStoryGen] = useState<GenerationState>(GEN_IDLE);
+  const lessonAbortRef = useRef<AbortController | null>(null);
+  const storyAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     getJSON<SafetyAlert[]>(STORAGE_KEYS.safetyAlerts).then((v) => {
@@ -38,14 +56,8 @@ export default function ParentDashboard() {
     });
   }, []);
 
-  // Show PIN screen first
   if (!pinVerified) {
-    return (
-      <ParentPin
-        onSuccess={() => setPinVerified(true)}
-        onBack={() => router.back()}
-      />
-    );
+    return <ParentPin onSuccess={() => setPinVerified(true)} onBack={() => router.back()} />;
   }
 
   if (!profile) return null;
@@ -54,6 +66,12 @@ export default function ParentDashboard() {
 
   const trialDays = trialDaysLeft(profile.trialStartedAt);
   const max = Math.max(1, ...progress.weekly);
+
+  const usedMinutes = progress.dailyUsageDate === new Date().toISOString().slice(0, 10)
+    ? Math.round(progress.dailyUsageMinutes) : 0;
+  const limitLabel = profile.screenLimitHours === 0
+    ? (lang === "ar" ? "غير محدود" : "Unlimited")
+    : `${profile.screenLimitHours}h / ${lang === "ar" ? "يوم" : "day"}`;
 
   const sendReport = async () => {
     setSending(true);
@@ -66,10 +84,8 @@ export default function ParentDashboard() {
           questionsAsked: progress.chatSessions,
           lessonsCompleted: progress.lessonsCompleted.length,
           activeDays: progress.monthlyActiveDays.length,
-          strengths:
-            progress.englishLessons > progress.arabicLessons
-              ? ["English vocabulary", "Reading"]
-              : ["Arabic letters", "Pronunciation"],
+          strengths: progress.englishLessons > progress.arabicLessons
+            ? ["English vocabulary", "Reading"] : ["Arabic letters", "Pronunciation"],
           difficulties: ["Multiplication"],
         },
       });
@@ -82,15 +98,67 @@ export default function ParentDashboard() {
     }
   };
 
-  const hasSafetyAlerts = safetyAlerts.length > 0;
+  // ── SSE stream consumer ───────────────────────────────────────────────────
+  async function runGeneration(
+    endpoint: string,
+    abortRef: React.MutableRefObject<AbortController | null>,
+    setState: React.Dispatch<React.SetStateAction<GenerationState>>,
+  ) {
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
 
-  // Screen time today
-  const usedMinutes = progress.dailyUsageDate === new Date().toISOString().slice(0, 10)
-    ? Math.round(progress.dailyUsageMinutes)
-    : 0;
-  const limitLabel = profile.screenLimitHours === 0
-    ? (lang === "ar" ? "غير محدود" : "Unlimited")
-    : `${profile.screenLimitHours}h / ${lang === "ar" ? "يوم" : "day"}`;
+    setState({ running: true, percent: 0, message: lang === "ar" ? "جاري التحضير…" : "Preparing…", done: false, error: "" });
+
+    try {
+      const res = await fetch(`${getApiBase()}${endpoint}`, {
+        method: "POST",
+        signal: ctrl.signal,
+      });
+
+      if (!res.ok || !res.body) {
+        setState((s) => ({ ...s, running: false, error: `HTTP ${res.status}` }));
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const data = JSON.parse(line.slice(6)) as {
+              progress?: number; total?: number; percent?: number;
+              message?: string; done?: boolean;
+            };
+            setState((s) => ({
+              ...s,
+              percent: data.percent ?? s.percent,
+              message: data.message ?? s.message,
+              done: data.done ?? false,
+              running: !(data.done ?? false),
+            }));
+          } catch { /* ignore malformed chunk */ }
+        }
+      }
+
+      setState((s) => ({ ...s, running: false, done: true, percent: 100 }));
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
+      setState((s) => ({ ...s, running: false, error: String(err?.message ?? err) }));
+    }
+  }
+
+  const hasSafetyAlerts = safetyAlerts.length > 0;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
@@ -104,7 +172,6 @@ export default function ParentDashboard() {
         <Text style={{ fontWeight: "800", fontSize: 22, color: c.text, flex: 1 }}>
           👨‍👩‍👧 {t("parentDashboard")}
         </Text>
-        {/* Lock icon to require PIN again */}
         <Pressable
           onPress={() => setPinVerified(false)}
           style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 18, backgroundColor: c.muted, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}
@@ -114,7 +181,7 @@ export default function ParentDashboard() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 18, gap: 14, paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ padding: 18, gap: 14, paddingBottom: 60 }}>
 
         {/* Trial banner */}
         {!profile.isPaid && (
@@ -131,7 +198,7 @@ export default function ParentDashboard() {
           </SoftCard>
         )}
 
-        {/* Safety Alert panel */}
+        {/* Safety alerts */}
         {hasSafetyAlerts ? (
           <SoftCard color="#FEE2E2">
             <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
@@ -167,7 +234,7 @@ export default function ParentDashboard() {
           </SoftCard>
         )}
 
-        {/* Stats */}
+        {/* Stats row */}
         <View style={{ flexDirection: "row", gap: 10 }}>
           <SoftCard style={{ flex: 1, alignItems: "center" }}>
             <Text style={{ fontSize: 32 }}>📚</Text>
@@ -237,7 +304,7 @@ export default function ParentDashboard() {
           </Text>
         </SoftCard>
 
-        {/* Navigation buttons */}
+        {/* Navigation */}
         <Pressable onPress={() => router.push("/parent/controls")} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
           <SoftCard style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             <Text style={{ fontSize: 30 }}>⏱️</Text>
@@ -304,7 +371,7 @@ export default function ParentDashboard() {
           onPress={sendReport}
         />
 
-        {/* Logout / Switch Profile */}
+        {/* Switch / Logout */}
         <Pressable
           onPress={() => {
             Alert.alert(
@@ -326,7 +393,7 @@ export default function ParentDashboard() {
             );
           }}
           style={({ pressed }) => ({
-            marginTop: 4, flexDirection: "row", alignItems: "center", justifyContent: "center",
+            flexDirection: "row", alignItems: "center", justifyContent: "center",
             gap: 8, paddingVertical: 14, borderRadius: 16,
             borderWidth: 1.5, borderColor: "#EF4444", opacity: pressed ? 0.7 : 1,
           })}
@@ -336,6 +403,110 @@ export default function ParentDashboard() {
             {lang === "ar" ? "تغيير الشخصية / تسجيل خروج" : "Switch Character / Log Out"}
           </Text>
         </Pressable>
+
+        {/* ── Admin: Audio Generation ───────────────────────────────────────── */}
+        <View style={{ height: 1, backgroundColor: c.border, marginVertical: 8 }} />
+
+        <Text style={{ fontWeight: "700", fontSize: 12, color: c.mutedForeground, letterSpacing: 1, textTransform: "uppercase" }}>
+          {lang === "ar" ? "أدوات المطور" : "Developer Tools"}
+        </Text>
+
+        {/* Generate Lesson + Game Audio */}
+        <SoftCard style={{ gap: 10 }}>
+          <Text style={{ fontWeight: "800", color: c.text, fontSize: 15 }}>
+            🎙️ {lang === "ar" ? "توليد صوت الدروس والألعاب" : "Generate Lesson & Game Audio"}
+          </Text>
+          <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
+            {lang === "ar"
+              ? "ينشئ كل الملفات الصوتية للدروس والألعاب الأربعة بصوت Google WaveNet ويرفعها لـ Supabase."
+              : "Pre-generates all lesson and game audio using Google WaveNet and uploads to Supabase Storage."}
+          </Text>
+
+          {lessonGen.running && (
+            <View style={{ gap: 6 }}>
+              <View style={{ height: 8, backgroundColor: c.muted, borderRadius: 4, overflow: "hidden" }}>
+                <View style={{ height: "100%", width: `${lessonGen.percent}%`, backgroundColor: c.primary, borderRadius: 4 }} />
+              </View>
+              <Text style={{ fontSize: 12, color: c.mutedForeground }} numberOfLines={1}>
+                {lessonGen.percent}% — {lessonGen.message}
+              </Text>
+            </View>
+          )}
+
+          {lessonGen.done && !lessonGen.running && (
+            <Text style={{ color: "#065F46", fontWeight: "700", fontSize: 13 }}>
+              ✅ {lang === "ar" ? "اكتمل!" : "Done!"}
+            </Text>
+          )}
+          {lessonGen.error !== "" && (
+            <Text style={{ color: c.destructive, fontSize: 12 }}>⚠️ {lessonGen.error}</Text>
+          )}
+
+          <Pressable
+            disabled={lessonGen.running}
+            onPress={() => runGeneration("/api/admin/generate-lesson-audio", lessonAbortRef, setLessonGen)}
+            style={({ pressed }) => ({
+              backgroundColor: lessonGen.running ? c.muted : c.primary,
+              paddingVertical: 12, borderRadius: 12, alignItems: "center",
+              opacity: pressed ? 0.85 : 1,
+            })}
+          >
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14 }}>
+              {lessonGen.running
+                ? (lang === "ar" ? "جاري التوليد…" : "Generating…")
+                : (lang === "ar" ? "ابدأ التوليد" : "Start Generation")}
+            </Text>
+          </Pressable>
+        </SoftCard>
+
+        {/* Generate Story Audio */}
+        <SoftCard style={{ gap: 10 }}>
+          <Text style={{ fontWeight: "800", color: c.text, fontSize: 15 }}>
+            🌙 {lang === "ar" ? "توليد صوت القصص" : "Generate Story Audio"}
+          </Text>
+          <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
+            {lang === "ar"
+              ? "ينشئ الملفات الصوتية لجميع جمل القصص العشر."
+              : "Pre-generates audio for all 10 story sentence segments."}
+          </Text>
+
+          {storyGen.running && (
+            <View style={{ gap: 6 }}>
+              <View style={{ height: 8, backgroundColor: c.muted, borderRadius: 4, overflow: "hidden" }}>
+                <View style={{ height: "100%", width: `${storyGen.percent}%`, backgroundColor: "#7C3AED", borderRadius: 4 }} />
+              </View>
+              <Text style={{ fontSize: 12, color: c.mutedForeground }} numberOfLines={1}>
+                {storyGen.percent}% — {storyGen.message}
+              </Text>
+            </View>
+          )}
+
+          {storyGen.done && !storyGen.running && (
+            <Text style={{ color: "#065F46", fontWeight: "700", fontSize: 13 }}>
+              ✅ {lang === "ar" ? "اكتمل!" : "Done!"}
+            </Text>
+          )}
+          {storyGen.error !== "" && (
+            <Text style={{ color: c.destructive, fontSize: 12 }}>⚠️ {storyGen.error}</Text>
+          )}
+
+          <Pressable
+            disabled={storyGen.running}
+            onPress={() => runGeneration("/api/admin/generate-stories", storyAbortRef, setStoryGen)}
+            style={({ pressed }) => ({
+              backgroundColor: storyGen.running ? c.muted : "#7C3AED",
+              paddingVertical: 12, borderRadius: 12, alignItems: "center",
+              opacity: pressed ? 0.85 : 1,
+            })}
+          >
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14 }}>
+              {storyGen.running
+                ? (lang === "ar" ? "جاري التوليد…" : "Generating…")
+                : (lang === "ar" ? "ابدأ التوليد" : "Start Generation")}
+            </Text>
+          </Pressable>
+        </SoftCard>
+
       </ScrollView>
     </SafeAreaView>
   );

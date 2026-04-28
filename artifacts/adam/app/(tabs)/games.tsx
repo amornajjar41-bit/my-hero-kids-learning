@@ -41,18 +41,20 @@ const games = [
   {
     id: "story-builder",
     emoji: "📖",
-    titleKey: "wordPuzzle" as const, // reuse key, override title below
+    titleKey: "wordPuzzle" as const,
     color: "#7C3AED",
     desc: { en: "Choose your adventure & learn science!", ar: "اختر مغامرتك وتعلّم العلوم!" },
     customTitle: { en: "Story Builder", ar: "بنّاء القصص" },
+    comingSoon: true,
   },
   {
     id: "memory-champion",
     emoji: "🧠",
-    titleKey: "mathBlast" as const, // reuse key, override title below
+    titleKey: "mathBlast" as const,
     color: "#0F172A",
     desc: { en: "3 rounds of memory challenges!", ar: "٣ جولات لاختبار ذاكرتك!" },
     customTitle: { en: "Memory Champion", ar: "بطل الذاكرة" },
+    comingSoon: true,
   },
 ];
 
@@ -81,17 +83,22 @@ export default function Games() {
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
           {games.map((g) => {
             const customT = (g as any).customTitle;
+            const isSoon = !!(g as any).comingSoon;
             const title = customT ? customT[lang] : t(g.titleKey);
             return (
               <Pressable
                 key={g.id}
-                onPress={() => { playChime("tap"); router.push(`/games/${g.id}` as any); }}
+                onPress={() => {
+                  if (isSoon) return;
+                  playChime("tap");
+                  router.push(`/games/${g.id}` as any);
+                }}
                 style={({ pressed }) => ({
                   width: "47%",
                   backgroundColor: g.color,
                   borderRadius: c.radius,
                   padding: 18,
-                  opacity: pressed ? 0.85 : 1,
+                  opacity: isSoon ? 0.55 : pressed ? 0.85 : 1,
                   minHeight: 160,
                 })}
               >
@@ -103,7 +110,9 @@ export default function Games() {
                   {g.desc[lang]}
                 </Text>
                 <View style={{ marginTop: 10, alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.25)", paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12 }}>
-                  <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 11 }}>▶ {t("playNow")}</Text>
+                  <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 11 }}>
+                    {isSoon ? (lang === "ar" ? "🔒 قريباً" : "🔒 Coming soon") : `▶ ${t("playNow")}`}
+                  </Text>
                 </View>
               </Pressable>
             );

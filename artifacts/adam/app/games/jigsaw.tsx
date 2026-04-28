@@ -13,6 +13,12 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang, useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
+import {
+  preloadJigsawAudio,
+  jigsawFunFactPath,
+  playPreloaded,
+  stopPreloaded,
+} from "@/lib/lessonAudio";
 
 const PALETTES: [string, string][] = [
   ["#FF8A4C", "#FFD93D"],
@@ -41,15 +47,23 @@ export default function Jigsaw() {
   const [tiles, setTiles] = useState<number[]>([]);
   const [done, setDone] = useState(false);
   const [solvedAll, setSolvedAll] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
   const item = jigsawImages[round % jigsawImages.length]!;
   const palette = PALETTES[round % PALETTES.length]!;
 
-  useEffect(() => () => { stopAudio(); }, []);
+  useEffect(() => {
+    preloadJigsawAudio(lang);
+    return () => {
+      stopPreloaded();
+      stopAudio();
+    };
+  }, [lang]);
 
   useEffect(() => {
     setTiles(shuffle([0, 1, 2, 3]));
     setDone(false);
+    setSelectedIdx(null);
   }, [round]);
 
   // Speak the puzzle title when a new round starts — short and clear
@@ -61,23 +75,24 @@ export default function Jigsaw() {
     return () => clearTimeout(timer);
   }, [round]);
 
-  const selectedRef = React.useRef<number | null>(null);
-
   const swap = (i: number) => {
     if (done) return;
-    if (selectedRef.current === null) {
-      selectedRef.current = i;
+    if (selectedIdx === null) {
+      setSelectedIdx(i);
     } else {
-      const j = selectedRef.current;
-      selectedRef.current = null;
+      const j = selectedIdx;
+      setSelectedIdx(null);
       setTiles((arr) => {
         const next = [...arr];
         [next[i], next[j]] = [next[j]!, next[i]!];
         const isSolved = next.every((v, idx) => v === idx);
         if (isSolved) {
           setDone(true);
-          // Short celebration only — fun fact is already shown visually
-          speak(lang === "ar" ? "رائع!" : "Amazing!", voice).catch(() => {});
+          // Play fun fact from preloaded cache, fall back to short celebration
+          const path = jigsawFunFactPath(item.id, lang);
+          playPreloaded(path, () =>
+            speak(lang === "ar" ? "رائع! حللت اللغز!" : "Amazing! You solved it!", voice)
+          ).catch(() => {});
           setTimeout(() => {
             if (round + 1 >= jigsawImages.length) setSolvedAll(true);
             else setRound((r) => r + 1);
@@ -147,6 +162,13 @@ export default function Jigsaw() {
           <Text style={{ fontSize: 22, fontWeight: "800", color: c.text }}>
             {lang === "ar" ? item.titleAr : item.titleEn}
           </Text>
+
+          {selectedIdx !== null && (
+            <Text style={{ fontSize: 13, color: c.mutedForeground, fontWeight: "600" }}>
+              {lang === "ar" ? "الآن اضغط على مكان آخر للتبديل 🔄" : "Now tap another tile to swap 🔄"}
+            </Text>
+          )}
+
           <View
             style={{
               width: 280, height: 280,
@@ -157,25 +179,46 @@ export default function Jigsaw() {
               elevation: 6,
             }}
           >
-            {tiles.map((v, idx) => (
-              <Pressable key={idx} onPress={() => swap(idx)} style={{ width: "50%", height: "50%" }}>
-                <LinearGradient
-                  colors={tileColors[v]!}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={{ flex: 1, borderWidth: 2, borderColor: "#FFF", alignItems: "center", justifyContent: "center" }}
-                >
-                  {v === 0 && <Text style={{ fontSize: 60 }}>{item.emojiCenter}</Text>}
-                </LinearGradient>
-              </Pressable>
-            ))}
+            {tiles.map((v, idx) => {
+              const isSelected = selectedIdx === idx;
+              return (
+                <Pressable key={idx} onPress={() => swap(idx)} style={{ width: "50%", height: "50%" }}>
+                  <LinearGradient
+                    colors={tileColors[v]!}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      flex: 1,
+                      borderWidth: isSelected ? 4 : 2,
+                      borderColor: isSelected ? "#FFF" : "#FFF",
+                      alignItems: "center", justifyContent: "center",
+                      opacity: isSelected ? 0.75 : 1,
+                    }}
+                  >
+                    {isSelected && (
+                      <View style={{
+                        position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: "rgba(255,255,255,0.35)",
+                        alignItems: "center", justifyContent: "center",
+                      }}>
+                        <Text style={{ fontSize: 28 }}>✋</Text>
+                      </View>
+                    )}
+                    {v === 0 && !isSelected && <Text style={{ fontSize: 60 }}>{item.emojiCenter}</Text>}
+                    {v === 0 && isSelected && <Text style={{ fontSize: 40, opacity: 0.7 }}>{item.emojiCenter}</Text>}
+                  </LinearGradient>
+                </Pressable>
+              );
+            })}
           </View>
+
           <SoftCard color={c.yellow} style={{ width: "100%" }}>
             <Text style={{ fontWeight: "800", color: "#5B3700" }}>💡 {t("funFact")}</Text>
             <Text style={{ color: "#5B3700", marginTop: 6, fontSize: 14, lineHeight: 20 }}>
               {lang === "ar" ? item.funAr : item.funEn}
             </Text>
           </SoftCard>
+
           {done && (
             <Text style={{ color: c.green, fontWeight: "800", fontSize: 18 }}>
               🎉 {t("correct")}

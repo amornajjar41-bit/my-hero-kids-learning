@@ -154,8 +154,8 @@ export async function speak(
             }
           });
           player.play();
-          // Safety timeout based on text length
-          setTimeout(() => resolve(), Math.max(text.length * 80, 4000));
+          // Safety timeout based on text length — generous for long Arabic phrases
+          setTimeout(() => resolve(), Math.min(Math.max(text.length * 100, 6000), 30000));
         }).catch(() => resolve());
       }
     } catch (e) {
