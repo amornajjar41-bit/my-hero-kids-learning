@@ -1,0 +1,43 @@
+Fix the following issues — apply ALL together:
+FIX 1 — Stories Bug (Critical):
+Each story card must open its own unique story content. Fix the routing so each story shows its own title, text, and audio based on the story ID that was tapped. There are 10 different stories — 5 Arabic and 5 English — each must be completely separate. Currently all stories open the same Brave Little Lion story in Arabic — this must be fixed completely.
+English stories must show English text and play English audio. Arabic stories must show Arabic text and play Arabic audio. The language filter buttons (All/Arabic/English) must correctly filter and show only matching stories.
+Generate all story audio using warm gentle slow female voice. Arabic stories: Edge TTS voice “ar-SA-ZariyahNeural” rate 0.82. English stories: “en-US-JennyNeural” rate 0.82. Warm, calm, perfect for bedtime — not robotic or fast.
+FIX 2 — Verify Caching is Working:
+Check that ai_cache table exists and is being used correctly. Before every AI API call check cache first. Add console log showing “CACHE HIT” or “CACHE MISS” for every request. Make sure cache stores responses after every new AI call.
+FIX 3 — Character Switch in Parent Settings:
+Add “Change Hero” option inside parent settings page. Show both Adam and Lulu with illustrations. When parent selects different character, update child profile in database immediately and apply throughout entire app — character appearance, voice, and name. Change takes effect immediately without requiring logout.
+FIX 4 — Subscription Page Complete Redesign:
+The subscription page after first registration is broken and unconvincing. Redesign completely as beautiful full-screen experience. Use this exact structure:
+Section 1 — Emotional headline:
+“Give your child the smartest learning companion 🦸”
+Subtext: “Join thousands of families helping their children learn, grow, and love school”
+Section 2 — 6 key benefits:
+✅ Homework help in Math, English, Arabic and more
+✅ Learns at your child’s pace — adapts from age 4 to 14
+✅ Speaks Arabic and English naturally
+✅ You control screen time and monitor progress
+✅ Safe, ad-free, and built for children
+✅ Costs less than one private tutoring session
+Section 3 — Pricing plans:
+FREE TRIAL — 3 days free, no credit card needed, all features with daily limits
+MONTHLY — $24.99/month, full unlimited access, cancel anytime
+6 MONTHS — $135.99 total (save 10%), best for committed learners
+YEARLY — $236.99/year (save 21%), marked “Most Popular”
+Show prices in local currency based on country selected during registration. Each plan has clear button: “Start Free Trial”, “Choose Monthly”, “Choose 6 Months”, “Choose Yearly”. Add reassurance line: “No hidden fees. Cancel anytime. Your child’s data is always safe and private.”
+FIX 5 — Free Trial = 3 Days Everywhere:
+Change free trial from 7 days to exactly 3 days everywhere in the app — registration flow, subscription page, parent dashboard, reminder messages, and any other place mentioning trial duration.
+FIX 6 — Subscription Page Inside Parent Dashboard:
+Update the upgrade page inside parent dashboard to match the same beautiful redesigned layout from FIX 4. Must be consistent everywhere.
+FIX 7 — Privacy Policy Page:
+Add complete Privacy Policy page accessible from settings and registration in both Arabic and English:
+Title: Privacy Policy — My Hero App
+Last updated: April 2026
+	1.	What we collect: child name, age, gender, learning progress, homework questions — no sensitive personal data
+	2.	What we never do: never sell data, never show ads, never share with third parties
+	3.	Children’s safety: all conversations monitored for safety, parents alerted immediately to any concerns
+	4.	Data storage: all data encrypted and stored securely
+	5.	Parent rights: request complete data deletion anytime by emailing support@myheroapp.com
+	6.	Contact: support@myheroapp.com
+FIX 8 — Slower Voice for Ages 4-6:
+When child age is between 4 and 6, reduce TTS speaking rate to 0.78 for all Adam or Lulu responses in chat. For ages 7 and above keep normal rate 0.90. Adam always uses male voice: en-US-GuyNeural English, ar-SA-HamedNeural Arabic. Lulu always uses female voice: en-US-AnaNeural English, ar-SA-ZariyahNeural Arabic. Speaking rate changes but voice gender never changes.

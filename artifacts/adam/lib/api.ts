@@ -106,6 +106,7 @@ export async function ttsSpeak(opts: {
   voice?: "echo" | "nova";
   speed?: number;
   maxChars?: number;
+  ageGroup?: string;
   contentType?: "explanation" | "greeting" | "celebration" | "story";
 }): Promise<{ audioBase64: string; mimeType: string }> {
   return postJSON("/api/tts", opts);

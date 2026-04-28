@@ -99,6 +99,7 @@ export async function speak(
   voice: "echo" | "nova" = "echo",
   speed = 1.0,
   _contentType?: string,
+  ageGroup?: string,
 ): Promise<void> {
   if (!_soundEnabled || !text?.trim()) return;
 
@@ -112,20 +113,21 @@ export async function speak(
     try {
       await AudioModule.setAudioModeAsync({
         playsInSilentMode: true,
-        shouldPlayInBackground: true,   // keep playing if screen locks or app goes to BG
+        shouldPlayInBackground: true,
       });
     } catch { /* ignore */ }
   }
 
-  // Check client-side cache first — zero network cost
-  let base64 = ttsCacheGet(text, voice);
+  // Cache key includes ageGroup so young-child (slow) audio is cached separately
+  const cacheKey = ageGroup ? `${voice}:${ageGroup}` : voice;
+  let base64 = ttsCacheGet(text, cacheKey);
 
   if (!base64) {
     try {
-      const result = await ttsSpeak({ text, voice });
+      const result = await ttsSpeak({ text, voice, ageGroup });
       if (!result?.audioBase64) return;
       base64 = result.audioBase64;
-      ttsCacheSet(text, voice, base64);
+      ttsCacheSet(text, cacheKey, base64);
     } catch {
       return;
     }

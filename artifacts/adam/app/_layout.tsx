@@ -55,7 +55,9 @@ function RootLayoutNav() {
       <Stack.Screen name="games/jigsaw" />
       <Stack.Screen name="blocked" />
       <Stack.Screen name="birthday-celebration" options={{ presentation: "modal" }} />
+      <Stack.Screen name="stories" />
       <Stack.Screen name="stories/[id]" options={{ animation: "slide_from_bottom" }} />
+      <Stack.Screen name="privacy" options={{ presentation: "card" }} />
     </Stack>
   );
 }

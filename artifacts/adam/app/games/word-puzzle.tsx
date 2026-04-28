@@ -12,6 +12,12 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang, useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
+import {
+  preloadMathAudio,
+  mathCorrectPath,
+  playPreloaded,
+  stopPreloaded,
+} from "@/lib/lessonAudio";
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -46,7 +52,10 @@ export default function WordPuzzle() {
   const tileSize = Math.max(36, Math.min(52, Math.floor((width - 80) / Math.max(target.length, 1)) - 6));
   const fontSize = tileSize > 44 ? 22 : tileSize > 36 ? 18 : 15;
 
-  useEffect(() => () => { stopAudio(); }, []);
+  useEffect(() => {
+    preloadMathAudio(lang);
+    return () => { stopPreloaded(); stopAudio(); };
+  }, [lang]);
 
   // Speak just the word after a short delay so the UI settles first
   useEffect(() => {
@@ -61,7 +70,10 @@ export default function WordPuzzle() {
     if (current.length === target.length) {
       if (current === target) {
         setScore((s) => s + 1);
-        speak(lang === "ar" ? "ممتاز!" : "Correct!", voice).catch(() => {});
+        const variant = Math.floor(Math.random() * 5);
+        playPreloaded(mathCorrectPath(variant, lang), () =>
+          speak(lang === "ar" ? "ممتاز!" : "Correct!", voice)
+        ).catch(() => {});
         setTimeout(() => {
           if (round + 1 >= 10) setDone(true);
           else setRound((r) => r + 1);

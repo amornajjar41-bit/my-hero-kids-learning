@@ -91,7 +91,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 // ── Google WaveNet synthesis ──────────────────────────────────────────────────
-async function synthesizeWavenet(text: string, voice: string): Promise<string> {
+async function synthesizeWavenet(text: string, voice: string, speakingRate = 0.90): Promise<string> {
   const apiKey = process.env["GOOGLE_TTS_API_KEY"];
   if (!apiKey) throw new Error("GOOGLE_TTS_API_KEY not set");
 
@@ -106,7 +106,7 @@ async function synthesizeWavenet(text: string, voice: string): Promise<string> {
         voice: voiceParams,
         audioConfig: {
           audioEncoding: "MP3",
-          speakingRate: 0.88,
+          speakingRate,
           pitch: voiceParams.ssmlGender === "FEMALE" ? 3.0 : 1.0,
         },
       }),
@@ -125,13 +125,22 @@ async function synthesizeWavenet(text: string, voice: string): Promise<string> {
   return data.audioContent; // already base64
 }
 
+// ── Speaking rate from age group ─────────────────────────────────────────────
+function speakingRateFromAge(ageGroup?: string): number {
+  // Young children (4-6) need a slower, clearer voice
+  if (ageGroup === "4-6") return 0.78;
+  // Older children: normal pace
+  return 0.90;
+}
+
 // ── Route ─────────────────────────────────────────────────────────────────────
 router.post("/tts", async (req, res) => {
   const {
     text,
     voice = "echo",
     maxChars,
-  } = req.body as { text?: string; voice?: string; maxChars?: number };
+    ageGroup,
+  } = req.body as { text?: string; voice?: string; maxChars?: number; ageGroup?: string };
 
   if (!text || typeof text !== "string") {
     res.status(400).json({ error: "text required" });
@@ -140,7 +149,8 @@ router.post("/tts", async (req, res) => {
 
   const limit = typeof maxChars === "number" && maxChars > 0 ? Math.min(maxChars, 400) : 400;
   const speechText = cleanText(text, limit);
-  const key = cacheKey(speechText, voice);
+  const rate = speakingRateFromAge(ageGroup);
+  const key = cacheKey(speechText, voice + (ageGroup ?? ""));
 
   // Serve from cache instantly
   if (memCache.has(key)) {
@@ -149,7 +159,7 @@ router.post("/tts", async (req, res) => {
   }
 
   try {
-    const audioBase64 = await synthesizeWavenet(speechText, voice);
+    const audioBase64 = await synthesizeWavenet(speechText, voice, rate);
     cacheSet(key, audioBase64);
     res.json({ audioBase64, mimeType: "audio/mpeg", cached: false });
   } catch (err: any) {

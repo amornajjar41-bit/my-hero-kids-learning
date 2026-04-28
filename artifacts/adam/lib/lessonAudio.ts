@@ -212,14 +212,16 @@ export async function playPreloaded(
           const player = createAudioPlayer({ uri: tmpUri });
           _nativePlayer = player;
           player.addListener("playbackStatusUpdate", (status: any) => {
-            if (status.didJustFinish || status.isLoaded === false) {
+            if (status.didJustFinish) {
               if (_nativePlayer === player) _nativePlayer = null;
               FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
               resolve();
             }
           });
           player.play();
-          setTimeout(() => resolve(), 8000);
+          // Safety timeout: 120ms per char, min 8s, max 60s
+          const charCount = 100;
+          setTimeout(() => resolve(), Math.min(60000, Math.max(8000, charCount * 120)));
         }).catch(() => resolve());
       }
     } catch {

@@ -38,12 +38,13 @@ export default function ParentDashboard() {
   const c = useColors();
   const router = useRouter();
   const t = useT();
-  const { profile, progress, resetAll } = useApp();
+  const { profile, progress, resetAll, patchProfile } = useApp();
 
   const [pinVerified, setPinVerified] = useState(false);
   const [sentMsg, setSentMsg] = useState<string>("");
   const [sending, setSending] = useState(false);
   const [safetyAlerts, setSafetyAlerts] = useState<SafetyAlert[]>([]);
+  const [heroSwitchMsg, setHeroSwitchMsg] = useState("");
 
   const [lessonGen, setLessonGen] = useState<GenerationState>(GEN_IDLE);
   const [storyGen, setStoryGen] = useState<GenerationState>(GEN_IDLE);
@@ -362,6 +363,73 @@ export default function ParentDashboard() {
             <Ionicons name="chevron-forward" size={20} color={c.mutedForeground} />
           </SoftCard>
         </Pressable>
+
+        <Pressable onPress={() => router.push("/privacy" as any)} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+          <SoftCard style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Text style={{ fontSize: 30 }}>🔒</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: "800", color: c.text, fontSize: 16 }}>
+                {lang === "ar" ? "سياسة الخصوصية" : "Privacy Policy"}
+              </Text>
+              <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
+                {lang === "ar" ? "كيف نحمي بيانات طفلك" : "How we protect your child's data"}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={c.mutedForeground} />
+          </SoftCard>
+        </Pressable>
+
+        {/* ── Change Hero ───────────────────────────────────────────────────── */}
+        <SoftCard style={{ gap: 12 }}>
+          <Text style={{ fontWeight: "800", fontSize: 15, color: c.text, textAlign: lang === "ar" ? "right" : "left" }}>
+            🦸 {lang === "ar" ? "تغيير البطل" : "Change Hero"}
+          </Text>
+          <Text style={{ color: c.mutedForeground, fontSize: 12, textAlign: lang === "ar" ? "right" : "left" }}>
+            {lang === "ar"
+              ? `البطل الحالي: ${profile?.hero === "girl" ? "لولو 👧" : "آدم 👦"}`
+              : `Current hero: ${profile?.hero === "girl" ? "Lulu 👧" : "Adam 👦"}`}
+          </Text>
+          <View style={{ flexDirection: lang === "ar" ? "row-reverse" : "row", gap: 10 }}>
+            {([
+              { val: "boy" as const, emoji: "👦", enLabel: "Adam", arLabel: "آدم", color: "#3B82F6" },
+              { val: "girl" as const, emoji: "👧", enLabel: "Lulu", arLabel: "لولو", color: "#EC4899" },
+            ] as const).map(({ val, emoji, enLabel, arLabel, color }) => {
+              const sel = profile?.hero === val;
+              return (
+                <Pressable
+                  key={val}
+                  onPress={async () => {
+                    if (sel) return;
+                    await patchProfile({ hero: val });
+                    const name = lang === "ar" ? arLabel : enLabel;
+                    setHeroSwitchMsg(lang === "ar" ? `تم التغيير إلى ${name} ✓` : `Switched to ${name} ✓`);
+                    setTimeout(() => setHeroSwitchMsg(""), 2500);
+                  }}
+                  style={({ pressed }) => ({
+                    flex: 1, paddingVertical: 14, borderRadius: 14,
+                    backgroundColor: sel ? color : c.muted,
+                    alignItems: "center", gap: 4,
+                    opacity: pressed ? 0.85 : 1,
+                    borderWidth: sel ? 0 : 1, borderColor: c.border,
+                  })}
+                >
+                  <Text style={{ fontSize: 28 }}>{emoji}</Text>
+                  <Text style={{ fontWeight: "800", color: sel ? "#FFF" : c.text, fontSize: 14 }}>
+                    {lang === "ar" ? arLabel : enLabel}
+                  </Text>
+                  {sel && (
+                    <Text style={{ color: "#FFF", fontSize: 11, fontWeight: "700" }}>✓</Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+          {heroSwitchMsg !== "" && (
+            <Text style={{ color: "#059669", fontWeight: "700", fontSize: 13, textAlign: "center" }}>
+              {heroSwitchMsg}
+            </Text>
+          )}
+        </SoftCard>
 
         <PrimaryButton
           title={sentMsg || t("sendWeeklyReport")}

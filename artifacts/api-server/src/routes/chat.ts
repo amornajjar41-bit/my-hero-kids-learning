@@ -430,6 +430,7 @@ router.post("/chat", async (req, res) => {
     }
 
     if (cachedResult) {
+      req.log.info({ inputHash, lang: language }, "CACHE HIT — ai_cache");
       const highFive = isHighFiveTrigger(cachedResult.response_text);
       return res.json({
         reply: cachedResult.response_text,
@@ -440,6 +441,8 @@ router.post("/chat", async (req, res) => {
         cached: true,
       });
     }
+
+    req.log.info({ inputHash, lang: language }, "CACHE MISS — calling OpenAI");
 
     // ── Build system prompt ──────────────────────────────────────────────────
     const basePrompt = language === "ar" ? SYSTEM_PROMPT_AR : SYSTEM_PROMPT_EN;

@@ -14,6 +14,8 @@ import { useLang, useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
 import {
   preloadMathAudio,
+  mathNumPath,
+  mathOpPath,
   mathCorrectPath,
   playPreloaded,
   stopPreloaded,
@@ -84,12 +86,26 @@ export default function MathBlast() {
     return en[op] ?? op;
   };
 
-  // Read question aloud — short equation only, with delay so UI renders first
+  // Read question aloud using preloaded paths; fall back to speak() if cache miss
   useEffect(() => {
-    const timer = setTimeout(() => {
-      speak(`${q.a} ${opWord(q.op)} ${q.b}`, voice).catch(() => {});
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (cancelled) return;
+      const opKey = (q.op === "+" ? "plus" : q.op === "-" ? "minus" : q.op === "×" ? "times" : "div") as Parameters<typeof mathOpPath>[0];
+      const aPath = mathNumPath(q.a, lang);
+      const opPath = mathOpPath(opKey, lang);
+      const bPath = mathNumPath(q.b, lang);
+      const hitA = await playPreloaded(aPath);
+      if (cancelled) return;
+      if (!hitA) { speak(`${q.a} ${opWord(q.op)} ${q.b}`, voice).catch(() => {}); return; }
+      await new Promise<void>((r) => setTimeout(r, 120));
+      if (cancelled) return;
+      await playPreloaded(opPath);
+      await new Promise<void>((r) => setTimeout(r, 120));
+      if (cancelled) return;
+      await playPreloaded(bPath);
     }, 500);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [levelIdx, questionNo]);
 
   const choose = (n: number) => {

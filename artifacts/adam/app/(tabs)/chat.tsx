@@ -497,7 +497,7 @@ export default function Chat() {
       ? `مرحباً ${name}! أنا ${heroN}. كيف أقدر أساعدك اليوم؟`
       : `Hey ${name}! I'm ${heroN}. What can I help you with today?`;
     const timer = setTimeout(() => {
-      speak(greeting, profile?.hero === "girl" ? "nova" : "echo").catch(() => {});
+      speak(greeting, profile?.hero === "girl" ? "nova" : "echo", 1.0, undefined, profile?.ageGroup).catch(() => {});
     }, 700);
     return () => clearTimeout(timer);
   }, [historyLoaded, messages.length]);
@@ -605,7 +605,7 @@ export default function Chat() {
       Keyboard.dismiss();
       setMessages((m) => [...m, { role: "assistant", text: reply }]);
       setAdamPose("talking");
-      speak(reply, voice)
+      speak(reply, voice, 1.0, undefined, profile?.ageGroup)
         .then(() => {
           setAdamPose("happy");
           setTimeout(() => setAdamPose("normal"), 1800);

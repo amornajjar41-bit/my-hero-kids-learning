@@ -17,31 +17,23 @@ import { PLANS_USD, convertPrice } from "@/constants/countries";
 import { registerUser, saveSessionToken } from "@/lib/auth";
 import { useApp } from "@/contexts/AppContext";
 
-const PLANS = [
-  {
-    key: "yearly" as const,
-    badge: "⭐ BEST VALUE",
-    badgeAr: "⭐ الأفضل",
-    savePct: 21,
-    gradientColors: ["#FF6B35", "#FFA76A"] as [string, string],
-    textColor: "#FFF",
-  },
-  {
-    key: "biannual" as const,
-    badge: "🔥 POPULAR",
-    badgeAr: "🔥 الأكثر طلباً",
-    savePct: 10,
-    gradientColors: ["#8B5CF6", "#A78BFA"] as [string, string],
-    textColor: "#FFF",
-  },
-  {
-    key: "monthly" as const,
-    badge: null,
-    badgeAr: null,
-    savePct: 0,
-    gradientColors: ["#F9FAFB", "#F3F4F6"] as [string, string],
-    textColor: "#1F2937",
-  },
+type PlanKey = "free" | "monthly" | "biannual" | "yearly";
+
+const BENEFITS_EN = [
+  "Homework help in Math, English, Arabic and more",
+  "Learns at your child's pace — adapts from age 4 to 14",
+  "Speaks Arabic and English naturally",
+  "You control screen time and monitor progress",
+  "Safe, ad-free, and built for children",
+  "Costs less than one private tutoring session",
+];
+const BENEFITS_AR = [
+  "مساعدة في الرياضيات والإنجليزي والعربي وأكثر",
+  "يتعلم بوتيرة طفلك — يتكيف من عمر ٤ حتى ١٤",
+  "يتحدث العربية والإنجليزية بشكل طبيعي",
+  "أنت من يتحكم في وقت الشاشة ومتابعة التقدم",
+  "آمن، بلا إعلانات، ومصمم للأطفال",
+  "أقل من جلسة تدريس خاصة واحدة",
 ];
 
 export default function Done() {
@@ -66,11 +58,15 @@ export default function Done() {
   const isAr = (params.lang ?? profile?.language) === "ar";
   const symbol = params.currencySymbol ?? "$";
   const rate = parseFloat(params.currencyRate ?? "1") || 1;
+  const heroName = (params.hero ?? profile?.hero) === "girl"
+    ? (isAr ? "لولو" : "Lulu")
+    : (isAr ? "آدم" : "Adam");
+  const childName = params.name || profile?.childName || (isAr ? "طفلك" : "your child");
 
-  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "biannual" | "yearly">("yearly");
   const [loading, setLoading] = useState(false);
 
-  async function handleStart() {
+  async function handleStart(plan: PlanKey) {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     setLoading(true);
     try {
       const email = params.parentEmail;
@@ -100,160 +96,261 @@ export default function Done() {
     router.replace("/(tabs)/chat");
   }
 
+  const planPrice = (key: "monthly" | "biannual" | "yearly") =>
+    convertPrice(PLANS_USD[key].usd, rate, symbol);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60, gap: 16 }}>
-        {/* Header */}
-        <View style={{ alignItems: "center", gap: 8 }}>
-          <Text style={{ fontSize: 48 }}>🎉</Text>
-          <Text style={{ fontSize: 26, fontWeight: "900", color: c.text, textAlign: "center" }}>
-            {isAr ? "جاهز للانطلاق!" : "Ready to Launch!"}
-          </Text>
-          <Text style={{ fontSize: 15, color: c.mutedForeground, textAlign: "center", lineHeight: 22 }}>
+      <ScrollView contentContainerStyle={{ padding: 22, paddingBottom: 60, gap: 20 }}>
+
+        {/* ── Section 1: Emotional Headline ───────────────────────────────── */}
+        <LinearGradient
+          colors={["#1A0F3F", "#2D1B69"]}
+          style={{ borderRadius: 24, padding: 28, alignItems: "center", gap: 12 }}
+        >
+          <Text style={{ fontSize: 64 }}>🦸</Text>
+          <Text style={{
+            color: "#FFF", fontWeight: "900", fontSize: 24, textAlign: "center", lineHeight: 32,
+          }}>
             {isAr
-              ? `${(params.hero ?? profile?.hero) === "girl" ? "لولو" : "آدم"} مستعد يساعد ${params.name || profile?.childName || "طفلك"} يتفوق! 🚀`
-              : `${(params.hero ?? profile?.hero) === "girl" ? "Lulu" : "Adam"} is ready to help ${params.name || profile?.childName || "your child"} shine! 🚀`}
+              ? `أعطِ ${childName} الرفيق التعليمي الأذكى 🦸`
+              : `Give ${childName} the smartest learning companion 🦸`}
           </Text>
+          <Text style={{
+            color: "rgba(255,255,255,0.8)", fontSize: 14, textAlign: "center", lineHeight: 22,
+          }}>
+            {isAr
+              ? "انضم إلى آلاف العائلات التي تساعد أطفالها على التعلم والنمو وحب المدرسة"
+              : "Join thousands of families helping their children learn, grow, and love school"}
+          </Text>
+          <View style={{
+            backgroundColor: "rgba(255,255,255,0.15)",
+            borderRadius: 16, paddingHorizontal: 18, paddingVertical: 8, marginTop: 4,
+          }}>
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14 }}>
+              {isAr ? `${heroName} جاهز لمساعدة ${childName}! 🚀` : `${heroName} is ready to help ${childName}! 🚀`}
+            </Text>
+          </View>
+        </LinearGradient>
+
+        {/* ── Section 2: 6 Key Benefits ───────────────────────────────────── */}
+        <View style={{ backgroundColor: c.card, borderRadius: 20, padding: 20, gap: 12 }}>
+          <Text style={{ fontWeight: "900", fontSize: 18, color: c.text, textAlign: isAr ? "right" : "left" }}>
+            {isAr ? "ماذا يحصل طفلك؟" : "What your child gets:"}
+          </Text>
+          {(isAr ? BENEFITS_AR : BENEFITS_EN).map((b, i) => (
+            <View key={i} style={{
+              flexDirection: isAr ? "row-reverse" : "row",
+              alignItems: "flex-start", gap: 12,
+            }}>
+              <View style={{
+                width: 24, height: 24, borderRadius: 12,
+                backgroundColor: "#10B981", alignItems: "center", justifyContent: "center",
+                flexShrink: 0, marginTop: 1,
+              }}>
+                <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 13 }}>✓</Text>
+              </View>
+              <Text style={{
+                flex: 1, color: c.text, fontSize: 14, lineHeight: 22,
+                textAlign: isAr ? "right" : "left",
+              }}>{b}</Text>
+            </View>
+          ))}
         </View>
 
-        {/* Trial badge */}
-        <View style={{
-          backgroundColor: "#ECFDF5",
-          borderRadius: 16,
-          padding: 14,
-          flexDirection: isAr ? "row-reverse" : "row",
-          alignItems: "center",
-          gap: 10,
-          borderWidth: 1,
-          borderColor: "#6EE7B7",
-        }}>
-          <Text style={{ fontSize: 24 }}>🎓</Text>
-          <Text style={{ flex: 1, color: "#065F46", fontWeight: "700", fontSize: 14, lineHeight: 20, textAlign: isAr ? "right" : "left" }}>
-            {isAr ? "٧ أيام مجانية بالكامل — لا بطاقة مطلوبة الآن" : "7 days completely free — no card needed now"}
-          </Text>
-        </View>
-
-        {/* Plan section title */}
-        <Text style={{ fontWeight: "800", color: c.text, fontSize: 16, textAlign: isAr ? "right" : "left" }}>
-          {isAr ? "اختر خطتك بعد التجربة" : "Choose your plan after trial"}
+        {/* ── Section 3: Pricing Plans ─────────────────────────────────────── */}
+        <Text style={{ fontWeight: "900", fontSize: 18, color: c.text, textAlign: isAr ? "right" : "left" }}>
+          {isAr ? "اختر خطتك:" : "Choose your plan:"}
         </Text>
 
-        {/* Plan cards */}
-        {PLANS.map(({ key, badge, badgeAr, savePct, gradientColors, textColor }) => {
-          const plan = PLANS_USD[key];
-          const priceStr = convertPrice(plan.usd, rate, symbol);
-          const selected = selectedPlan === key;
-          const isLight = key === "monthly";
-
-          return (
-            <Pressable
-              key={key}
-              onPress={() => {
-                setSelectedPlan(key);
-                if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
-              }}
-              style={({ pressed }) => ({
-                opacity: pressed ? 0.92 : 1,
-                marginTop: key === "yearly" ? 12 : 0,
-              })}
-            >
-              <LinearGradient
-                colors={gradientColors}
-                style={{
-                  borderRadius: 20,
-                  padding: 18,
-                  borderWidth: selected ? 3 : 1,
-                  borderColor: selected
-                    ? isLight ? "#FF6B35" : "rgba(255,255,255,0.8)"
-                    : isLight ? "#E5E7EB" : "transparent",
-                }}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                {(isAr ? badgeAr : badge) && (
-                  <View style={{
-                    position: "absolute", top: -12, alignSelf: "center",
-                    backgroundColor: key === "yearly" ? "#FF6B35" : "#7C3AED",
-                    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 4,
-                  }}>
-                    <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12 }}>
-                      {isAr ? badgeAr : badge}
-                    </Text>
-                  </View>
-                )}
-
-                <View style={{ flexDirection: isAr ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <View style={{ gap: 4 }}>
-                    <Text style={{ color: textColor, fontWeight: "800", fontSize: 18 }}>
-                      {isAr ? plan.labelAr : plan.label}
-                    </Text>
-                    {savePct > 0 && (
-                      <Text style={{ color: isLight ? "#059669" : "#86EFAC", fontSize: 13, fontWeight: "700" }}>
-                        {isAr ? `وفّر ${savePct}%` : `Save ${savePct}%`}
-                      </Text>
-                    )}
-                  </View>
-                  <View style={{ alignItems: isAr ? "flex-start" : "flex-end" }}>
-                    <Text style={{ color: textColor, fontWeight: "900", fontSize: 24 }}>
-                      {priceStr}
-                    </Text>
-                    {key !== "monthly" && (
-                      <Text style={{ color: isLight ? "#6B7280" : "rgba(255,255,255,0.75)", fontSize: 12 }}>
-                        {isAr
-                          ? `${convertPrice(plan.usd / (key === "biannual" ? 6 : 12), rate, symbol)}/شهر`
-                          : `${convertPrice(plan.usd / (key === "biannual" ? 6 : 12), rate, symbol)}/mo`}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-
-                {selected && (
-                  <View style={{ position: "absolute", top: 12, right: isAr ? undefined : 12, left: isAr ? 12 : undefined }}>
-                    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: isLight ? c.primary : "#FFF", alignItems: "center", justifyContent: "center" }}>
-                      <Text style={{ color: isLight ? "#FFF" : c.primary, fontWeight: "800", fontSize: 13 }}>✓</Text>
-                    </View>
-                  </View>
-                )}
-              </LinearGradient>
-            </Pressable>
-          );
-        })}
-
-        {/* CTA */}
-        <Pressable
-          onPress={handleStart}
-          disabled={loading}
-          style={({ pressed }) => ({
-            backgroundColor: "#FF6B35",
-            borderRadius: 18,
-            padding: 18,
-            alignItems: "center",
-            opacity: pressed || loading ? 0.85 : 1,
-            shadowColor: "#FF6B35",
-            shadowOpacity: 0.4,
-            shadowRadius: 12,
-            elevation: 6,
-            marginTop: 8,
-          })}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <>
-              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 18 }}>
+        {/* FREE TRIAL */}
+        <View style={{
+          backgroundColor: "#ECFDF5", borderRadius: 20, padding: 20,
+          borderWidth: 2, borderColor: "#10B981", gap: 10,
+        }}>
+          <View style={{ flexDirection: isAr ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center" }}>
+            <View style={{ gap: 2 }}>
+              <Text style={{ fontWeight: "900", fontSize: 18, color: "#065F46" }}>
+                {isAr ? "تجربة مجانية" : "Free Trial"}
+              </Text>
+              <Text style={{ color: "#059669", fontWeight: "700", fontSize: 13 }}>
+                {isAr ? "٣ أيام · لا بطاقة مطلوبة" : "3 days · No credit card needed"}
+              </Text>
+            </View>
+            <View style={{
+              backgroundColor: "#10B981", borderRadius: 20,
+              paddingHorizontal: 14, paddingVertical: 6,
+            }}>
+              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 16 }}>
+                {isAr ? "مجاني" : "FREE"}
+              </Text>
+            </View>
+          </View>
+          <Text style={{ color: "#065F46", fontSize: 12, lineHeight: 18, textAlign: isAr ? "right" : "left" }}>
+            {isAr
+              ? "كل المميزات مع حدود يومية — اكتشف التجربة كاملة"
+              : "All features with daily limits — discover the full experience"}
+          </Text>
+          <Pressable
+            onPress={() => handleStart("free")}
+            disabled={loading}
+            style={({ pressed }) => ({
+              backgroundColor: "#10B981",
+              borderRadius: 14, paddingVertical: 14, alignItems: "center",
+              opacity: pressed || loading ? 0.85 : 1,
+            })}
+          >
+            {loading ? <ActivityIndicator color="#FFF" /> : (
+              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 16 }}>
                 {isAr ? "ابدأ التجربة المجانية 🚀" : "Start Free Trial 🚀"}
               </Text>
-              <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, marginTop: 4 }}>
-                {isAr ? "٧ أيام مجانية · لا بطاقة مطلوبة" : "7 days free · No card required"}
-              </Text>
-            </>
-          )}
-        </Pressable>
+            )}
+          </Pressable>
+        </View>
 
-        <Text style={{ color: c.mutedForeground, fontSize: 11, textAlign: "center" }}>
+        {/* MONTHLY */}
+        <View style={{
+          backgroundColor: c.card, borderRadius: 20, padding: 20,
+          borderWidth: 1, borderColor: c.border, gap: 10,
+        }}>
+          <View style={{ flexDirection: isAr ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center" }}>
+            <View style={{ gap: 2 }}>
+              <Text style={{ fontWeight: "800", fontSize: 17, color: c.text }}>
+                {isAr ? "شهري" : "Monthly"}
+              </Text>
+              <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
+                {isAr ? "وصول كامل غير محدود · إلغاء في أي وقت" : "Full unlimited access · Cancel anytime"}
+              </Text>
+            </View>
+            <View style={{ alignItems: isAr ? "flex-start" : "flex-end" }}>
+              <Text style={{ fontWeight: "900", fontSize: 22, color: c.text }}>{planPrice("monthly")}</Text>
+              <Text style={{ color: c.mutedForeground, fontSize: 11 }}>{isAr ? "/شهر" : "/month"}</Text>
+            </View>
+          </View>
+          <Pressable
+            onPress={() => handleStart("monthly")}
+            disabled={loading}
+            style={({ pressed }) => ({
+              backgroundColor: c.primary,
+              borderRadius: 14, paddingVertical: 13, alignItems: "center",
+              opacity: pressed || loading ? 0.85 : 1,
+            })}
+          >
+            {loading ? <ActivityIndicator color="#FFF" /> : (
+              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 15 }}>
+                {isAr ? "اختر الشهري" : "Choose Monthly"}
+              </Text>
+            )}
+          </Pressable>
+        </View>
+
+        {/* 6 MONTHS */}
+        <LinearGradient
+          colors={["#7C3AED", "#A78BFA"]}
+          style={{ borderRadius: 20, padding: 20, gap: 10 }}
+        >
+          <View style={{ position: "absolute", top: -12, alignSelf: "center", zIndex: 1 }}>
+            <View style={{
+              backgroundColor: "#5B21B6", borderRadius: 20,
+              paddingHorizontal: 14, paddingVertical: 4,
+            }}>
+              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12 }}>
+                {isAr ? "🔥 وفّر ١٠٪" : "🔥 SAVE 10%"}
+              </Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: isAr ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+            <View style={{ gap: 2 }}>
+              <Text style={{ fontWeight: "800", fontSize: 17, color: "#FFF" }}>
+                {isAr ? "٦ أشهر" : "6 Months"}
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12 }}>
+                {isAr ? "أفضل للمتعلمين الجادين" : "Best for committed learners"}
+              </Text>
+            </View>
+            <View style={{ alignItems: isAr ? "flex-start" : "flex-end" }}>
+              <Text style={{ fontWeight: "900", fontSize: 22, color: "#FFF" }}>{planPrice("biannual")}</Text>
+              <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11 }}>
+                {isAr
+                  ? `${convertPrice(PLANS_USD.biannual.usd / 6, rate, symbol)}/شهر`
+                  : `${convertPrice(PLANS_USD.biannual.usd / 6, rate, symbol)}/mo`}
+              </Text>
+            </View>
+          </View>
+          <Pressable
+            onPress={() => handleStart("biannual")}
+            disabled={loading}
+            style={({ pressed }) => ({
+              backgroundColor: "rgba(255,255,255,0.2)",
+              borderRadius: 14, paddingVertical: 13, alignItems: "center",
+              borderWidth: 1.5, borderColor: "rgba(255,255,255,0.5)",
+              opacity: pressed || loading ? 0.85 : 1,
+            })}
+          >
+            {loading ? <ActivityIndicator color="#FFF" /> : (
+              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 15 }}>
+                {isAr ? "اختر ٦ أشهر" : "Choose 6 Months"}
+              </Text>
+            )}
+          </Pressable>
+        </LinearGradient>
+
+        {/* YEARLY — Most Popular */}
+        <LinearGradient
+          colors={["#FF6B35", "#FFA76A"]}
+          style={{ borderRadius: 20, padding: 20, gap: 10 }}
+        >
+          <View style={{ position: "absolute", top: -12, alignSelf: "center", zIndex: 1 }}>
+            <View style={{
+              backgroundColor: "#C2410C", borderRadius: 20,
+              paddingHorizontal: 14, paddingVertical: 4,
+            }}>
+              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12 }}>
+                {isAr ? "⭐ الأكثر شعبية · وفّر ٢١٪" : "⭐ MOST POPULAR · SAVE 21%"}
+              </Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: isAr ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+            <View style={{ gap: 2 }}>
+              <Text style={{ fontWeight: "800", fontSize: 17, color: "#FFF" }}>
+                {isAr ? "سنوي" : "Yearly"}
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 12 }}>
+                {isAr ? "أفضل قيمة — ادفع مرة كل عام" : "Best value — pay once a year"}
+              </Text>
+            </View>
+            <View style={{ alignItems: isAr ? "flex-start" : "flex-end" }}>
+              <Text style={{ fontWeight: "900", fontSize: 22, color: "#FFF" }}>{planPrice("yearly")}</Text>
+              <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 11 }}>
+                {isAr
+                  ? `${convertPrice(PLANS_USD.yearly.usd / 12, rate, symbol)}/شهر`
+                  : `${convertPrice(PLANS_USD.yearly.usd / 12, rate, symbol)}/mo`}
+              </Text>
+            </View>
+          </View>
+          <Pressable
+            onPress={() => handleStart("yearly")}
+            disabled={loading}
+            style={({ pressed }) => ({
+              backgroundColor: "#FFF",
+              borderRadius: 14, paddingVertical: 13, alignItems: "center",
+              opacity: pressed || loading ? 0.85 : 1,
+              shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
+            })}
+          >
+            {loading ? <ActivityIndicator color="#FF6B35" /> : (
+              <Text style={{ color: "#FF6B35", fontWeight: "900", fontSize: 15 }}>
+                {isAr ? "اختر السنوي ⭐" : "Choose Yearly ⭐"}
+              </Text>
+            )}
+          </Pressable>
+        </LinearGradient>
+
+        {/* Reassurance */}
+        <Text style={{ color: c.mutedForeground, fontSize: 12, textAlign: "center", lineHeight: 20 }}>
           {isAr
-            ? "يمكنك الإلغاء في أي وقت. سنُذكّرك قبل انتهاء التجربة."
-            : "Cancel anytime. We'll remind you before the trial ends."}
+            ? "لا رسوم خفية. إلغاء في أي وقت. بيانات طفلك آمنة وخاصة دائماً."
+            : "No hidden fees. Cancel anytime. Your child's data is always safe and private."}
         </Text>
       </ScrollView>
     </SafeAreaView>
