@@ -29,6 +29,7 @@ type AppCtx = {
   saveProgress: (
     p: Progress | ((prev: Progress) => Progress),
   ) => Promise<void>;
+  addPoints: (pts: number) => void;
   resetAll: () => Promise<void>;
   // 4B – screen time helpers
   isScreenBlocked: boolean;
@@ -47,19 +48,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       const p = await getJSON<Profile>(STORAGE_KEYS.profile);
-      const pr =
-        (await getJSON<Progress>(STORAGE_KEYS.progress)) ?? defaultProgress;
+      const raw = await getJSON<Progress>(STORAGE_KEYS.progress);
+      const pr = raw ?? defaultProgress;
       setProfile(p);
 
       // Reset daily usage if it's a new day
       const today = todayISO();
-      if (pr.dailyUsageDate !== today) {
-        const next = { ...pr, dailyUsageDate: today, dailyUsageMinutes: 0 };
-        setProgress(next);
-        await setJSON(STORAGE_KEYS.progress, next);
-      } else {
-        setProgress(pr);
+      let next = { ...defaultProgress, ...pr };
+      if (next.dailyUsageDate !== today) {
+        next = { ...next, dailyUsageDate: today, dailyUsageMinutes: 0 };
       }
+      // Reset todayPoints if it's a new day
+      if (next.todayPointsDate !== today) {
+        next = { ...next, todayPoints: 0, todayPointsDate: today };
+      }
+      setProgress(next);
+      if (next !== pr) await setJSON(STORAGE_KEYS.progress, next);
 
       if (p) setSoundEnabled(p.soundOn);
       sessionStartRef.current = Date.now();
@@ -137,12 +141,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  // Change 7 – award points, reset daily counter automatically
+  const addPoints = useCallback((pts: number) => {
+    setProgress((prev) => {
+      const today = todayISO();
+      const todayBase = prev.todayPointsDate === today ? prev.todayPoints : 0;
+      const next: Progress = {
+        ...prev,
+        pointsTotal: (prev.pointsTotal ?? 0) + pts,
+        todayPoints: todayBase + pts,
+        todayPointsDate: today,
+      };
+      setJSON(STORAGE_KEYS.progress, next);
+      return next;
+    });
+  }, []);
+
   const resetAll = useCallback(async () => {
     setProfile(null);
     setProgress(defaultProgress);
     await Promise.all([
       setJSON(STORAGE_KEYS.profile, null as unknown as Profile),
       setJSON(STORAGE_KEYS.progress, defaultProgress),
+      setJSON(STORAGE_KEYS.onboardingDone, false),
     ]);
   }, []);
 
@@ -163,10 +184,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveProfile,
       patchProfile,
       saveProgress,
+      addPoints,
       resetAll,
       isScreenBlocked,
     }),
-    [ready, profile, progress, saveProfile, patchProfile, saveProgress, resetAll, isScreenBlocked],
+    [ready, profile, progress, saveProfile, patchProfile, saveProgress, addPoints, resetAll, isScreenBlocked],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

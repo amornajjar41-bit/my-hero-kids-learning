@@ -39,7 +39,7 @@ export default function WordPuzzle() {
   const router = useRouter();
   const t = useT();
   const lang = useLang();
-  const { profile, saveProgress } = useApp();
+  const { profile, saveProgress, addPoints } = useApp();
   const voice = profile?.hero === "girl" ? "nova" : "echo";
 
   const [round, setRound] = useState(0);
@@ -81,6 +81,7 @@ export default function WordPuzzle() {
 
   const finish = () => {
     saveProgress((p) => ({ ...p, gamesPlayed: p.gamesPlayed + 1, starsTotal: p.starsTotal + score }));
+    addPoints(15);
     router.back();
   };
 

@@ -72,7 +72,7 @@ export default function StoryBuilder() {
   const c = useColors();
   const router = useRouter();
   const lang = useLang();
-  const { saveProgress } = useApp();
+  const { saveProgress, addPoints } = useApp();
 
   const [currentNode, setCurrentNode] = useState<string>("start");
   const [done, setDone] = useState(false);
@@ -105,6 +105,7 @@ export default function StoryBuilder() {
       gamesPlayed: p.gamesPlayed + 1,
       starsTotal: p.starsTotal + finalStars,
     }));
+    addPoints(15);
   }
 
   const storyText = lang === "ar" ? node.ar.text : node.en.text;

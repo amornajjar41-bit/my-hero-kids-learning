@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
+import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useWindowDimensions } from "react-native";
@@ -439,7 +440,7 @@ export default function Chat() {
   const c = useColors();
   const t = useT();
   const lang = useLang();
-  const { profile, saveProgress } = useApp();
+  const { profile, saveProgress, addPoints } = useApp();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -602,6 +603,7 @@ export default function Chat() {
         chatSessions: p.chatSessions + 1,
         weekly: p.weekly.map((v, i) => (i === new Date().getDay() ? v + 1 : v)),
       }));
+      addPoints(10);
     } catch {
       setAdamPose("normal");
       setMessages((m) => [...m, { role: "assistant", text: lang === "ar" ? "في مشكلة بالاتصال 😢 جرب مرة ثانية" : "Connection issue 😢 try again" }]);
@@ -615,11 +617,29 @@ export default function Chat() {
     const perm = fromCamera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
     const res = fromCamera
-      ? await ImagePicker.launchCameraAsync({ base64: true, quality: 0.6 })
-      : await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.6, mediaTypes: "images" });
+      ? await ImagePicker.launchCameraAsync({ base64: false, quality: 1 })
+      : await ImagePicker.launchImageLibraryAsync({ base64: false, quality: 1, mediaTypes: "images" });
     if (res.canceled) return;
     const asset = res.assets[0];
-    if (asset?.base64) setPendingImage(asset.base64);
+    if (!asset?.uri) return;
+    try {
+      // Compress: resize to max 800px longest side, 60% JPEG quality
+      const w = asset.width ?? 1200;
+      const h = asset.height ?? 1200;
+      const maxDim = 800;
+      const scale = Math.min(1, maxDim / Math.max(w, h));
+      const compressed = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        scale < 1 ? [{ resize: { width: Math.round(w * scale), height: Math.round(h * scale) } }] : [],
+        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+      );
+      if (compressed.base64) setPendingImage(compressed.base64);
+    } catch {
+      // Fallback: try reading the original file as base64
+      if (asset.base64) {
+        setPendingImage(asset.base64);
+      }
+    }
   };
 
   const startRec = async () => {

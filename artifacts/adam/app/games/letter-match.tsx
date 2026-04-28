@@ -24,7 +24,7 @@ export default function LetterMatch() {
   const router = useRouter();
   const t = useT();
   const lang = useLang();
-  const { profile, saveProgress } = useApp();
+  const { profile, saveProgress, addPoints } = useApp();
   const voice = profile?.hero === "girl" ? "nova" : "echo";
 
   const [round, setRound] = useState(0);
@@ -83,6 +83,7 @@ export default function LetterMatch() {
   useEffect(() => {
     if (done) {
       saveProgress((p) => ({ ...p, gamesPlayed: p.gamesPlayed + 1 }));
+      addPoints(15);
     }
   }, [done]);
 

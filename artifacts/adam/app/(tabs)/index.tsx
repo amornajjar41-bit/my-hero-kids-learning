@@ -32,7 +32,7 @@ export default function Home() {
   const router = useRouter();
   const t = useT();
   const lang = useLang();
-  const { profile, progress, saveProgress, isScreenBlocked } = useApp();
+  const { profile, progress, saveProgress, addPoints, isScreenBlocked } = useApp();
 
   // 4C – First-time tour
   const { showTour, completeTour } = useTour();
@@ -51,19 +51,22 @@ export default function Home() {
         const yesterday = new Date(Date.now() - 86400000)
           .toISOString()
           .slice(0, 10);
+        const newStreak = progress.lastActiveDate === yesterday
+          ? progress.streak + 1
+          : progress.lastActiveDate === today
+            ? progress.streak
+            : 1;
         saveProgress((prev) => ({
           ...prev,
-          streak:
-            prev.lastActiveDate === yesterday
-              ? prev.streak + 1
-              : prev.lastActiveDate === today
-                ? prev.streak
-                : 1,
+          streak: newStreak,
           lastActiveDate: today,
           monthlyActiveDays: prev.monthlyActiveDays.includes(today)
             ? prev.monthlyActiveDays
             : [...prev.monthlyActiveDays, today],
         }));
+        // Award streak milestone bonuses
+        if (newStreak === 3) addPoints(50);
+        else if (newStreak === 7) addPoints(150);
       }
 
       // 4D – Birthday celebration at 8am+ (once per day)

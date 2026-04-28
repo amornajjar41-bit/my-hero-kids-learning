@@ -21,6 +21,35 @@ export type Profile = {
   currency?: string;
 };
 
+// Points awarded per activity
+export const POINTS = {
+  homework: 10,
+  lesson: 25,
+  game: 15,
+  story: 20,
+  streak3Bonus: 50,
+  streak7Bonus: 150,
+} as const;
+
+// Rewards shop items
+export type RewardItem = {
+  id: string;
+  emoji: string;
+  en: string;
+  ar: string;
+  cost: number;
+  category: "accessory" | "background" | "trophy";
+};
+
+export const REWARD_SHOP: RewardItem[] = [
+  { id: "cape",      emoji: "🦸",  en: "Hero Cape",        ar: "رداء البطل",       cost: 50,  category: "accessory" },
+  { id: "hat",       emoji: "🎩",  en: "Magic Hat",        ar: "قبعة سحرية",       cost: 100, category: "accessory" },
+  { id: "crown",     emoji: "👑",  en: "Royal Crown",      ar: "تاج ملكي",         cost: 100, category: "accessory" },
+  { id: "costume",   emoji: "🥷",  en: "Ninja Suit",       ar: "بدلة نينجا",       cost: 150, category: "accessory" },
+  { id: "bg-galaxy", emoji: "🌌",  en: "Galaxy Background",ar: "خلفية المجرة",     cost: 200, category: "background" },
+  { id: "gold-star", emoji: "⭐",  en: "Golden Star",      ar: "نجمة ذهبية",       cost: 300, category: "trophy" },
+];
+
 export type Progress = {
   streak: number;
   lastActiveDate: string; // YYYY-MM-DD
@@ -38,6 +67,11 @@ export type Progress = {
   dailyUsageDate: string; // YYYY-MM-DD
   dailyUsageMinutes: number;
   storiesListened: number;
+  // Change 7 – Points system
+  pointsTotal: number;     // all-time accumulated points
+  todayPoints: number;     // points earned today (reset daily)
+  todayPointsDate: string; // YYYY-MM-DD of last reset
+  rewardsUnlocked: string[]; // reward item ids unlocked from shop
 };
 
 export type SafetyAlert = {
@@ -117,4 +151,8 @@ export const defaultProgress: Progress = {
   dailyUsageDate: "",
   dailyUsageMinutes: 0,
   storiesListened: 0,
+  pointsTotal: 0,
+  todayPoints: 0,
+  todayPointsDate: "",
+  rewardsUnlocked: [],
 };

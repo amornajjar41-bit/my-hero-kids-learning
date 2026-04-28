@@ -72,3 +72,20 @@ Expo SDK 54 + expo-router mobile app for ages 3–15: bilingual EN/AR homework h
   - `app/stories/[id].tsx` — sentence-by-sentence reader with auto-play, manual prev/next/tap controls, progress dots, full story list, and "The End" confetti screen.
   - Learn tab has a new "Bedtime Stories" card (dark navy) linking to /stories.
   - Parent dashboard has admin section at bottom for triggering SSE audio generation with real-time log output.
+- **6C – Curriculum Cache + Image Compression + Photo Check**:
+  - API server `checkCurriculumCache()` — queries `curriculum_cache` table (Supabase), checks word overlap ≥80% before hitting AI cache. Returns answer_text if hit.
+  - API server `classifyImageAsHomework()` — fast gpt-4o-mini vision pre-check on photos; rejects non-educational images with a bilingual message before the main call.
+  - Client `pickImage()` in chat.tsx — uses `expo-image-manipulator` to resize to max 800px longest side at 60% JPEG quality before base64 encoding. Reduces payload by 70–90%.
+- **Change 7 – Complete Rewards System**:
+  - `constants/badges.ts` — expanded to 15 badges: First Word, First Story, First Game Win, 3/7/30-day streak, Math Master, Arabic Star, English Star, Homework Hero, Story Lover, Game Champion, Perfect Week, Speed Learner, Helping Hand.
+  - `lib/storage.ts` — Progress type now has `pointsTotal`, `todayPoints`, `todayPointsDate`, `rewardsUnlocked[]`. `POINTS` constants: homework=10, lesson=25, game=15, story=20, streak3bonus=50, streak7bonus=150. `REWARD_SHOP` array: 6 items (cape 50pts, hat 100pts, crown 100pts, costume 150pts, galaxy bg 200pts, golden star 300pts).
+  - `contexts/AppContext.tsx` — `addPoints(pts)` helper that auto-resets todayPoints daily. `resetAll()` also clears `onboardingDone` so logout returns to welcome screen.
+  - `app/rewards/index.tsx` — Full Rewards Room screen with Badges tab (15 animated badge cards) and Shop tab (6 purchasable items with alert confirmation). Shows today's points pill and streak bonus banners.
+  - `components/BadgeShelf.tsx` — Trophy Room section on home tab now shows ⭐ total points + today's earned. Tapping opens /rewards. "View Rewards & Shop" CTA at bottom.
+  - All activity completions award points: chat (+10), lesson (+25, first time only), games (+15), stories (+20), streak 3-day (+50), streak 7-day (+150).
+- **Change 8 – Bug Fixes, PWA, Welcome Updates**:
+  - Bottom nav label font reduced from 12→10px to prevent label cutoff on small screens.
+  - `resetAll()` now also clears `onboardingDone` — logout properly returns to welcome screen and blocks back-navigation (router.replace).
+  - `app.json` web config updated with full PWA settings: themeColor, backgroundColor, display:standalone, orientation:portrait, scope, startUrl.
+  - Welcome screen now shows social proof: "2,400+ happy families" and "4.9 / 5" rating badges below the CTA.
+  - `expo-image-manipulator` installed for client-side image compression.

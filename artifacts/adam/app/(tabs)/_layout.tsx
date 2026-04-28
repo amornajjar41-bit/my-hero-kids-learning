@@ -23,7 +23,7 @@ export default function TabsLayout() {
           paddingBottom: Platform.OS === "ios" ? 28 : 8,
           paddingTop: 8,
         },
-        tabBarLabelStyle: { fontWeight: "700", fontSize: 12 },
+        tabBarLabelStyle: { fontWeight: "700", fontSize: 10 },
       }}
     >
       <Tabs.Screen

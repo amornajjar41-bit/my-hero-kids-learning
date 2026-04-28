@@ -21,7 +21,7 @@ export default function StoryReader() {
   const router = useRouter();
   const lang = useLang();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { profile } = useApp();
+  const { profile, saveProgress, addPoints } = useApp();
 
   const story = STORIES.find((s) => s.id === id) ?? STORIES[0]!;
   const voice = profile?.hero === "girl" ? "nova" : "echo";
@@ -47,6 +47,8 @@ export default function StoryReader() {
     if (idx >= totalSentences) {
       setFinished(true);
       setIsPlaying(false);
+      saveProgress((p) => ({ ...p, storiesListened: p.storiesListened + 1 }));
+      addPoints(20);
       return;
     }
     setSentenceIdx(idx);

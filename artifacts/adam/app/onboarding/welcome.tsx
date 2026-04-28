@@ -257,6 +257,19 @@ export default function Welcome() {
                   {isAr ? "🎁 جرّب ٧ أيام مجاناً — بدون بطاقة بنكية" : "🎁 Try free for 7 days — no credit card needed"}
                 </Text>
               </View>
+              {/* Social proof */}
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                <View style={{ backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, flexDirection: "row", gap: 4, alignItems: "center" }}>
+                  <Text style={{ fontSize: 14 }}>👨‍👩‍👧</Text>
+                  <Text style={{ color: "#FFF", fontSize: 12, fontWeight: "700" }}>
+                    {isAr ? "٢٤٠٠+ أسرة سعيدة" : "2,400+ happy families"}
+                  </Text>
+                </View>
+                <View style={{ backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, flexDirection: "row", gap: 4, alignItems: "center" }}>
+                  <Text style={{ fontSize: 14 }}>⭐</Text>
+                  <Text style={{ color: "#FFF", fontSize: 12, fontWeight: "700" }}>4.9 / 5</Text>
+                </View>
+              </View>
 
               {/* Trust line */}
               <Text style={{ color: "rgba(255,255,255,0.45)", textAlign: "center", fontSize: 11, marginTop: 14, lineHeight: 17 }}>

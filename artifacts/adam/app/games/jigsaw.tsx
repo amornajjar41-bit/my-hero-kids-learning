@@ -40,7 +40,7 @@ export default function Jigsaw() {
   const router = useRouter();
   const t = useT();
   const lang = useLang();
-  const { profile, saveProgress } = useApp();
+  const { profile, saveProgress, addPoints } = useApp();
   const voice = profile?.hero === "girl" ? "nova" : "echo";
 
   const [round, setRound] = useState(0);
@@ -99,8 +99,9 @@ export default function Jigsaw() {
         gamesPlayed: p.gamesPlayed + 1,
         starsTotal: p.starsTotal + jigsawImages.length,
       }));
+      addPoints(15);
     }
-  }, [solvedAll, saveProgress]);
+  }, [solvedAll, saveProgress, addPoints]);
 
   const tileColors = useMemo(
     () =>

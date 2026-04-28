@@ -55,7 +55,7 @@ export default function MathBlast() {
   const c = useColors();
   const router = useRouter();
   const t = useT();
-  const { profile, saveProgress } = useApp();
+  const { profile, saveProgress, addPoints } = useApp();
   const lang = (profile?.language ?? "en") as "en" | "ar";
   const voice = profile?.hero === "girl" ? "nova" : "echo";
 
@@ -127,7 +127,10 @@ export default function MathBlast() {
   };
 
   useEffect(() => {
-    if (done) saveProgress((p) => ({ ...p, gamesPlayed: p.gamesPlayed + 1, starsTotal: p.starsTotal + score }));
+    if (done) {
+      saveProgress((p) => ({ ...p, gamesPlayed: p.gamesPlayed + 1, starsTotal: p.starsTotal + score }));
+      addPoints(15);
+    }
   }, [done]);
 
   const levelLabel = lang === "ar" ? currentLevel.labelAr : currentLevel.labelEn;

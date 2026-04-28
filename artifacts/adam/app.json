@@ -24,7 +24,15 @@
       "favicon": "./assets/images/icon.png",
       "name": "My Hero – Kids Learning",
       "shortName": "My Hero",
-      "description": "The superhero learning companion for kids 5–15"
+      "description": "AI-powered bilingual learning companion for kids aged 3–15. English & Arabic, homework help, stories & games.",
+      "themeColor": "#FF7A45",
+      "backgroundColor": "#1e0a4a",
+      "display": "standalone",
+      "orientation": "portrait",
+      "lang": "en",
+      "scope": "/",
+      "startUrl": "/",
+      "preferRelatedApplications": false
     },
     "plugins": [
       [

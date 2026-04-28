@@ -50,7 +50,7 @@ export default function MemoryChampion() {
   const c = useColors();
   const router = useRouter();
   const lang = useLang();
-  const { saveProgress } = useApp();
+  const { saveProgress, addPoints } = useApp();
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [totalScore, setTotalScore] = useState(0);
@@ -180,6 +180,7 @@ export default function MemoryChampion() {
           gamesPlayed: p.gamesPlayed + 1,
           starsTotal: p.starsTotal + Math.min(5, Math.ceil(final * 5 / 8)),
         }));
+        addPoints(15);
       }
     };
     showFeedback(correct, next);

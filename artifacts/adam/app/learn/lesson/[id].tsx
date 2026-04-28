@@ -30,7 +30,7 @@ export default function LessonPlayer() {
   const t = useT();
   const lang = useLang();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { profile, progress, saveProgress } = useApp();
+  const { profile, progress, saveProgress, addPoints } = useApp();
 
   const lesson = useMemo(
     () =>
@@ -126,6 +126,7 @@ export default function LessonPlayer() {
   };
 
   const finish = () => {
+    const alreadyDoneCheck = progress.lessonsCompleted.includes(lesson.id);
     saveProgress((p) => {
       const alreadyDone = p.lessonsCompleted.includes(lesson.id);
       const lessonsCompleted = alreadyDone ? p.lessonsCompleted : [...p.lessonsCompleted, lesson.id];
@@ -139,6 +140,7 @@ export default function LessonPlayer() {
         weekly: p.weekly.map((v, i) => i === new Date().getDay() ? v + 1 : v),
       };
     });
+    if (!alreadyDoneCheck) addPoints(25);
     router.replace(`/learn/${isArabicLesson ? "arabic" : "english"}` as any);
   };
 

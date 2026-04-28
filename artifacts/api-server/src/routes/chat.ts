@@ -194,6 +194,66 @@ function getBatchedMessage(
   });
 }
 
+// ─── Curriculum Cache lookup ──────────────────────────────────────────────────
+async function checkCurriculumCache(
+  normalizedInput: string,
+  language: "en" | "ar"
+): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .from("curriculum_cache")
+      .select("question_text, answer_text, explanation_text")
+      .eq("language", language)
+      .limit(500);
+
+    if (!data || data.length === 0) return null;
+
+    let bestMatch: { text: string; score: number } | null = null;
+    for (const row of data) {
+      const q = normalizeText(row.question_text ?? "");
+      const score = wordOverlap(normalizedInput, q);
+      if (score >= 0.8 && (!bestMatch || score > bestMatch.score)) {
+        bestMatch = { text: row.answer_text ?? "", score };
+      }
+    }
+    return bestMatch ? bestMatch.text : null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Image homework check ─────────────────────────────────────────────────────
+// Quick heuristic: send a 1-sentence classification request before the main call.
+// If the image is NOT homework, return the rejection message immediately.
+async function classifyImageAsHomework(
+  imageBase64: string,
+  language: "en" | "ar"
+): Promise<boolean> {
+  try {
+    const completion = await openaiChat.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Is this image homework, a textbook page, math problems, a worksheet, or educational content? Reply with ONLY the word YES or NO.",
+            },
+            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64.slice(0, 50000)}` } },
+          ],
+        },
+      ],
+      max_tokens: 5,
+      temperature: 0,
+    });
+    const reply = (completion.choices[0]?.message?.content ?? "").trim().toUpperCase();
+    return reply.startsWith("YES");
+  } catch {
+    return true; // Default to allowing if classification fails
+  }
+}
+
 // ─── Cache helpers ────────────────────────────────────────────────────────────
 async function checkCache(
   normalizedInput: string,
@@ -318,7 +378,31 @@ router.post("/chat", async (req, res) => {
     const normalizedInput = normalizeText(userText);
     const inputHash = hashText(`${normalizedInput}:${language}:${ageGroup}`);
 
-    // ── Cache check ──────────────────────────────────────────────────────────
+    // ── Photo homework check ─────────────────────────────────────────────────
+    if (imageBase64) {
+      const isHomework = await classifyImageAsHomework(imageBase64, language as "en" | "ar");
+      if (!isHomework) {
+        const rejectMsg = language === "ar"
+          ? "عذراً، أنا فقط أساعد في الواجبات المدرسية والمواد التعليمية 📚 هل عندك سؤال من الكتاب أو الواجب؟"
+          : "Sorry, I can only help with homework and educational content 📚 Do you have a question from school or your textbook?";
+        return res.json({ reply: rejectMsg, safetyAlert: null, suggestions, highFive: false, cached: false });
+      }
+    }
+
+    // ── Curriculum cache lookup ──────────────────────────────────────────────
+    if (normalizedInput.length > 3 && !imageBase64) {
+      try {
+        const curriculumHit = await checkCurriculumCache(normalizedInput, language as "en" | "ar");
+        if (curriculumHit) {
+          const highFive = isHighFiveTrigger(curriculumHit);
+          return res.json({ reply: curriculumHit, safetyAlert, suggestions, highFive, cached: true });
+        }
+      } catch {
+        // Non-fatal
+      }
+    }
+
+    // ── AI cache check ────────────────────────────────────────────────────────
     let cachedResult: { response_text: string; audio_url: string | null } | null = null;
     if (normalizedInput.length > 3 && !imageBase64) {
       try {
