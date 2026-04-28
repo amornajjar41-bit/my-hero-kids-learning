@@ -1,0 +1,35 @@
+CHANGE 6B — Stories with Pre-Generated Audio:
+
+Generate all story audio once. Arabic: ar-SA-ZariyahNeural rate 0.82 pitch -2st. English: en-US-JennyNeural rate 0.82 pitch -1st.
+
+ARABIC STORY 1 — الأسد الصغير الشجاع (ليو):
+في غابة بعيدة... كان يعيش أسد صغير اسمه ليو. كان ليو يحب اللعب... لكنه كان خائفاً من الظلام. سمع صوت بكاء عصفور سقط من عشه. قال... أنا خائف... لكن العصفور يحتاجني. خطا نحو الظلام ووجد العصفور. أدرك أن الشجاعة هي فعل الشيء الصحيح حتى وأنت خائف.
+
+ARABIC STORY 2 — نجمة المطر:
+نجمة اسمها لمى بكت من الحنان على الأرض الجافة. دموعها صارت مطراً فازهرت الأزهار وضحك الأطفال. دموعها لم تكن ضعفاً... كانت هديتها للعالم.
+
+ARABIC STORY 3 — الفيل الذي نسي:
+فيلو ينسى كل شيء. جدته قالت: الذاكرة في القلب لا تنسى أبداً. هل نسيت أن تحب أصدقاءك؟ لا أبداً. إذن أنت لا تنسى ما يهم.
+
+ARABIC STORY 4 — الولد الذي زرع قمراً:
+سامي وجد بذرة تلمع. سقاها كل ليلة. ضحك الجميع... لكنه لم يتوقف. نبت ضوء أضاء القرية. كل شيء جميل يحتاج وقتاً ومحبة وصبراً.
+
+ARABIC STORY 5 — سر المكتبة:
+ليلى كرهت القراءة. دخلت مكتبة وحيدة. الكتب أخذتها في رحلات لعوالم مختلفة. صباحاً كانت تمسك كتاباً ولا تستطيع التوقف.
+
+ENGLISH STORY 6 — The Cloud Who Was Different:
+Pip the cloud could only make snowflakes. Others laughed. But on a hot day children danced with joy catching snowflakes. Being different was not something to fix. It was something to share.
+
+ENGLISH STORY 7 — The Lighthouse Cat:
+Mia the cat feared water. But on a stormy night she woke keeper Tom to save a ship. Love is always bigger than fear.
+
+ENGLISH STORY 8 — The Boy Who Collected Sunsets:
+Omar drew every sunset. People said it was a waste. A famous artist saw his wall and said he captured what no camera could — how each day felt when it ended.
+
+ENGLISH STORY 9 — The Giant Who Was Lonely:
+Everyone feared giant Boru except Nadia who waved every day. He slowly waved back. What they feared was just lonely. One wave can change everything.
+
+ENGLISH STORY 10 — The Last Cookie:
+Zara and Max argued all day over the last cookie. They fell asleep exhausted. Mother ate it with tea. Both children laughed in the morning. Some arguments end with nobody winning. That is perfectly fine.
+
+Admin function generateStories() — triggered once. Shows progress. Saves stories_generated flag.

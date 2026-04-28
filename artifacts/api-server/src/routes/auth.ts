@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
-import { query, queryOne } from "../lib/db";
+import { supabase } from "../lib/supabase";
 
 const router: IRouter = Router();
 
@@ -38,11 +38,13 @@ router.post("/auth/register", async (req, res) => {
       return res.status(400).json({ error: "email and password required" });
     }
 
-    // Check if user already exists
-    const existing = await queryOne<{ id: string }>(
-      "SELECT id FROM users WHERE email = $1 LIMIT 1",
-      [email.toLowerCase()]
-    );
+    // Check if email already exists
+    const { data: existing } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email.toLowerCase())
+      .maybeSingle();
+
     if (existing) {
       return res.status(409).json({ error: "email_exists" });
     }
@@ -62,50 +64,56 @@ router.post("/auth/register", async (req, res) => {
     }
 
     // Create user
-    const userRows = await query<{ id: string }>(
-      `INSERT INTO users (email, parent_name, country, currency, language, created_at, subscription_plan,
-       subscription_status, trial_start, pin_hash)
-       VALUES ($1, $2, $3, $4, $5, $6, 'trial', 'trial', $6, $7)
-       RETURNING id`,
-      [email.toLowerCase(), parentName, country, currency, language ?? "en", now, passwordHash]
-    );
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .insert({
+        email: email.toLowerCase(),
+        parent_name: parentName,
+        country,
+        currency,
+        language: language ?? "en",
+        created_at: now,
+        subscription_plan: "trial",
+        subscription_status: "trial",
+        trial_start: now,
+        trial_tts_used_seconds: 0,
+        trial_stt_used_seconds: 0,
+        trial_photos_used: 0,
+        pin_hash: passwordHash,
+      })
+      .select("id")
+      .single();
 
-    const userId = userRows[0]?.id;
-    if (!userId) {
+    if (userError || !user) {
+      req.log.error({ userError }, "user insert error");
       return res.status(500).json({ error: "registration_failed" });
     }
 
-    // Create child
-    const childRows = await query<{ id: string }>(
-      `INSERT INTO children (user_id, child_name, gender, date_of_birth, character_choice,
-       age_group, language_preference, last_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id`,
-      [
-        userId,
-        childName,
-        childGender,
-        childDob ?? null,
-        characterChoice ?? childGender,
-        ageGroup,
-        languagePreference ?? language ?? "en",
-        now,
-      ]
-    );
+    // Create child profile
+    const { data: child } = await supabase
+      .from("children")
+      .insert({
+        user_id: user.id,
+        child_name: childName,
+        gender: childGender,
+        date_of_birth: childDob ?? null,
+        character_choice: characterChoice ?? childGender,
+        age_group: ageGroup,
+        language_preference: languagePreference ?? language ?? "en",
+        last_active: now,
+      })
+      .select("id")
+      .single();
 
-    const childId = childRows[0]?.id;
-
-    // Save session token
-    await query(
-      `INSERT INTO app_settings (key, value) VALUES ($1, $2)
-       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-      [`session:${sessionToken}`, userId]
-    );
+    // Save session
+    await supabase
+      .from("app_settings")
+      .upsert({ key: `session:${sessionToken}`, value: user.id }, { onConflict: "key" });
 
     return res.json({
       sessionToken,
-      userId,
-      childId,
+      userId: user.id,
+      childId: child?.id,
       trialStart: now,
       ageGroup,
     });
@@ -124,22 +132,11 @@ router.post("/auth/login", async (req, res) => {
       return res.status(400).json({ error: "email and password required" });
     }
 
-    const user = await queryOne<{
-      id: string;
-      pin_hash: string;
-      subscription_plan: string;
-      subscription_status: string;
-      trial_start: string;
-      parent_name: string;
-      country: string;
-      currency: string;
-      language: string;
-    }>(
-      `SELECT id, pin_hash, subscription_plan, subscription_status, trial_start,
-       parent_name, country, currency, language
-       FROM users WHERE email = $1 LIMIT 1`,
-      [email.toLowerCase()]
-    );
+    const { data: user } = await supabase
+      .from("users")
+      .select("id, pin_hash, subscription_plan, subscription_status, trial_start, parent_name, country, currency, language")
+      .eq("email", email.toLowerCase())
+      .maybeSingle();
 
     if (!user) {
       return res.status(401).json({ error: "invalid_credentials" });
@@ -151,27 +148,15 @@ router.post("/auth/login", async (req, res) => {
     }
 
     const sessionToken = randomUUID();
-    await query(
-      `INSERT INTO app_settings (key, value) VALUES ($1, $2)
-       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-      [`session:${sessionToken}`, user.id]
-    );
+    await supabase
+      .from("app_settings")
+      .upsert({ key: `session:${sessionToken}`, value: user.id }, { onConflict: "key" });
 
-    const child = await queryOne<{
-      id: string;
-      child_name: string;
-      gender: string;
-      character_choice: string;
-      age_group: string;
-      language_preference: string;
-      streak_days: number;
-      total_points: number;
-    }>(
-      `SELECT id, child_name, gender, character_choice, age_group,
-       language_preference, streak_days, total_points
-       FROM children WHERE user_id = $1 LIMIT 1`,
-      [user.id]
-    );
+    const { data: child } = await supabase
+      .from("children")
+      .select("id, child_name, gender, character_choice, age_group, language_preference, streak_days, total_points")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
     return res.json({
       sessionToken,
@@ -213,10 +198,11 @@ router.post("/auth/validate", async (req, res) => {
       return res.status(401).json({ error: "no_token" });
     }
 
-    const setting = await queryOne<{ value: string }>(
-      "SELECT value FROM app_settings WHERE key = $1 LIMIT 1",
-      [`session:${sessionToken}`]
-    );
+    const { data: setting } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", `session:${sessionToken}`)
+      .maybeSingle();
 
     if (!setting) {
       return res.status(401).json({ error: "invalid_token" });
@@ -224,41 +210,21 @@ router.post("/auth/validate", async (req, res) => {
 
     const userId = setting.value;
 
-    const user = await queryOne<{
-      id: string;
-      parent_name: string;
-      country: string;
-      currency: string;
-      language: string;
-      subscription_plan: string;
-      subscription_status: string;
-      trial_start: string;
-    }>(
-      `SELECT id, parent_name, country, currency, language,
-       subscription_plan, subscription_status, trial_start
-       FROM users WHERE id = $1 LIMIT 1`,
-      [userId]
-    );
+    const { data: user } = await supabase
+      .from("users")
+      .select("id, parent_name, country, currency, language, subscription_plan, subscription_status, trial_start")
+      .eq("id", userId)
+      .maybeSingle();
 
     if (!user) {
       return res.status(401).json({ error: "user_not_found" });
     }
 
-    const child = await queryOne<{
-      id: string;
-      child_name: string;
-      gender: string;
-      character_choice: string;
-      age_group: string;
-      language_preference: string;
-      streak_days: number;
-      total_points: number;
-    }>(
-      `SELECT id, child_name, gender, character_choice, age_group,
-       language_preference, streak_days, total_points
-       FROM children WHERE user_id = $1 LIMIT 1`,
-      [userId]
-    );
+    const { data: child } = await supabase
+      .from("children")
+      .select("id, child_name, gender, character_choice, age_group, language_preference, streak_days, total_points")
+      .eq("user_id", userId)
+      .maybeSingle();
 
     return res.json({
       valid: true,

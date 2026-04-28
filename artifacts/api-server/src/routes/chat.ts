@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { createHash } from "crypto";
 import { openaiChat } from "../lib/openai-chat";
-import { query, queryOne } from "../lib/db";
+import { supabase } from "../lib/supabase";
 
 const router: IRouter = Router();
 
@@ -202,45 +202,44 @@ async function checkCache(
 ): Promise<{ response_text: string; audio_url: string | null } | null> {
   try {
     // Exact hash match first
-    const exact = await queryOne<{
-      response_text: string;
-      audio_url: string | null;
-      created_at: string;
-    }>(
-      `SELECT response_text, audio_url, created_at FROM ai_cache
-       WHERE input_hash = $1 AND language = $2 LIMIT 1`,
-      [inputHash, language]
-    );
+    const { data: exact } = await supabase
+      .from("ai_cache")
+      .select("response_text, audio_url, created_at")
+      .eq("input_hash", inputHash)
+      .eq("language", language)
+      .maybeSingle();
 
     if (exact) {
       const age = Date.now() - new Date(exact.created_at).getTime();
       if (age < 30 * 24 * 60 * 60 * 1000) {
-        await query(
-          "UPDATE ai_cache SET hit_count = hit_count + 1 WHERE input_hash = $1 AND language = $2",
-          [inputHash, language]
-        ).catch(() => {});
+        // Increment hit count (best-effort, non-blocking)
+        supabase
+          .from("ai_cache")
+          .update({ hit_count: (exact as any).hit_count + 1 })
+          .eq("input_hash", inputHash)
+          .eq("language", language)
+          .then(() => {})
+          .catch(() => {});
         return { response_text: exact.response_text, audio_url: exact.audio_url };
       }
     }
 
     // Semantic match against last 1000
-    const candidates = await query<{
-      input_text: string;
-      response_text: string;
-      audio_url: string | null;
-      created_at: string;
-    }>(
-      `SELECT input_text, response_text, audio_url, created_at FROM ai_cache
-       WHERE language = $1 ORDER BY created_at DESC LIMIT 1000`,
-      [language]
-    );
+    const { data: candidates } = await supabase
+      .from("ai_cache")
+      .select("input_text, response_text, audio_url, created_at")
+      .eq("language", language)
+      .order("created_at", { ascending: false })
+      .limit(1000);
 
-    for (const c of candidates) {
-      const age = Date.now() - new Date(c.created_at).getTime();
-      if (age > 30 * 24 * 60 * 60 * 1000) continue;
-      const overlap = wordOverlap(normalizedInput, normalizeText(c.input_text ?? ""));
-      if (overlap >= 0.8) {
-        return { response_text: c.response_text, audio_url: c.audio_url };
+    if (candidates) {
+      for (const c of candidates) {
+        const age = Date.now() - new Date(c.created_at).getTime();
+        if (age > 30 * 24 * 60 * 60 * 1000) continue;
+        const overlap = wordOverlap(normalizedInput, normalizeText(c.input_text ?? ""));
+        if (overlap >= 0.8) {
+          return { response_text: c.response_text, audio_url: c.audio_url };
+        }
       }
     }
   } catch {
@@ -258,13 +257,20 @@ async function saveCache(
   gender: "boy" | "girl"
 ): Promise<void> {
   try {
-    await query(
-      `INSERT INTO ai_cache (input_hash, input_text, response_text, language, gender, hit_count, created_at)
-       VALUES ($1, $2, $3, $4, $5, 0, now())
-       ON CONFLICT (input_hash, language) DO UPDATE
-       SET response_text = EXCLUDED.response_text, hit_count = ai_cache.hit_count + 1`,
-      [inputHash, inputText, responseText, language, gender]
-    );
+    await supabase
+      .from("ai_cache")
+      .upsert(
+        {
+          input_hash: inputHash,
+          input_text: inputText,
+          response_text: responseText,
+          language,
+          gender,
+          hit_count: 0,
+          created_at: new Date().toISOString(),
+        },
+        { onConflict: "input_hash,language" }
+      );
   } catch {
     // Non-fatal
   }

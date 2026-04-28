@@ -31,7 +31,7 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 Expo SDK 54 + expo-router mobile app for ages 3–15: bilingual EN/AR homework helper. Characters: Adam (boy) and Lulu (girl). Brand: "My Hero".
 
 - **Stack**: Expo SDK 54 + expo-router, AsyncStorage, expo-audio, expo-image-picker, expo-haptics, expo-linear-gradient, react-native-reanimated.
-- **Database**: Replit PostgreSQL (via `pg` Pool + DATABASE_URL). All tables created automatically on server startup via setup.ts. Supabase kept only for audio file storage.
+- **Database**: Supabase only (`@supabase/supabase-js` with service role key). All CRUD via `supabase.from()`. Tables auto-created on startup via `supabase.rpc("exec_sql")` (requires the `exec_sql` function to be defined in Supabase SQL Editor). Storage buckets also via Supabase Storage.
 - **Auth**: Custom (no Supabase Auth). Email + bcrypt password stored in `users` table. Sessions stored in `app_settings` key/value. Session token persisted in AsyncStorage + localStorage.
 - **Backend routes** (artifacts/api-server):
   - `/api/chat` — gpt-4o-mini, language-specific system prompt (EN/AR), Socratic teaching, ai_cache exact+semantic, suggestions, highFive flag

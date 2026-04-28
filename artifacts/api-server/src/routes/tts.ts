@@ -2,7 +2,6 @@ import { Router, type IRouter } from "express";
 import { createHash } from "crypto";
 import { synthesize, VOICES } from "../lib/edge-tts";
 import { supabase } from "../lib/supabase";
-import { query, queryOne } from "../lib/db";
 
 const router: IRouter = Router();
 
@@ -33,11 +32,13 @@ function cleanText(text: string, maxChars = 400): string {
 async function getCachedAudioUrl(text: string, voice: string): Promise<string | null> {
   try {
     const key = cacheKey(text, voice);
-    const row = await queryOne<{ audio_url: string }>(
-      `SELECT audio_url FROM ai_cache WHERE input_hash = $1 AND audio_url IS NOT NULL LIMIT 1`,
-      [key]
-    );
-    return row?.audio_url ?? null;
+    const { data } = await supabase
+      .from("ai_cache")
+      .select("audio_url")
+      .eq("input_hash", key)
+      .not("audio_url", "is", null)
+      .maybeSingle();
+    return data?.audio_url ?? null;
   } catch {
     return null;
   }
@@ -123,12 +124,22 @@ router.post("/tts", async (req, res) => {
     uploadAudioToStorage(audioBuffer, edgeVoice, key)
       .then(async (audioUrl) => {
         if (audioUrl) {
-          await query(
-            `INSERT INTO ai_cache (input_hash, input_text, response_text, audio_url, language, gender, hit_count, created_at)
-             VALUES ($1, $2, '', $3, $4, $5, 0, now())
-             ON CONFLICT (input_hash, language) DO UPDATE SET audio_url = EXCLUDED.audio_url`,
-            [key, speechText, audioUrl, language, gender]
-          );
+          await supabase
+            .from("ai_cache")
+            .upsert(
+              {
+                input_hash: key,
+                input_text: speechText,
+                response_text: "",
+                audio_url: audioUrl,
+                language,
+                gender,
+                hit_count: 0,
+                created_at: new Date().toISOString(),
+              },
+              { onConflict: "input_hash,language" }
+            )
+            .catch(() => {});
         }
       })
       .catch(() => {});
