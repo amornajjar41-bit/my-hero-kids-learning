@@ -71,8 +71,27 @@ export function stop(): void {
   }
 }
 
-// ── In-app cache (avoid re-fetching the same phrase) ─────────────────────────
-const _cache = new Map<string, string>(); // key → base64
+// ── In-app TTS cache (avoid re-fetching the same phrase) ──────────────────────
+// Key: full text + voice — avoids collisions from short-prefix keying
+const _ttsCache = new Map<string, string>(); // key → base64
+const TTS_CACHE_MAX = 100;
+
+function ttsCacheKey(text: string, voice: string): string {
+  // Use full text so long responses with similar openings don't collide
+  return `${voice}::${text}`;
+}
+
+function ttsCacheGet(text: string, voice: string): string | undefined {
+  return _ttsCache.get(ttsCacheKey(text, voice));
+}
+
+function ttsCacheSet(text: string, voice: string, base64: string): void {
+  if (_ttsCache.size >= TTS_CACHE_MAX) {
+    const oldest = _ttsCache.keys().next().value;
+    if (oldest) _ttsCache.delete(oldest);
+  }
+  _ttsCache.set(ttsCacheKey(text, voice), base64);
+}
 
 // ── speak() ───────────────────────────────────────────────────────────────────
 export async function speak(
@@ -91,23 +110,22 @@ export async function speak(
 
   if (Platform.OS !== "web") {
     try {
-      await AudioModule.setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false });
+      await AudioModule.setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,   // keep playing if screen locks or app goes to BG
+      });
     } catch { /* ignore */ }
   }
 
-  const cKey = `${voice}:${text.slice(0, 120)}`;
-  let base64 = _cache.get(cKey);
+  // Check client-side cache first — zero network cost
+  let base64 = ttsCacheGet(text, voice);
 
   if (!base64) {
     try {
       const result = await ttsSpeak({ text, voice });
       if (!result?.audioBase64) return;
       base64 = result.audioBase64;
-      if (_cache.size > 60) {
-        const oldest = _cache.keys().next().value;
-        if (oldest) _cache.delete(oldest);
-      }
-      _cache.set(cKey, base64);
+      ttsCacheSet(text, voice, base64);
     } catch {
       return;
     }
@@ -146,16 +164,35 @@ export async function speak(
           const player = createAudioPlayer({ uri: tmpUri });
           _nativePlayer = player;
 
+          // Track whether playback has actually started so we don't resolve early
+          let playbackStarted = false;
+
           player.addListener("playbackStatusUpdate", (status: any) => {
-            if (status.didJustFinish || status.isLoaded === false) {
+            // Only count as "started" once we see isPlaying=true
+            if (status.isPlaying) playbackStarted = true;
+
+            // Only resolve on genuine completion — NOT on isLoaded===false which
+            // fires during buffering/intermediate states and causes premature cutoff
+            if (status.didJustFinish) {
               if (_nativePlayer === player) _nativePlayer = null;
               FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
               resolve();
             }
           });
+
           player.play();
-          // Safety timeout based on text length — generous for long Arabic phrases
-          setTimeout(() => resolve(), Math.min(Math.max(text.length * 100, 6000), 30000));
+
+          // Safety timeout: generous budget per character so long explanations
+          // never get cut off. 120ms/char, min 8s, max 90s.
+          const safetyMs = Math.min(Math.max(text.length * 120, 8000), 90000);
+          setTimeout(() => {
+            if (_nativePlayer === player) {
+              _nativePlayer = null;
+              FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
+            }
+            resolve();
+          }, safetyMs);
+
         }).catch(() => resolve());
       }
     } catch (e) {
