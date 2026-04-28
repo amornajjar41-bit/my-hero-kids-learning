@@ -1,10 +1,6 @@
 const ASSEMBLYAI_KEY = process.env["ASSEMBLYAI_API_KEY"] ?? "";
 
 const BASE = "https://api.assemblyai.com/v2";
-const HEADERS = {
-  authorization: ASSEMBLYAI_KEY,
-  "content-type": "application/json",
-};
 
 export async function transcribeAudio(
   audioBase64: string,
@@ -34,17 +30,23 @@ export async function transcribeAudio(
 
   const { upload_url } = (await uploadRes.json()) as { upload_url: string };
 
-  // 2. Submit transcription — note: speech_model was deprecated; omitting it uses the default "best" model
+  // 2. Submit transcription
+  // AssemblyAI v2 now requires speech_models as an array
+  // Valid values: "universal-2" (EN + AR), "universal-3-pro" (higher quality)
   const body: Record<string, unknown> = {
     audio_url: upload_url,
     language_code: language === "ar" ? "ar" : "en_us",
+    speech_models: ["universal-2"],
     punctuate: true,
     format_text: true,
   };
 
   const transcriptRes = await fetch(`${BASE}/transcript`, {
     method: "POST",
-    headers: HEADERS,
+    headers: {
+      authorization: ASSEMBLYAI_KEY,
+      "content-type": "application/json",
+    },
     body: JSON.stringify(body),
   });
 
