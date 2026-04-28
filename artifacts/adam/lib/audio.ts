@@ -1,21 +1,37 @@
 /**
- * AudioManager — device-native TTS engine.
+ * AudioManager — Google WaveNet-backed TTS player.
  *
- * Uses expo-speech on native (iOS/Android) and window.speechSynthesis on web.
- * No server round-trips, no latency, works offline, supports Arabic & English.
+ * Calls /api/tts (Google WaveNet) → receives base64 MP3 → plays it.
+ * Native: expo-audio + FileSystem  |  Web: singleton <audio> element
  *
- * Public API (unchanged from before):
- *   speak(text, voice, speed?)  → plays text aloud
- *   stopAll()                   → stops current speech (async, safe to await)
- *   stop()                      → stops current speech (sync, for cleanup returns)
- *   setSoundEnabled(on)         → global mute/unmute
- *   isSpeaking()                → whether audio is currently playing
+ * Public API:
+ *   speak(text, voice, speed?)  → fetch + play
+ *   stopAll()                   → async stop with 50ms hardware cooldown
+ *   stop()                      → sync stop (for useEffect cleanup returns)
+ *   setSoundEnabled(on)         → global mute
+ *   isSpeaking()                → playback state
  */
 import { Platform } from "react-native";
+import { createAudioPlayer, AudioModule } from "expo-audio";
+import * as FileSystem from "expo-file-system";
+import { ttsSpeak } from "./api";
+
+// ── Singleton web <audio> element ─────────────────────────────────────────────
+let _webEl: HTMLAudioElement | null = null;
+function getWebEl(): HTMLAudioElement {
+  if (!_webEl && typeof window !== "undefined") {
+    _webEl = new Audio();
+    _webEl.preload = "auto";
+  }
+  return _webEl!;
+}
+
+// ── Native player ─────────────────────────────────────────────────────────────
+let _nativePlayer: ReturnType<typeof createAudioPlayer> | null = null;
 
 // ── Shared state ──────────────────────────────────────────────────────────────
 let _soundEnabled = true;
-let _speaking = false;
+let _generation = 0;
 
 export function setSoundEnabled(on: boolean) {
   _soundEnabled = on;
@@ -23,126 +39,128 @@ export function setSoundEnabled(on: boolean) {
 }
 
 export function isSpeaking(): boolean {
-  return _speaking;
-}
-
-// ── Detect Arabic ─────────────────────────────────────────────────────────────
-function isArabicText(text: string): boolean {
-  return /[\u0600-\u06FF]/.test(text);
-}
-
-// ── Stop helpers ──────────────────────────────────────────────────────────────
-export function stop(): void {
-  _speaking = false;
   if (Platform.OS === "web") {
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      try { window.speechSynthesis.cancel(); } catch { /* no-op */ }
-    }
-  } else {
-    import("expo-speech").then((Speech) => {
-      try { Speech.stop(); } catch { /* no-op */ }
-    }).catch(() => {});
+    const el = _webEl;
+    return el != null && !el.paused && el.src !== "" && el.src !== window?.location?.href;
   }
+  return _nativePlayer !== null;
 }
 
+// ── Stop ──────────────────────────────────────────────────────────────────────
 export async function stopAll(): Promise<void> {
-  stop();
-  // Small cooldown so hardware fully resets
+  _generation++;
+  if (_webEl) {
+    try { _webEl.pause(); _webEl.src = ""; _webEl.load(); } catch { /* no-op */ }
+  }
+  if (_nativePlayer) {
+    try { _nativePlayer.pause(); } catch { /* no-op */ }
+    try { _nativePlayer.remove(); } catch { /* no-op */ }
+    _nativePlayer = null;
+  }
   await new Promise<void>((r) => setTimeout(r, 50));
 }
 
-// ── Web Speech API ────────────────────────────────────────────────────────────
-function speakWeb(text: string, isArabic: boolean, isFemale: boolean, speed: number): Promise<void> {
-  return new Promise<void>((resolve) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) {
-      resolve();
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = isArabic ? "ar-SA" : "en-US";
-    utterance.rate = Math.min(1.2, Math.max(0.7, speed));
-    utterance.pitch = isFemale ? 1.2 : 0.9;
-
-    // Try to find a matching voice (best-effort, not critical)
-    const voices = window.speechSynthesis.getVoices();
-    if (voices.length > 0) {
-      const langPrefix = isArabic ? "ar" : "en";
-      const matching = voices.filter((v) => v.lang.startsWith(langPrefix));
-      if (matching.length > 0) {
-        // Prefer female/male voice if available
-        const gendered = matching.find((v) =>
-          isFemale
-            ? /female|woman|girl|zira|samantha|karen|moira|tessa|fiona|victoria|ava|siri/i.test(v.name)
-            : /male|man|boy|daniel|alex|fred|jorge|luca|reed/i.test(v.name)
-        );
-        utterance.voice = gendered ?? matching[0]!;
-      }
-    }
-
-    utterance.onend = () => { _speaking = false; resolve(); };
-    utterance.onerror = () => { _speaking = false; resolve(); };
-
-    _speaking = true;
-    window.speechSynthesis.speak(utterance);
-
-    // Safety fallback: resolve after max duration (text.length * 80ms, min 3s, max 20s)
-    const maxMs = Math.min(20000, Math.max(3000, text.length * 80));
-    const safety = setTimeout(() => { _speaking = false; resolve(); }, maxMs);
-    utterance.onend = () => { clearTimeout(safety); _speaking = false; resolve(); };
-    utterance.onerror = () => { clearTimeout(safety); _speaking = false; resolve(); };
-  });
+export function stop(): void {
+  _generation++;
+  if (_webEl) {
+    try { _webEl.pause(); _webEl.src = ""; _webEl.load(); } catch { /* no-op */ }
+  }
+  if (_nativePlayer) {
+    try { _nativePlayer.pause(); _nativePlayer.remove(); } catch { /* no-op */ }
+    _nativePlayer = null;
+  }
 }
 
-// ── Native expo-speech ────────────────────────────────────────────────────────
-async function speakNative(text: string, isArabic: boolean, isFemale: boolean, speed: number): Promise<void> {
-  const Speech = await import("expo-speech");
+// ── In-app cache (avoid re-fetching the same phrase) ─────────────────────────
+const _cache = new Map<string, string>(); // key → base64
 
-  // Stop anything currently playing
-  try { Speech.stop(); } catch { /* no-op */ }
-
-  return new Promise<void>((resolve) => {
-    _speaking = true;
-
-    const options: Parameters<typeof Speech.speak>[1] = {
-      language: isArabic ? "ar-SA" : "en-US",
-      rate: Math.min(1.1, Math.max(0.7, speed * 0.95)), // slightly slower for kids
-      pitch: isFemale ? 1.15 : 0.9,
-      onDone: () => { _speaking = false; resolve(); },
-      onError: () => { _speaking = false; resolve(); },
-      onStopped: () => { _speaking = false; resolve(); },
-    };
-
-    try {
-      Speech.speak(text, options);
-    } catch {
-      _speaking = false;
-      resolve();
-    }
-
-    // Safety timeout
-    const maxMs = Math.min(20000, Math.max(3000, text.length * 80));
-    setTimeout(() => { _speaking = false; resolve(); }, maxMs);
-  });
-}
-
-// ── Public speak() ────────────────────────────────────────────────────────────
+// ── speak() ───────────────────────────────────────────────────────────────────
 export async function speak(
   text: string,
   voice: "echo" | "nova" = "echo",
-  speed = 1.05,
+  speed = 1.0,
   _contentType?: string,
 ): Promise<void> {
   if (!_soundEnabled || !text?.trim()) return;
 
-  const isArabic = isArabicText(text);
-  const isFemale = voice === "nova";
+  stop();
+  const myGen = _generation;
 
-  if (Platform.OS === "web") {
-    return speakWeb(text, isArabic, isFemale, speed);
-  } else {
-    return speakNative(text, isArabic, isFemale, speed);
+  await new Promise<void>((r) => setTimeout(r, 50));
+  if (myGen !== _generation) return;
+
+  if (Platform.OS !== "web") {
+    try {
+      await AudioModule.setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false });
+    } catch { /* ignore */ }
   }
+
+  const cKey = `${voice}:${text.slice(0, 120)}`;
+  let base64 = _cache.get(cKey);
+
+  if (!base64) {
+    try {
+      const result = await ttsSpeak({ text, voice });
+      if (!result?.audioBase64) return;
+      base64 = result.audioBase64;
+      if (_cache.size > 60) {
+        const oldest = _cache.keys().next().value;
+        if (oldest) _cache.delete(oldest);
+      }
+      _cache.set(cKey, base64);
+    } catch {
+      return;
+    }
+  }
+
+  if (myGen !== _generation) return;
+
+  return new Promise<void>((resolve) => {
+    if (myGen !== _generation) { resolve(); return; }
+
+    try {
+      if (Platform.OS === "web") {
+        const el = getWebEl();
+        const uri = `data:audio/mpeg;base64,${base64}`;
+
+        function cleanup() {
+          el.removeEventListener("ended", onEnd);
+          el.removeEventListener("error", onErr);
+        }
+        const onEnd = () => { cleanup(); resolve(); };
+        const onErr = () => { cleanup(); resolve(); };
+
+        el.addEventListener("ended", onEnd, { once: true });
+        el.addEventListener("error", onErr, { once: true });
+        el.src = uri;
+        el.load();
+        el.play().catch(() => { cleanup(); resolve(); });
+
+      } else {
+        const tmpUri = (FileSystem.cacheDirectory ?? "") + `tts_${Date.now()}.mp3`;
+        FileSystem.writeAsStringAsync(tmpUri, base64!, {
+          encoding: FileSystem.EncodingType.Base64,
+        }).then(() => {
+          if (myGen !== _generation) { resolve(); return; }
+
+          const player = createAudioPlayer({ uri: tmpUri });
+          _nativePlayer = player;
+
+          player.addListener("playbackStatusUpdate", (status: any) => {
+            if (status.didJustFinish || status.isLoaded === false) {
+              if (_nativePlayer === player) _nativePlayer = null;
+              FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
+              resolve();
+            }
+          });
+          player.play();
+          // Safety timeout based on text length
+          setTimeout(() => resolve(), Math.max(text.length * 80, 4000));
+        }).catch(() => resolve());
+      }
+    } catch (e) {
+      console.warn("[AudioManager] play error", e);
+      resolve();
+    }
+  });
 }

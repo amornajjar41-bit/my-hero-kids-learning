@@ -1,31 +1,66 @@
 /**
  * TTS route — POST /api/tts
  *
- * Primary:  OpenAI tts-1 via audio.speech.create  (1–2 s, true MP3)
- * Fallback: gpt-4o-audio-preview via chat completions (same proxy, ~3–5 s)
- * Guard:    10-second hard timeout so nothing ever hangs
- * Cache:    In-memory LRU (up to 500 entries) — instant on repeat requests
+ * Uses Google Cloud Text-to-Speech (WaveNet) for high-quality bilingual audio.
+ * Auto-detects Arabic vs English from the text content and picks the right voice.
+ *
+ * Voices:
+ *   English boy  → en-US-Wavenet-D  (male, warm)
+ *   English girl → en-US-Wavenet-F  (female, clear)
+ *   Arabic  boy  → ar-XA-Wavenet-B  (male)
+ *   Arabic  girl → ar-XA-Wavenet-A  (female)
+ *
+ * In-memory LRU cache (500 entries) for instant replays.
+ * Hard 12-second timeout — never hangs on a bad request.
  */
 import { Router, type IRouter } from "express";
 import { createHash } from "crypto";
-import { openai } from "../lib/openai";
 
 const router: IRouter = Router();
 
+const GOOGLE_TTS_URL = "https://texttospeech.googleapis.com/v1/text:synthesize";
+
 // ── In-memory LRU cache ───────────────────────────────────────────────────────
-const memCache = new Map<string, string>(); // key → base64
-const MAX_MEM_CACHE = 500;
+const memCache = new Map<string, string>(); // key → base64 MP3
+const MAX_CACHE = 500;
+
+function cacheSet(key: string, value: string): void {
+  if (memCache.size >= MAX_CACHE) {
+    const oldest = memCache.keys().next().value;
+    if (oldest) memCache.delete(oldest);
+  }
+  memCache.set(key, value);
+}
 
 function cacheKey(text: string, voice: string): string {
   return createHash("md5").update(`${voice}::${text}`).digest("hex");
 }
 
-function cacheSet(key: string, value: string): void {
-  if (memCache.size >= MAX_MEM_CACHE) {
-    const oldest = memCache.keys().next().value;
-    if (oldest) memCache.delete(oldest);
+// ── Language & voice detection ────────────────────────────────────────────────
+function isArabic(text: string): boolean {
+  return /[\u0600-\u06FF]/.test(text);
+}
+
+interface VoiceParams {
+  languageCode: string;
+  name: string;
+  ssmlGender: "MALE" | "FEMALE";
+}
+
+function resolveVoice(text: string, voice: string): VoiceParams {
+  const female = voice === "nova";
+  if (isArabic(text)) {
+    return {
+      languageCode: "ar-XA",
+      name: female ? "ar-XA-Wavenet-A" : "ar-XA-Wavenet-B",
+      ssmlGender: female ? "FEMALE" : "MALE",
+    };
   }
-  memCache.set(key, value);
+  return {
+    languageCode: "en-US",
+    name: female ? "en-US-Wavenet-F" : "en-US-Wavenet-D",
+    ssmlGender: female ? "FEMALE" : "MALE",
+  };
 }
 
 // ── Text sanitiser ────────────────────────────────────────────────────────────
@@ -45,56 +80,50 @@ function cleanText(text: string, maxChars = 400): string {
   return out || cleaned.slice(0, maxChars);
 }
 
-// ── Valid tts-1 / gpt-4o-audio voices ────────────────────────────────────────
-const VALID_VOICES = new Set(["alloy", "echo", "fable", "onyx", "nova", "shimmer", "ash", "coral", "sage", "verse", "ballad"]);
-function resolveVoice(v: string): string {
-  return VALID_VOICES.has(v) ? v : "echo";
-}
-
 // ── Hard timeout wrapper ──────────────────────────────────────────────────────
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const t = setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms);
-    promise.then((v) => { clearTimeout(t); resolve(v); })
-           .catch((e) => { clearTimeout(t); reject(e); });
+    promise
+      .then((v) => { clearTimeout(t); resolve(v); })
+      .catch((e) => { clearTimeout(t); reject(e); });
   });
 }
 
-// ── Primary: OpenAI tts-1 ─────────────────────────────────────────────────────
-async function synthesizeTTS1(text: string, voice: string): Promise<string> {
-  const response = await withTimeout(
-    openai.audio.speech.create({
-      model: "tts-1",
-      voice: resolveVoice(voice) as any,
-      input: text,
-      response_format: "mp3",
-    }),
-    9000,
-  );
-  const buffer = Buffer.from(await response.arrayBuffer());
-  return buffer.toString("base64");
-}
+// ── Google WaveNet synthesis ──────────────────────────────────────────────────
+async function synthesizeWavenet(text: string, voice: string): Promise<string> {
+  const apiKey = process.env["GOOGLE_TTS_API_KEY"];
+  if (!apiKey) throw new Error("GOOGLE_TTS_API_KEY not set");
 
-// ── Fallback: gpt-4o-audio-preview via chat completions ──────────────────────
-async function synthesizeAudioPreview(text: string, voice: string): Promise<string | null> {
-  try {
-    const response = await withTimeout(
-      (openai.chat.completions.create as any)({
-        model: "gpt-4o-audio-preview",
-        modalities: ["text", "audio"],
-        audio: { voice: resolveVoice(voice), format: "mp3" },
-        messages: [
-          { role: "system", content: "Read the following text clearly for a child. Do not add anything extra." },
-          { role: "user", content: text.slice(0, 300) },
-        ],
-        max_tokens: 1,
+  const voiceParams = resolveVoice(text, voice);
+
+  const response = await withTimeout(
+    fetch(`${GOOGLE_TTS_URL}?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: { text },
+        voice: voiceParams,
+        audioConfig: {
+          audioEncoding: "MP3",
+          speakingRate: 0.92,
+          pitch: voiceParams.ssmlGender === "FEMALE" ? 1.5 : 0.0,
+          effectsProfileId: ["handset-class-device"],
+        },
       }),
-      9000,
-    );
-    return (response.choices[0]?.message as any)?.audio?.data ?? null;
-  } catch {
-    return null;
+    }),
+    12000,
+  );
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => "");
+    throw new Error(`Google TTS ${response.status}: ${errText}`);
   }
+
+  const data = await response.json() as { audioContent?: string };
+  if (!data.audioContent) throw new Error("Google TTS: no audioContent in response");
+
+  return data.audioContent; // already base64
 }
 
 // ── Route ─────────────────────────────────────────────────────────────────────
@@ -103,11 +132,7 @@ router.post("/tts", async (req, res) => {
     text,
     voice = "echo",
     maxChars,
-  } = req.body as {
-    text?: string;
-    voice?: string;
-    maxChars?: number;
-  };
+  } = req.body as { text?: string; voice?: string; maxChars?: number };
 
   if (!text || typeof text !== "string") {
     res.status(400).json({ error: "text required" });
@@ -116,36 +141,22 @@ router.post("/tts", async (req, res) => {
 
   const limit = typeof maxChars === "number" && maxChars > 0 ? Math.min(maxChars, 400) : 400;
   const speechText = cleanText(text, limit);
-  const safeVoice = resolveVoice(voice);
-  const key = cacheKey(speechText, safeVoice);
+  const key = cacheKey(speechText, voice);
 
-  // 1. Serve from in-memory cache instantly
+  // Serve from cache instantly
   if (memCache.has(key)) {
     res.json({ audioBase64: memCache.get(key), mimeType: "audio/mpeg", cached: true });
     return;
   }
 
-  // 2. Try OpenAI tts-1
   try {
-    const audioBase64 = await synthesizeTTS1(speechText, safeVoice);
+    const audioBase64 = await synthesizeWavenet(speechText, voice);
     cacheSet(key, audioBase64);
     res.json({ audioBase64, mimeType: "audio/mpeg", cached: false });
-    return;
   } catch (err: any) {
-    req.log.warn({ err: err?.message }, "tts-1 failed, trying audio-preview fallback");
+    req.log.error({ err: err?.message }, "Google WaveNet TTS failed");
+    res.status(500).json({ error: "tts failed" });
   }
-
-  // 3. Fallback: gpt-4o-audio-preview
-  const fallbackBase64 = await synthesizeAudioPreview(speechText, safeVoice);
-  if (fallbackBase64) {
-    cacheSet(key, fallbackBase64);
-    res.json({ audioBase64: fallbackBase64, mimeType: "audio/mpeg", cached: false, fallback: true });
-    return;
-  }
-
-  // 4. Both failed — return a graceful error (no silent hang)
-  req.log.error("tts: both tts-1 and audio-preview failed");
-  res.status(500).json({ error: "tts failed" });
 });
 
 export default router;
