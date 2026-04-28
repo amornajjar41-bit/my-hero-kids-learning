@@ -3,6 +3,7 @@
  */
 
 import { setBaseUrl } from "@workspace/api-client-react";
+import { getSessionToken } from "@/lib/auth";
 
 let initialized = false;
 
@@ -15,18 +16,39 @@ export function ensureApiBaseUrl() {
   }
 }
 
-async function postJSON<T>(path: string, body: unknown): Promise<T> {
+async function getBaseUrl(): Promise<string> {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  const base = domain ? `https://${domain}` : "";
+  return domain ? `https://${domain}` : "";
+}
+
+async function postJSON<T>(path: string, body: unknown, withSession = false): Promise<T> {
+  const base = await getBaseUrl();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (withSession) {
+    const token = await getSessionToken();
+    if (token) headers["x-session-token"] = token;
+  }
   const res = await fetch(`${base}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
   });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`API ${path} failed: ${res.status} ${text}`);
   }
+  return res.json();
+}
+
+async function getJSON<T>(path: string, withSession = false): Promise<T> {
+  const base = await getBaseUrl();
+  const headers: Record<string, string> = {};
+  if (withSession) {
+    const token = await getSessionToken();
+    if (token) headers["x-session-token"] = token;
+  }
+  const res = await fetch(`${base}${path}`, { headers });
+  if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`);
   return res.json();
 }
 
@@ -94,6 +116,7 @@ export async function reportSafetyAlert(opts: {
   parentEmail: string;
   message: string;
   alertType: string;
+  childId?: string;
 }): Promise<void> {
   return postJSON("/api/safety-alert", opts);
 }
@@ -119,4 +142,41 @@ export async function sendWeeklyReport(opts: {
   };
 }) {
   return postJSON("/api/parent/weekly-report", opts);
+}
+
+// 5B – Trial usage
+export type TrialUsage = {
+  tts: { usedSeconds: number; limitSeconds: number; blocked: boolean };
+  stt: { usedSeconds: number; limitSeconds: number; blocked: boolean };
+  photos: { used: number; limit: number; blocked: boolean };
+  isPaid: boolean;
+  trialStart: string;
+};
+
+export async function getTrialUsage(): Promise<TrialUsage | null> {
+  try {
+    return await getJSON<TrialUsage>("/api/trial/usage", true);
+  } catch {
+    return null;
+  }
+}
+
+export async function incrementTrialUsage(opts: {
+  type: "tts" | "stt" | "photo";
+  seconds?: number;
+}): Promise<{ ok: boolean; blocked: boolean }> {
+  try {
+    return await postJSON("/api/trial/usage", opts, true);
+  } catch {
+    return { ok: false, blocked: false };
+  }
+}
+
+export async function checkPhotoAllowed(): Promise<boolean> {
+  try {
+    const result = await postJSON<{ allowed: boolean }>("/api/trial/check-photo", {}, true);
+    return result.allowed;
+  } catch {
+    return true; // graceful fallback — allow if check fails
+  }
 }

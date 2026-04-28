@@ -1,21 +1,28 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AdamCharacter } from "@/components/AdamCharacter";
-import { PrimaryButton } from "@/components/PrimaryButton";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
-import { useT } from "@/hooks/useT";
 import { timeUntilMidnight } from "@/lib/utils";
+
+// 4B – Sleeping messages: no interaction allowed
+const SLEEP_MESSAGES: Record<string, Record<string, string>> = {
+  en: {
+    boy: "Woah! We did SO much today! Even superheroes need to sleep! See you tomorrow champion! 😴",
+    girl: "Amazing day superstar! Time to rest! I will be here tomorrow! 😴",
+  },
+  ar: {
+    boy: "ياه! شو عملنا اليوم! حتى الأبطال لازم ينامو! أشوفك بكرا يا بطل! 😴",
+    girl: "يوم رائع يا بطلة! وقت الراحة! رح أكون هون بكرا! 😴",
+  },
+};
 
 export default function Blocked() {
   const c = useColors();
-  const router = useRouter();
-  const t = useT();
-  const { profile, patchProfile } = useApp();
+  const { profile } = useApp();
   const [time, setTime] = useState(timeUntilMidnight());
 
   useEffect(() => {
@@ -23,72 +30,96 @@ export default function Blocked() {
     return () => clearInterval(id);
   }, []);
 
+  const lang = profile?.language ?? "en";
+  const hero = profile?.hero ?? "boy";
+  const msg = SLEEP_MESSAGES[lang]?.[hero] ?? SLEEP_MESSAGES.en.boy;
+  const childName = profile?.childName ?? "";
+
+  const resetLabel = lang === "ar"
+    ? "⏰ يرجع بكرا"
+    : "⏰ Back tomorrow";
+
+  const countdownLabel = lang === "ar"
+    ? "الوقت المتبقي حتى منتصف الليل"
+    : "Time until midnight reset";
+
   return (
-    <LinearGradient colors={["#A78BFA", "#7CC7FF"]} style={{ flex: 1 }}>
+    <LinearGradient colors={["#7C3AED", "#4F46E5", "#2563EB"]} style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <View
-          style={{
-            flex: 1,
-            padding: 24,
-            justifyContent: "space-between",
-          }}
-        >
-          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-            <AdamCharacter hero={profile?.hero} size={160} />
-            <Text
-              style={{
-                color: "#FFF",
-                fontWeight: "800",
-                fontSize: 28,
-                textAlign: "center",
-                marginTop: 24,
-              }}
-            >
-              {t("blockedTitle")}
+        <View style={{ flex: 1, padding: 28, justifyContent: "center", alignItems: "center" }}>
+
+          {/* Stars decoration */}
+          <View style={{ flexDirection: "row", gap: 8, marginBottom: 16, opacity: 0.7 }}>
+            {["⭐", "🌙", "✨", "🌙", "⭐"].map((s, i) => (
+              <Text key={i} style={{ fontSize: 20 }}>{s}</Text>
+            ))}
+          </View>
+
+          {/* Sleeping character */}
+          <View style={{ position: "relative", marginBottom: 8 }}>
+            <AdamCharacter hero={profile?.hero} size={180} pose="wave" />
+            {/* ZZZ floaters */}
+            <View style={{ position: "absolute", top: -10, right: -10 }}>
+              <Text style={{ fontSize: 18, color: "#FFF", fontWeight: "800", opacity: 0.9 }}>z</Text>
+            </View>
+            <View style={{ position: "absolute", top: -28, right: 4 }}>
+              <Text style={{ fontSize: 24, color: "#FFF", fontWeight: "800", opacity: 0.8 }}>z</Text>
+            </View>
+            <View style={{ position: "absolute", top: -50, right: 14 }}>
+              <Text style={{ fontSize: 30, color: "#FFF", fontWeight: "800", opacity: 0.7 }}>Z</Text>
+            </View>
+          </View>
+
+          {/* Child name */}
+          {!!childName && (
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 22, marginBottom: 4, opacity: 0.9 }}>
+              {childName}
             </Text>
-            <Text
-              style={{
-                color: "#FFF",
-                opacity: 0.95,
-                fontSize: 16,
-                textAlign: "center",
-                marginTop: 12,
-              }}
-            >
-              {t("blockedSub")}
-            </Text>
-            <Text
-              style={{
-                color: "#FFF",
-                opacity: 0.85,
-                fontSize: 13,
-                textAlign: "center",
-                marginTop: 20,
-              }}
-            >
-              {t("adamBackIn")}
-            </Text>
-            <Text
-              style={{
-                color: "#FFF",
-                fontSize: 36,
-                fontWeight: "800",
-                marginTop: 6,
-                fontVariant: ["tabular-nums"],
-              }}
-            >
-              {time}
+          )}
+
+          {/* Main message */}
+          <Text style={{
+            color: "#FFF",
+            fontWeight: "800",
+            fontSize: 20,
+            textAlign: "center",
+            marginTop: 16,
+            lineHeight: 30,
+            paddingHorizontal: 8,
+          }}>
+            {msg}
+          </Text>
+
+          {/* Divider */}
+          <View style={{ width: 60, height: 2, backgroundColor: "rgba(255,255,255,0.4)", borderRadius: 2, marginVertical: 28 }} />
+
+          {/* Countdown */}
+          <Text style={{ color: "#FFF", opacity: 0.8, fontSize: 13, textAlign: "center", marginBottom: 8 }}>
+            {countdownLabel}
+          </Text>
+          <Text style={{
+            color: "#FFF",
+            fontSize: 44,
+            fontWeight: "900",
+            fontVariant: ["tabular-nums"],
+            letterSpacing: 2,
+          }}>
+            {time}
+          </Text>
+
+          {/* Reset indicator */}
+          <View style={{
+            marginTop: 24,
+            backgroundColor: "rgba(255,255,255,0.15)",
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderRadius: 20,
+          }}>
+            <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 14 }}>
+              {resetLabel}
             </Text>
           </View>
-          <PrimaryButton
-            title={profile?.language === "ar" ? "رجوع لولي الأمر" : "Parent override"}
-            variant="secondary"
-            fullWidth
-            onPress={async () => {
-              await patchProfile({});
-              router.replace("/(tabs)");
-            }}
-          />
+
         </View>
       </SafeAreaView>
     </LinearGradient>

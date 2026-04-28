@@ -11,13 +11,14 @@ export type Profile = {
   ageGroup: AgeGroup;
   parentEmail: string;
   parentName?: string;
-  // Child birthday for celebration screen (ISO date YYYY-MM-DD)
-  childBirthday?: string;
+  childBirthday?: string; // ISO date YYYY-MM-DD
   trialStartedAt: string; // ISO
   isPaid: boolean;
-  paidPlan?: "monthly" | "yearly";
+  paidPlan?: "monthly" | "6months" | "yearly";
   screenLimitHours: ScreenLimit;
   soundOn: boolean;
+  country?: string;
+  currency?: string;
 };
 
 export type Progress = {
@@ -73,6 +74,14 @@ export const STORAGE_KEYS = {
   safetyAlerts: "adam.safety.v1",
   childMemory: "adam.memory.v1",
   termsAccepted: "adam.terms.v1",
+  // 4C – First-time tour
+  tourDone: "adam.tour.done.v1",
+  // 5A – Parent PIN (stored as plain 4-digit string, device-local security)
+  parentPin: "adam.parent.pin.v1",
+  // 4D – Birthday check
+  lastBirthdayCheck: "adam.birthday.check.v1",
+  // 4B – Screen time session start
+  screenTimeSessionStart: "adam.screen.session.v1",
 };
 
 export async function getJSON<T>(key: string): Promise<T | null> {

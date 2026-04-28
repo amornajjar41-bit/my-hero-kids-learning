@@ -1,0 +1,256 @@
+/**
+ * 5A – Parent 4-digit PIN screen.
+ * Used for both SETUP (first access) and VERIFY (every subsequent access).
+ */
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  Pressable,
+  Text,
+  View,
+  Alert,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { AdamCharacter } from "@/components/AdamCharacter";
+import { useColors } from "@/hooks/useColors";
+import { useApp } from "@/contexts/AppContext";
+import { getJSON, setJSON, STORAGE_KEYS } from "@/lib/storage";
+
+type Props = {
+  onSuccess: () => void;
+  onBack?: () => void;
+};
+
+const PAD = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
+
+export default function ParentPin({ onSuccess, onBack }: Props) {
+  const c = useColors();
+  const { profile } = useApp();
+  const lang = profile?.language ?? "en";
+  const hero = profile?.hero ?? "boy";
+
+  const [mode, setMode] = useState<"loading" | "setup" | "setup2" | "verify">("loading");
+  const [pin, setPin] = useState("");
+  const [firstPin, setFirstPin] = useState("");
+  const [shake] = useState(new Animated.Value(0));
+
+  useEffect(() => {
+    (async () => {
+      const stored = await getJSON<string>(STORAGE_KEYS.parentPin);
+      setMode(stored ? "verify" : "setup");
+    })();
+  }, []);
+
+  const doShake = () => {
+    Animated.sequence([
+      Animated.timing(shake, { toValue: 10, duration: 60, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: -10, duration: 60, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: 8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: -8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: 0, duration: 60, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const handleDigit = async (d: string) => {
+    if (d === "⌫") {
+      setPin((p) => p.slice(0, -1));
+      return;
+    }
+    if (d === "" || pin.length >= 4) return;
+
+    const next = pin + d;
+    setPin(next);
+
+    if (next.length < 4) return;
+
+    // PIN complete — check mode
+    if (mode === "setup") {
+      setFirstPin(next);
+      setPin("");
+      setMode("setup2");
+      return;
+    }
+
+    if (mode === "setup2") {
+      if (next === firstPin) {
+        await setJSON(STORAGE_KEYS.parentPin, next);
+        setPin("");
+        onSuccess();
+      } else {
+        doShake();
+        setPin("");
+        setMode("setup");
+        setFirstPin("");
+        Alert.alert(
+          lang === "ar" ? "لا تتطابق" : "PINs don't match",
+          lang === "ar" ? "حاول مجدداً" : "Please try again",
+        );
+      }
+      return;
+    }
+
+    // verify mode
+    const stored = await getJSON<string>(STORAGE_KEYS.parentPin);
+    if (next === stored) {
+      setPin("");
+      onSuccess();
+    } else {
+      doShake();
+      setPin("");
+    }
+  };
+
+  const handleForgot = () => {
+    Alert.alert(
+      lang === "ar" ? "نسيت الرقم السري?" : "Forgot PIN?",
+      lang === "ar"
+        ? `سيُرسَل رابط إعادة تعيين إلى: ${profile?.parentEmail ?? ""}`
+        : `A reset link will be sent to: ${profile?.parentEmail ?? ""}`,
+      [
+        { text: lang === "ar" ? "إلغاء" : "Cancel", style: "cancel" },
+        {
+          text: lang === "ar" ? "أرسل" : "Send",
+          onPress: () => {
+            // In production: call API to send reset email
+            Alert.alert(
+              lang === "ar" ? "تم الإرسال" : "Sent!",
+              lang === "ar"
+                ? "تحقق من بريدك الإلكتروني"
+                : "Check your email for reset instructions",
+            );
+          },
+        },
+      ],
+    );
+  };
+
+  const resetPin = async () => {
+    Alert.alert(
+      lang === "ar" ? "إعادة تعيين الرقم السري" : "Reset PIN",
+      lang === "ar" ? "هل أنت متأكد؟" : "Are you sure?",
+      [
+        { text: lang === "ar" ? "إلغاء" : "Cancel", style: "cancel" },
+        {
+          text: lang === "ar" ? "نعم" : "Yes",
+          style: "destructive",
+          onPress: async () => {
+            await setJSON(STORAGE_KEYS.parentPin, null);
+            setMode("setup");
+            setPin("");
+            setFirstPin("");
+          },
+        },
+      ],
+    );
+  };
+
+  if (mode === "loading") return null;
+
+  const title = {
+    setup: lang === "ar" ? "أنشئ رقمك السري" : "Create your PIN",
+    setup2: lang === "ar" ? "أكّد الرقم السري" : "Confirm your PIN",
+    verify: lang === "ar" ? "أدخل الرقم السري" : "Enter parent PIN",
+  }[mode];
+
+  const subtitle = {
+    setup: lang === "ar" ? "4 أرقام لحماية لوحة التحكم" : "4 digits to protect the parent dashboard",
+    setup2: lang === "ar" ? "أدخل الرقم مجدداً للتأكيد" : "Enter the PIN again to confirm",
+    verify: lang === "ar" ? "للوصول إلى إعدادات الوالدين" : "To access parent settings",
+  }[mode];
+
+  return (
+    <LinearGradient colors={["#7C3AED", "#4F46E5"]} style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1 }}>
+        {onBack && (
+          <View style={{ padding: 14 }}>
+            <Pressable
+              onPress={onBack}
+              style={({ pressed }) => ({
+                width: 40, height: 40, borderRadius: 20,
+                backgroundColor: "rgba(255,255,255,0.2)",
+                alignItems: "center", justifyContent: "center",
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Ionicons name="chevron-back" size={20} color="#FFF" />
+            </Pressable>
+          </View>
+        )}
+
+        <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "space-between" }}>
+
+          {/* Header */}
+          <View style={{ alignItems: "center", gap: 10 }}>
+            <Text style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", fontWeight: "600" }}>
+              👨‍👩‍👧 {lang === "ar" ? "لوحة تحكم الوالدين" : "Parent Dashboard"}
+            </Text>
+            <AdamCharacter hero={hero} size={90} />
+            <Text style={{ fontSize: 22, fontWeight: "800", color: "#FFF", textAlign: "center" }}>
+              {title}
+            </Text>
+            <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", textAlign: "center" }}>
+              {subtitle}
+            </Text>
+          </View>
+
+          {/* Dots */}
+          <Animated.View style={{
+            flexDirection: "row", gap: 16, justifyContent: "center",
+            transform: [{ translateX: shake }],
+          }}>
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} style={{
+                width: 18, height: 18, borderRadius: 9,
+                backgroundColor: i < pin.length ? "#FFF" : "rgba(255,255,255,0.3)",
+                borderWidth: 2, borderColor: "#FFF",
+              }} />
+            ))}
+          </Animated.View>
+
+          {/* Number pad */}
+          <View style={{ width: "100%" }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 12 }}>
+              {PAD.map((d, i) => (
+                <Pressable
+                  key={i}
+                  onPress={() => d !== "" && handleDigit(d)}
+                  style={({ pressed }) => ({
+                    width: 80, height: 80, borderRadius: 40,
+                    backgroundColor: d === "" ? "transparent" : pressed ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.2)",
+                    alignItems: "center", justifyContent: "center",
+                  })}
+                  disabled={d === ""}
+                >
+                  <Text style={{ fontSize: d === "⌫" ? 22 : 28, color: "#FFF", fontWeight: "700" }}>
+                    {d}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {/* Forgot / Reset */}
+          <View style={{ gap: 8, alignItems: "center" }}>
+            {mode === "verify" && (
+              <Pressable onPress={handleForgot}>
+                <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: "600" }}>
+                  {lang === "ar" ? "نسيت الرقم السري؟" : "Forgot PIN?"}
+                </Text>
+              </Pressable>
+            )}
+            {mode === "verify" && (
+              <Pressable onPress={resetPin}>
+                <Text style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>
+                  {lang === "ar" ? "إعادة تعيين الرقم" : "Reset PIN"}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      </SafeAreaView>
+    </LinearGradient>
+  );
+}

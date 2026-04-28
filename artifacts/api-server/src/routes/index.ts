@@ -7,6 +7,7 @@ import parentRouter from "./parent";
 import safetyRouter from "./safety";
 import authRouter from "./auth";
 import setupRouter, { runSetup } from "./setup";
+import trialRouter from "./trial";
 
 const router: IRouter = Router();
 
@@ -18,6 +19,7 @@ router.use(parentRouter);
 router.use(safetyRouter);
 router.use(authRouter);
 router.use(setupRouter);
+router.use(trialRouter);
 
 // Run DB setup on startup (non-blocking)
 runSetup().catch(console.error);

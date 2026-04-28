@@ -8,7 +8,7 @@ import { getSessionToken, validateSession } from "@/lib/auth";
 
 export default function Gate() {
   const c = useColors();
-  const { ready, profile, saveProfile, patchProfile } = useApp();
+  const { ready, profile, saveProfile, isScreenBlocked } = useApp();
   const [sessionChecked, setSessionChecked] = useState(false);
   const [sessionValid, setSessionValid] = useState<boolean | null>(null);
 
@@ -38,6 +38,8 @@ export default function Gate() {
               isPaid: result.user.subscriptionPlan !== "trial",
               screenLimitHours: 4,
               soundOn: true,
+              country: result.user.country,
+              currency: result.user.currency,
             });
           }
           setSessionValid(true);
@@ -58,6 +60,11 @@ export default function Gate() {
         <ActivityIndicator color={c.primary} />
       </View>
     );
+  }
+
+  // 4B – If screen time limit already reached when app opens, go to blocked
+  if ((sessionValid || profile) && isScreenBlocked) {
+    return <Redirect href="/blocked" />;
   }
 
   if (sessionValid || profile) return <Redirect href="/(tabs)" />;

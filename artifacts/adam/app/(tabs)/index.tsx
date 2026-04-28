@@ -7,6 +7,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BadgeShelf } from "@/components/BadgeShelf";
+import { DailyTip } from "@/components/DailyTip";
 import { Greeting } from "@/components/Greeting";
 import { HeroLogo } from "@/components/HeroLogo";
 import { SoftCard } from "@/components/SoftCard";
@@ -14,6 +15,7 @@ import { SoundToggle } from "@/components/SoundToggle";
 import { StreakCard } from "@/components/StreakCard";
 import { TodaySuggestion } from "@/components/TodaySuggestion";
 import { TrialBanner } from "@/components/TrialBanner";
+import { Tour, useTour } from "@/components/Tour";
 import { allBadges } from "@/constants/badges";
 import { curriculum, lessonTitle } from "@/constants/curriculum";
 import { useColors } from "@/hooks/useColors";
@@ -30,11 +32,20 @@ export default function Home() {
   const router = useRouter();
   const t = useT();
   const lang = useLang();
-  const { profile, progress, saveProgress } = useApp();
+  const { profile, progress, saveProgress, isScreenBlocked } = useApp();
 
-  // Streak update
+  // 4C – First-time tour
+  const { showTour, completeTour } = useTour();
+
+  // Streak update + screen time check + birthday
   useFocusEffect(
     useCallback(() => {
+      // 4B – Block if screen time limit reached
+      if (isScreenBlocked) {
+        router.replace("/blocked");
+        return;
+      }
+
       const today = todayISO();
       if (progress.lastActiveDate !== today) {
         const yesterday = new Date(Date.now() - 86400000)
@@ -55,32 +66,23 @@ export default function Home() {
         }));
       }
 
-      // Birthday celebration
+      // 4D – Birthday celebration at 8am+ (once per day)
       if (profile?.childBirthday && isBirthdayToday(profile.childBirthday)) {
         const lastShown = (globalThis as any).__bday;
         if (lastShown !== today) {
-          (globalThis as any).__bday = today;
-          router.push("/birthday-celebration");
+          const hour = new Date().getHours();
+          if (hour >= 8) {
+            (globalThis as any).__bday = today;
+            router.push("/birthday-celebration");
+          }
         }
       }
-
-      // Screen-time block
-      if (
-        profile &&
-        profile.screenLimitHours > 0 &&
-        progress.dailyUsageMinutes >= profile.screenLimitHours * 60
-      ) {
-        router.replace("/blocked");
-      }
-    }, [profile, progress, saveProgress, router]),
+    }, [profile, progress, saveProgress, router, isScreenBlocked]),
   );
 
   const suggestion = useMemo(() => {
-    const lessons =
-      lang === "ar" ? curriculum.arabic : curriculum.english;
-    const next =
-      lessons.find((l) => !progress.lessonsCompleted.includes(l.id)) ??
-      lessons[0];
+    const lessons = lang === "ar" ? curriculum.arabic : curriculum.english;
+    const next = lessons.find((l) => !progress.lessonsCompleted.includes(l.id)) ?? lessons[0];
     return next;
   }, [lang, progress.lessonsCompleted]);
 
@@ -89,6 +91,10 @@ export default function Home() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
+
+      {/* 4C – First-time tour overlay */}
+      <Tour visible={showTour} onDone={completeTour} />
+
       <ScrollView
         contentContainerStyle={{ padding: 18, gap: 16, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
@@ -98,31 +104,18 @@ export default function Home() {
           <HeroLogo size="md" />
         </View>
 
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
           <View />
           <View style={{ flexDirection: "row", gap: 10 }}>
             <SoundToggle />
             <Pressable
               onPress={() => { playChime("tap"); router.push("/parent"); }}
               style={({ pressed }) => ({
-                paddingHorizontal: 14,
-                height: 44,
-                borderRadius: 22,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: c.card,
-                opacity: pressed ? 0.85 : 1,
-                shadowColor: "#000",
-                shadowOpacity: 0.1,
-                shadowRadius: 6,
-                shadowOffset: { width: 0, height: 2 },
-                elevation: 2,
+                paddingHorizontal: 14, height: 44, borderRadius: 22,
+                alignItems: "center", justifyContent: "center",
+                backgroundColor: c.card, opacity: pressed ? 0.85 : 1,
+                shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 6,
+                shadowOffset: { width: 0, height: 2 }, elevation: 2,
               })}
             >
               <Text style={{ fontWeight: "800", color: c.text }}>
@@ -133,6 +126,9 @@ export default function Home() {
         </View>
 
         <Greeting />
+
+        {/* 4D – Daily tip by time of day */}
+        <DailyTip />
 
         <TrialBanner onUpgrade={() => router.push("/parent/upgrade")} />
 
@@ -148,9 +144,7 @@ export default function Home() {
                 : t("startLearning")
             }
             cta={t("playNow")}
-            onPress={() =>
-              router.push(`/learn/lesson/${suggestion.id}`)
-            }
+            onPress={() => router.push(`/learn/lesson/${suggestion.id}`)}
           />
         )}
 
@@ -204,7 +198,6 @@ export default function Home() {
         <View style={{ borderRadius: 24, overflow: "hidden" }}>
           <LinearGradient colors={["#7c3aed", "#4f46e5", "#2563eb"]} style={{ padding: 20 }}>
             <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.15, backgroundColor: "#000" }} />
-            {/* Coming Soon badge */}
             <View style={{ position: "absolute", top: 14, right: 14, backgroundColor: "#F59E0B", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 }}>
               <Text style={{ color: "#000", fontWeight: "900", fontSize: 11 }}>
                 {lang === "ar" ? "قريباً 🚀" : "COMING SOON 🚀"}
@@ -216,8 +209,8 @@ export default function Home() {
             </Text>
             <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, lineHeight: 19, marginBottom: 16 }}>
               {lang === "ar"
-                ? "تحدَّ أصدقاءك في مسابقات تعليمية ممتعة! من سيكون بطل الأسبوع؟ 🥇"
-                : "Challenge friends in fun learning contests! Who will be this week's champion? 🥇"}
+                ? "تحدَّ أصدقاءك في مسابقات تعليمية ممتعة! 🥇"
+                : "Challenge friends in fun learning contests! 🥇"}
             </Text>
             <View style={{ flexDirection: "row", gap: 10 }}>
               {["🧮", "📖", "🔤", "🌍"].map((e, i) => (
@@ -226,7 +219,6 @@ export default function Home() {
                 </View>
               ))}
             </View>
-            {/* Locked overlay */}
             <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: 24, backgroundColor: "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center" }}>
               <Text style={{ fontSize: 44 }}>🔒</Text>
               <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14, marginTop: 6 }}>
@@ -246,12 +238,8 @@ export default function Home() {
           <Pressable
             onPress={() => router.push("/learn/dictionary")}
             style={({ pressed }) => ({
-              marginTop: 12,
-              backgroundColor: c.muted,
-              padding: 12,
-              borderRadius: 12,
-              alignItems: "center",
-              opacity: pressed ? 0.85 : 1,
+              marginTop: 12, backgroundColor: c.muted, padding: 12,
+              borderRadius: 12, alignItems: "center", opacity: pressed ? 0.85 : 1,
             })}
           >
             <Text style={{ fontWeight: "800", color: c.text }}>
@@ -260,7 +248,6 @@ export default function Home() {
           </Pressable>
         </SoftCard>
 
-        {/* tiny credits / count info */}
         <View style={{ alignItems: "center", marginTop: 10 }}>
           <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
             {progress.wordsLearned} {t("wordsLearned").toLowerCase()} ·{" "}

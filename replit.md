@@ -30,20 +30,33 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 Expo SDK 54 + expo-router mobile app for ages 3–15: bilingual EN/AR homework helper. Characters: Adam (boy) and Lulu (girl). Brand: "My Hero".
 
-- **Stack**: Expo SDK 54 + expo-router, AsyncStorage, expo-audio, expo-image-picker, expo-haptics, expo-linear-gradient, react-native-reanimated.
-- **Database**: Supabase only (`@supabase/supabase-js` with service role key). All CRUD via `supabase.from()`. Tables auto-created on startup via `supabase.rpc("exec_sql")` (requires the `exec_sql` function to be defined in Supabase SQL Editor). Storage buckets also via Supabase Storage.
+- **Stack**: Expo SDK 54 + expo-router, AsyncStorage, expo-audio, expo-speech (local TTS, no API), expo-image-picker, expo-haptics, expo-linear-gradient, react-native-reanimated.
+- **Database**: Supabase only (`@supabase/supabase-js` with service role key). All CRUD via `supabase.from()`. Tables auto-created on startup via `supabase.rpc("exec_sql")` (requires the `exec_sql` function in Supabase SQL Editor). Storage buckets also via Supabase Storage.
 - **Auth**: Custom (no Supabase Auth). Email + bcrypt password stored in `users` table. Sessions stored in `app_settings` key/value. Session token persisted in AsyncStorage + localStorage.
 - **Backend routes** (artifacts/api-server):
   - `/api/chat` — gpt-4o-mini, language-specific system prompt (EN/AR), Socratic teaching, ai_cache exact+semantic, suggestions, highFive flag
   - `/api/tts` — Edge TTS WebSocket (en-US-GuyNeural/en-US-AnaNeural/ar-SA-HamedNeural/ar-SA-ZariyahNeural) + gpt-audio-mini fallback
   - `/api/transcribe` — AssemblyAI polling + gpt-audio-mini fallback
   - `/api/auth/register`, `/api/auth/login`, `/api/auth/validate` — persistent auth
-- **Trial / Pricing**: 7-day free trial. Plans shown only on done.tsx after registration. Monthly $24.99 / 6-month $135.99 / Yearly $236.99. Local currency conversion via constants/countries.ts (36 countries).
+  - `/api/safety-alert` — stores in Supabase safety_alerts + sends email (via RESEND_API_KEY if set)
+  - `/api/trial/usage` (GET) — returns TTS/STT/photo usage vs limits for session
+  - `/api/trial/usage` (POST) — increments usage counters in Supabase users table
+  - `/api/trial/check-photo` — checks if photo upload is allowed within trial limits
+- **4B – Screen Time**: AppContext tracks usage with AppState events + 60s ticker. Blocked screen shows hero-and-language-specific sleeping message with midnight countdown. No interaction allowed when blocked. AppContext exposes `isScreenBlocked` computed value. Limits: 2h/4h/6h/Unlimited.
+- **4C – First-Time Tour**: `components/Tour.tsx` — 5-step interactive modal overlay with expo-speech local audio (zero API calls). Shows once after registration. Steps: Homework Helper, Games, Language, Stories, Rewards. Ends with confetti.
+- **4D – Daily Tips**: `components/DailyTip.tsx` — locally stored tips by time of day (morning/afternoon/evening) in EN+AR. No AI, no API. Birthday check at 8am: confetti + party hat + expo-speech happy birthday song.
+- **5A – Parent PIN**: `app/parent/pin.tsx` — 4-digit PIN pad (setup on first access, verify every time). PIN stored in AsyncStorage. Forgot PIN triggers Alert with parent email. Parent dashboard wrapped with PIN guard. Why My Hero updated with 10 reasons.
+- **5A – Safety Monitoring**: All messages checked against EN/AR keyword lists (excluding educational terms). Safety alerts stored in Supabase + email sent via Resend API (RESEND_API_KEY required). Client also stores alerts in AsyncStorage for offline dashboard display.
+- **5B – Trial Limits**: TTS 15min/3days, STT 15min/3days, Photos 1 total. Tracked in users table (trial_tts_used_seconds, trial_stt_used_seconds, trial_photos_used). Trial usage API requires session token header (x-session-token).
+- **5B – Upgrade Screen**: 3 plans — Monthly $24.99 / 6-Month $135.99 (save 10%) / Yearly $236.99 (save 21%). Local currency via exchange rate table (20+ currencies). Never shows USD to non-USD countries.
+- **Trial / Pricing**: Plans shown on done.tsx (onboarding) and parent/upgrade.tsx. Local currency conversion via constants/countries.ts (36 countries) and upgrade.tsx rate table.
 - **Onboarding flow**: welcome → hero → parent (email/password/country) → child (DOB picker) → birthday → done (subscription plans).
 - **Chat UI**: Emoji opening buttons (🎒📚🎮😊) when no messages. Suggestion chips after each AI reply. High Five sticker animation (slides in, auto-dismisses 3.5s) when highFive=true.
 - **System prompt**: Two separate prompts (SYSTEM_PROMPT_EN / SYSTEM_PROMPT_AR) — fully language-specific with proper vocabulary, forbidden phrases, and tone for each language.
-- **AI Cache**: PostgreSQL ai_cache table with exact hash match + semantic word-overlap (≥80%) matching. 30-day cache TTL.
+- **AI Cache**: Supabase ai_cache table with exact hash match + semantic word-overlap (≥80%) matching. 30-day cache TTL.
 - **TTS Voices**: Boy EN: en-US-GuyNeural, Boy AR: ar-SA-HamedNeural, Girl EN: en-US-AnaNeural, Girl AR: ar-SA-ZariyahNeural.
-- **Screens**: onboarding (welcome→hero→parent→child→birthday→done), tabs (home/chat/learn/games), learn/[language], learn/lesson/[id], 6 games, parent dashboard, terms, blocked (screen-time), birthday-celebration.
+- **Screens**: onboarding (welcome→hero→parent→child→birthday→done), tabs (home/chat/learn/games), learn/[language], learn/lesson/[id], 6 games, parent (PIN+dashboard+controls+why-adam+upgrade), terms, blocked (4B sleeping screen), birthday-celebration (4D party hat+confetti).
 - **DB Tables**: users, children, messages, ai_cache, lesson_progress, safety_alerts, app_settings, curriculum_cache, daily_tips.
-- **Sound effects**: chime.ts synthesizes all sounds client-side via Web Audio API.
+- **New Components**: Tour.tsx (4C), DailyTip.tsx (4D).
+- **New Screens**: parent/pin.tsx (5A).
+- **Sound effects**: chime.ts synthesizes all sounds client-side via Web Audio API. Tour/birthday audio via expo-speech (device TTS, zero API calls).

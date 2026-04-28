@@ -57,6 +57,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.1",
-    "expo-audio": "^55.0.14"
+    "expo-audio": "^55.0.14",
+    "expo-speech": "^14.0.8"
   }
 }

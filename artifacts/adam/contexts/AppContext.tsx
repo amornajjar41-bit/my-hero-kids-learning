@@ -4,8 +4,10 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 
 import {
   defaultProgress,
@@ -28,6 +30,8 @@ type AppCtx = {
     p: Progress | ((prev: Progress) => Progress),
   ) => Promise<void>;
   resetAll: () => Promise<void>;
+  // 4B – screen time helpers
+  isScreenBlocked: boolean;
 };
 
 const Ctx = createContext<AppCtx | null>(null);
@@ -37,22 +41,74 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [progress, setProgress] = useState<Progress>(defaultProgress);
 
+  // 4B – Track the timestamp when the app came to foreground
+  const sessionStartRef = useRef<number>(Date.now());
+
   useEffect(() => {
     (async () => {
       const p = await getJSON<Profile>(STORAGE_KEYS.profile);
       const pr =
         (await getJSON<Progress>(STORAGE_KEYS.progress)) ?? defaultProgress;
       setProfile(p);
-      setProgress(pr);
-      if (p) setSoundEnabled(p.soundOn);
+
       // Reset daily usage if it's a new day
-      if (pr.dailyUsageDate !== todayISO()) {
-        const next = { ...pr, dailyUsageDate: todayISO(), dailyUsageMinutes: 0 };
+      const today = todayISO();
+      if (pr.dailyUsageDate !== today) {
+        const next = { ...pr, dailyUsageDate: today, dailyUsageMinutes: 0 };
         setProgress(next);
         await setJSON(STORAGE_KEYS.progress, next);
+      } else {
+        setProgress(pr);
       }
+
+      if (p) setSoundEnabled(p.soundOn);
+      sessionStartRef.current = Date.now();
       setReady(true);
     })();
+  }, []);
+
+  // 4B – AppState listener: accumulate screen time while active
+  useEffect(() => {
+    const flush = async (minutes: number) => {
+      if (minutes < 0.016) return; // < 1 second – ignore
+      setProgress((prev) => {
+        const today = todayISO();
+        const base = prev.dailyUsageDate === today ? prev.dailyUsageMinutes : 0;
+        const next: Progress = {
+          ...prev,
+          dailyUsageDate: today,
+          dailyUsageMinutes: base + minutes,
+        };
+        setJSON(STORAGE_KEYS.progress, next);
+        return next;
+      });
+    };
+
+    const handleChange = (nextState: AppStateStatus) => {
+      if (nextState === "active") {
+        sessionStartRef.current = Date.now();
+      } else if (nextState === "background" || nextState === "inactive") {
+        const elapsed = (Date.now() - sessionStartRef.current) / 60000;
+        sessionStartRef.current = Date.now();
+        flush(elapsed);
+      }
+    };
+
+    const sub = AppState.addEventListener("change", handleChange);
+
+    // Also tick every 60 seconds while active (for real-time block check)
+    const ticker = setInterval(() => {
+      if (AppState.currentState === "active") {
+        const elapsed = (Date.now() - sessionStartRef.current) / 60000;
+        sessionStartRef.current = Date.now();
+        flush(elapsed);
+      }
+    }, 60_000);
+
+    return () => {
+      sub.remove();
+      clearInterval(ticker);
+    };
   }, []);
 
   const saveProfile = useCallback(async (p: Profile) => {
@@ -90,6 +146,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     ]);
   }, []);
 
+  // 4B – derive whether screen is blocked
+  const isScreenBlocked = useMemo(() => {
+    if (!profile) return false;
+    if (profile.screenLimitHours === 0) return false; // unlimited
+    const today = todayISO();
+    if (progress.dailyUsageDate !== today) return false;
+    return progress.dailyUsageMinutes >= profile.screenLimitHours * 60;
+  }, [profile, progress]);
+
   const value = useMemo<AppCtx>(
     () => ({
       ready,
@@ -99,8 +164,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       patchProfile,
       saveProgress,
       resetAll,
+      isScreenBlocked,
     }),
-    [ready, profile, progress, saveProfile, patchProfile, saveProgress, resetAll],
+    [ready, profile, progress, saveProfile, patchProfile, saveProgress, resetAll, isScreenBlocked],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

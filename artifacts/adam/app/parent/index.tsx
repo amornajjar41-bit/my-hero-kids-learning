@@ -12,6 +12,7 @@ import { useT } from "@/hooks/useT";
 import { sendWeeklyReport } from "@/lib/api";
 import { getJSON, STORAGE_KEYS, type SafetyAlert } from "@/lib/storage";
 import { trialDaysLeft } from "@/lib/utils";
+import ParentPin from "./pin";
 
 export type { SafetyAlert };
 
@@ -23,6 +24,10 @@ export default function ParentDashboard() {
   const router = useRouter();
   const t = useT();
   const { profile, progress, resetAll } = useApp();
+
+  // 5A – PIN guard: show PIN screen until verified this session
+  const [pinVerified, setPinVerified] = useState(false);
+
   const [sentMsg, setSentMsg] = useState<string>("");
   const [sending, setSending] = useState(false);
   const [safetyAlerts, setSafetyAlerts] = useState<SafetyAlert[]>([]);
@@ -32,6 +37,16 @@ export default function ParentDashboard() {
       if (v && Array.isArray(v)) setSafetyAlerts(v);
     });
   }, []);
+
+  // Show PIN screen first
+  if (!pinVerified) {
+    return (
+      <ParentPin
+        onSuccess={() => setPinVerified(true)}
+        onBack={() => router.back()}
+      />
+    );
+  }
 
   if (!profile) return null;
   const lang = profile.language;
@@ -69,6 +84,14 @@ export default function ParentDashboard() {
 
   const hasSafetyAlerts = safetyAlerts.length > 0;
 
+  // Screen time today
+  const usedMinutes = progress.dailyUsageDate === new Date().toISOString().slice(0, 10)
+    ? Math.round(progress.dailyUsageMinutes)
+    : 0;
+  const limitLabel = profile.screenLimitHours === 0
+    ? (lang === "ar" ? "غير محدود" : "Unlimited")
+    : `${profile.screenLimitHours}h / ${lang === "ar" ? "يوم" : "day"}`;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
       <View style={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -81,9 +104,18 @@ export default function ParentDashboard() {
         <Text style={{ fontWeight: "800", fontSize: 22, color: c.text, flex: 1 }}>
           👨‍👩‍👧 {t("parentDashboard")}
         </Text>
+        {/* Lock icon to require PIN again */}
+        <Pressable
+          onPress={() => setPinVerified(false)}
+          style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 18, backgroundColor: c.muted, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}
+          hitSlop={8}
+        >
+          <Ionicons name="lock-closed-outline" size={18} color={c.mutedForeground} />
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 18, gap: 14, paddingBottom: 40 }}>
+
         {/* Trial banner */}
         {!profile.isPaid && (
           <SoftCard color={trialDays > 0 ? c.yellow : c.destructive}>
@@ -94,13 +126,13 @@ export default function ParentDashboard() {
               onPress={() => router.push("/parent/upgrade")}
               style={({ pressed }) => ({ marginTop: 10, backgroundColor: "#FFF", paddingVertical: 10, borderRadius: 12, alignItems: "center", opacity: pressed ? 0.85 : 1 })}
             >
-              <Text style={{ fontWeight: "800", color: c.text }}>✨ See plans</Text>
+              <Text style={{ fontWeight: "800", color: c.text }}>✨ {lang === "ar" ? "عرض الباقات" : "See plans"}</Text>
             </Pressable>
           </SoftCard>
         )}
 
         {/* Safety Alert panel */}
-        {hasSafetyAlerts && (
+        {hasSafetyAlerts ? (
           <SoftCard color="#FEE2E2">
             <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
               <Text style={{ fontSize: 24 }}>🚨</Text>
@@ -117,18 +149,14 @@ export default function ParentDashboard() {
             </View>
             {safetyAlerts.slice(-3).map((a, i) => (
               <View key={i} style={{ marginTop: 10, backgroundColor: "rgba(153,27,27,0.08)", borderRadius: 10, padding: 10 }}>
-                <Text style={{ color: "#7F1D1D", fontSize: 11, marginBottom: 2 }}>
-                  {new Date(a.ts).toLocaleString()}
-                </Text>
+                <Text style={{ color: "#7F1D1D", fontSize: 11, marginBottom: 2 }}>{new Date(a.ts).toLocaleString()}</Text>
                 <Text style={{ color: "#991B1B", fontSize: 13, fontWeight: "700" }}>
                   "{a.message.slice(0, 80)}{a.message.length > 80 ? "…" : ""}"
                 </Text>
               </View>
             ))}
           </SoftCard>
-        )}
-
-        {!hasSafetyAlerts && (
+        ) : (
           <SoftCard color="#D1FAE5">
             <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
               <Text style={{ fontSize: 20 }}>✅</Text>
@@ -157,6 +185,34 @@ export default function ParentDashboard() {
             <Text style={{ fontSize: 11, color: c.mutedForeground, textAlign: "center" }}>{t("activeDays")}</Text>
           </SoftCard>
         </View>
+
+        {/* Screen time today */}
+        <SoftCard>
+          <Text style={{ fontWeight: "800", color: c.text }}>⏱️ {lang === "ar" ? "وقت الشاشة اليوم" : "Screen Time Today"}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
+            <View>
+              <Text style={{ fontSize: 28, fontWeight: "900", color: c.primary }}>{usedMinutes}m</Text>
+              <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
+                {lang === "ar" ? `الحد: ${limitLabel}` : `Limit: ${limitLabel}`}
+              </Text>
+            </View>
+            {profile.screenLimitHours > 0 && (
+              <View style={{ alignItems: "flex-end" }}>
+                <View style={{ width: 100, height: 8, backgroundColor: c.muted, borderRadius: 4, overflow: "hidden" }}>
+                  <View style={{
+                    width: `${Math.min(100, (usedMinutes / (profile.screenLimitHours * 60)) * 100)}%`,
+                    height: "100%",
+                    backgroundColor: usedMinutes >= profile.screenLimitHours * 60 ? "#EF4444" : c.primary,
+                    borderRadius: 4,
+                  }} />
+                </View>
+                <Text style={{ color: c.mutedForeground, fontSize: 11, marginTop: 4 }}>
+                  {Math.min(100, Math.round((usedMinutes / (profile.screenLimitHours * 60)) * 100))}%
+                </Text>
+              </View>
+            )}
+          </View>
+        </SoftCard>
 
         {/* Weekly chart */}
         <SoftCard>
@@ -200,7 +256,26 @@ export default function ParentDashboard() {
             <Text style={{ fontSize: 30 }}>💡</Text>
             <View style={{ flex: 1 }}>
               <Text style={{ fontWeight: "800", color: c.text, fontSize: 16 }}>{lang === "ar" ? "لماذا My Hero؟" : "Why My Hero?"}</Text>
-              <Text style={{ color: c.mutedForeground, fontSize: 12 }}>{t("sampleAnswers")}</Text>
+              <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
+                {lang === "ar" ? "١٠ أسباب لاختياره" : "10 reasons to choose it"}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={c.mutedForeground} />
+          </SoftCard>
+        </Pressable>
+
+        <Pressable onPress={() => router.push("/parent/upgrade")} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+          <SoftCard style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Text style={{ fontSize: 30 }}>💳</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: "800", color: c.text, fontSize: 16 }}>
+                {lang === "ar" ? "باقات الاشتراك" : "Subscription Plans"}
+              </Text>
+              <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
+                {profile.isPaid
+                  ? (lang === "ar" ? "مشترك ✅" : "Subscribed ✅")
+                  : (lang === "ar" ? "شهري / ٦ أشهر / سنوي" : "Monthly / 6-Month / Yearly")}
+              </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={c.mutedForeground} />
           </SoftCard>
@@ -236,7 +311,7 @@ export default function ParentDashboard() {
               lang === "ar" ? "تسجيل الخروج" : "Switch Profile",
               lang === "ar"
                 ? "هل تريد مسح البيانات والبدء من جديد؟"
-                : "This will clear all data and return to the welcome screen so you can set up a new profile.",
+                : "This will clear all data and return to the welcome screen.",
               [
                 { text: lang === "ar" ? "إلغاء" : "Cancel", style: "cancel" },
                 {
@@ -251,16 +326,9 @@ export default function ParentDashboard() {
             );
           }}
           style={({ pressed }) => ({
-            marginTop: 4,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            paddingVertical: 14,
-            borderRadius: 16,
-            borderWidth: 1.5,
-            borderColor: "#EF4444",
-            opacity: pressed ? 0.7 : 1,
+            marginTop: 4, flexDirection: "row", alignItems: "center", justifyContent: "center",
+            gap: 8, paddingVertical: 14, borderRadius: 16,
+            borderWidth: 1.5, borderColor: "#EF4444", opacity: pressed ? 0.7 : 1,
           })}
         >
           <Ionicons name="log-out-outline" size={20} color="#EF4444" />
