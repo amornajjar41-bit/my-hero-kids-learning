@@ -11,7 +11,7 @@ import { Confetti } from "@/components/Confetti";
 import { SoftCard } from "@/components/SoftCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useColors } from "@/hooks/useColors";
-import { useLang } from "@/hooks/useT";
+
 import { useApp } from "@/contexts/AppContext";
 import { STORIES } from "@/constants/stories";
 import { preloadStory, storyPath, playPreloaded, stopPreloaded } from "@/lib/lessonAudio";
@@ -20,7 +20,6 @@ import { speakEdgeStory, stopAll } from "@/lib/audio";
 export default function StoryReader() {
   const c = useColors();
   const router = useRouter();
-  const lang = useLang();
   const params = useLocalSearchParams<{ id: string }>();
   const { saveProgress, addPoints } = useApp();
 
@@ -59,7 +58,7 @@ export default function StoryReader() {
     setSentenceIdx(idx);
     setIsPlaying(true);
     const path = storyPath(story.id, idx);
-    await playPreloaded(path, () => speakEdgeStory(story.sentences[idx] ?? "", story.lang as "en" | "ar"));
+    await playPreloaded(path, () => speakEdgeStory(story.sentences[idx] ?? "", "en"));
     setIsPlaying(false);
     if (autoPlayRef.current) {
       await new Promise<void>((r) => setTimeout(r, 600));
@@ -79,7 +78,7 @@ export default function StoryReader() {
     setIsPlaying(false);
   };
 
-  const isArabic = story.lang === "ar";
+  const isArabic = false;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
@@ -95,7 +94,7 @@ export default function StoryReader() {
           <Ionicons name="arrow-back" size={20} color={c.text} />
         </Pressable>
         <Text style={{ fontWeight: "800", fontSize: 18, color: c.text, flex: 1 }} numberOfLines={1}>
-          {lang === "ar" ? story.titleAr : story.titleEn}
+          {story.titleEn}
         </Text>
         <Text style={{ fontSize: 11, color: c.mutedForeground }}>
           {sentenceIdx + 1}/{totalSentences}
@@ -108,19 +107,19 @@ export default function StoryReader() {
           <Text style={{ fontSize: 80, textAlign: "center" }}>{story.emoji}</Text>
           <SoftCard color={c.primary} style={{ width: "100%" }}>
             <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 20, textAlign: "center" }}>
-              {lang === "ar" ? "انتهت القصة!" : "The End!"}
+              The End! 🎉
             </Text>
             <Text style={{ color: "#FFF", opacity: 0.95, textAlign: "center", marginTop: 10, lineHeight: 22, fontSize: 15 }}>
-              {lang === "ar" ? `الدرس: ${story.moral.ar}` : `Lesson: ${story.moral.en}`}
+              Lesson: {story.moral}
             </Text>
           </SoftCard>
           <PrimaryButton
-            title={lang === "ar" ? "اقرأ مجدداً" : "Read Again"}
+            title="Read Again"
             fullWidth
             onPress={() => { setSentenceIdx(0); setFinished(false); setIsPlaying(false); autoPlayRef.current = false; }}
           />
           <PrimaryButton
-            title={lang === "ar" ? "قصة أخرى" : "Another Story"}
+            title="Another Story"
             variant="secondary"
             fullWidth
             onPress={() => router.back()}
@@ -209,7 +208,7 @@ export default function StoryReader() {
 
           <SoftCard>
             <Text style={{ fontWeight: "700", color: c.mutedForeground, fontSize: 12, marginBottom: 8 }}>
-              {lang === "ar" ? "القصة كاملة" : "Full Story"}
+              Full Story
             </Text>
             {story.sentences.map((sentence, i) => (
               <Pressable

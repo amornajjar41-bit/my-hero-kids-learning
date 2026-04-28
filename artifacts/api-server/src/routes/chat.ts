@@ -447,7 +447,7 @@ router.post("/chat", async (req, res) => {
     const topic = detectTopic(userText);
     const suggestions = getSuggestions(topic, language as "en" | "ar");
 
-    // Build normalized input for cache — include gender so Adam/Lulu never share cached replies
+    // Build normalized input for cache — include gender so Adam/Sara never share cached replies
     const normalizedInput = normalizeText(userText);
     const inputHash = hashText(`${normalizedInput}:${language}:${ageGroup}:${gender}`);
 
@@ -505,11 +505,11 @@ router.post("/chat", async (req, res) => {
 
     const genderNote = gender === "girl"
       ? language === "ar"
-        ? "\n\nاسمك: لولو. أنتِ البطلة. خاطبي الطفل دائماً بـ'يا بطلة'. لا تقولي أبداً أنكِ آدم."
-        : "\n\nYour name is Lulu. You are the hero girl. Always call yourself Lulu. Never say you are Adam."
+        ? "\n\nاسمك: سارة. أنتِ البطلة. خاطبي الطفل دائماً بـ'يا بطلة'. لا تقولي أبداً أنكِ آدم."
+        : "\n\nYour name is Sara. You are the hero girl. Always call yourself Sara. Never say you are Adam."
       : language === "ar"
-        ? "\n\nاسمك: آدم. أنتَ البطل. خاطب الطفل دائماً بـ'يا بطل'. لا تقل أبداً أنك لولو."
-        : "\n\nYour name is Adam. You are the hero boy. Always call yourself Adam. Never say you are Lulu.";
+        ? "\n\nاسمك: آدم. أنتَ البطل. خاطب الطفل دائماً بـ'يا بطل'. لا تقل أبداً أنك سارة."
+        : "\n\nYour name is Adam. You are the hero boy. Always call yourself Adam. Never say you are Sara.";
 
     const ageNote =
       language === "ar"

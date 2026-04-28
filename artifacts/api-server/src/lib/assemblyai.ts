@@ -4,7 +4,7 @@ const BASE = "https://api.assemblyai.com/v2";
 
 export async function transcribeAudio(
   audioBase64: string,
-  language: "en" | "ar" = "en",
+  _language: "en" | "ar" = "en",
   _mimeType = "audio/wav"
 ): Promise<string> {
   if (!ASSEMBLYAI_KEY) {
@@ -30,30 +30,15 @@ export async function transcribeAudio(
 
   const { upload_url } = (await uploadRes.json()) as { upload_url: string };
 
-  // 2. Submit transcription
-  //
-  // Key fixes:
-  //   - Field is `speech_model` (singular string), NOT `speech_models` (array)
-  //   - Arabic requires `speech_model: "universal"` — the "best" model is EN-only
-  //   - English uses `speech_model: "best"` for highest accuracy
-  //   - `language_detection: true` handles code-switching (child mixes AR+EN)
-  //   - `punctuate` and `format_text` improve readability of transcribed output
+  // 2. Submit transcription — English only, universal-3-pro for best accuracy
   const body: Record<string, unknown> = {
     audio_url: upload_url,
+    speech_model: "universal-3-pro",
+    language_code: "en",
     punctuate: true,
     format_text: true,
+    disfluencies: false,
   };
-
-  if (language === "ar") {
-    // universal-2 supports Arabic and bilingual (AR+EN) content
-    body.speech_models = ["universal-2"];
-    body.language_code = "ar";
-    body.language_detection = true;
-  } else {
-    // universal-2 supports English and bilingual content
-    body.speech_models = ["universal-2"];
-    body.language_code = "en";
-  }
 
   const transcriptRes = await fetch(`${BASE}/transcript`, {
     method: "POST",
@@ -71,9 +56,9 @@ export async function transcribeAudio(
 
   const { id } = (await transcriptRes.json()) as { id: string };
 
-  // 3. Poll until completed (max ~40s)
-  for (let attempt = 0; attempt < 50; attempt++) {
-    await new Promise((r) => setTimeout(r, 800));
+  // 3. Poll until completed (max ~40s), checking every 600ms for low latency
+  for (let attempt = 0; attempt < 70; attempt++) {
+    await new Promise((r) => setTimeout(r, 600));
     const pollRes = await fetch(`${BASE}/transcript/${id}`, {
       headers: { authorization: ASSEMBLYAI_KEY },
     });
@@ -85,8 +70,8 @@ export async function transcribeAudio(
     };
 
     if (data.status === "completed") {
-      // If overall confidence is very low (below 30%), likely silence or noise
-      if (data.confidence !== undefined && data.confidence < 0.30) {
+      // If overall confidence is very low (below 25%), likely silence or noise
+      if (data.confidence !== undefined && data.confidence < 0.25) {
         return "";
       }
       return (data.text ?? "").trim();

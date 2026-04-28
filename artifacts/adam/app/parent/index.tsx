@@ -390,12 +390,12 @@ export default function ParentDashboard() {
           <Text style={{ color: c.mutedForeground, fontSize: 12, textAlign: lang === "ar" ? "right" : "left" }}>
             {lang === "ar"
               ? `البطل الحالي: ${profile?.hero === "girl" ? "لولو 👧" : "آدم 👦"}`
-              : `Current hero: ${profile?.hero === "girl" ? "Lulu 👧" : "Adam 👦"}`}
+              : `Current hero: ${profile?.hero === "girl" ? "Sara 👧" : "Adam 👦"}`}
           </Text>
           <View style={{ flexDirection: lang === "ar" ? "row-reverse" : "row", gap: 10 }}>
             {([
               { val: "boy" as const, emoji: "👦", enLabel: "Adam", arLabel: "آدم", color: "#3B82F6" },
-              { val: "girl" as const, emoji: "👧", enLabel: "Lulu", arLabel: "لولو", color: "#EC4899" },
+              { val: "girl" as const, emoji: "👧", enLabel: "Sara", arLabel: "Sara", color: "#EC4899" },
             ] as const).map(({ val, emoji, enLabel, arLabel, color }) => {
               const sel = profile?.hero === val;
               return (

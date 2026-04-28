@@ -20,20 +20,12 @@ import { useApp } from "@/contexts/AppContext";
 type PlanKey = "free" | "monthly" | "biannual" | "yearly";
 
 const BENEFITS_EN = [
-  "Homework help in Math, English, Arabic and more",
+  "Homework help in Math, English, Science and more",
   "Learns at your child's pace — adapts from age 4 to 14",
-  "Speaks Arabic and English naturally",
+  "AI voice chat — your child speaks, Adam listens and teaches",
   "You control screen time and monitor progress",
   "Safe, ad-free, and built for children",
   "Costs less than one private tutoring session",
-];
-const BENEFITS_AR = [
-  "مساعدة في الرياضيات والإنجليزي والعربي وأكثر",
-  "يتعلم بوتيرة طفلك — يتكيف من عمر ٤ حتى ١٤",
-  "يتحدث العربية والإنجليزية بشكل طبيعي",
-  "أنت من يتحكم في وقت الشاشة ومتابعة التقدم",
-  "آمن، بلا إعلانات، ومصمم للأطفال",
-  "أقل من جلسة تدريس خاصة واحدة",
 ];
 
 export default function Done() {
@@ -58,9 +50,7 @@ export default function Done() {
   const isAr = (params.lang ?? profile?.language) === "ar";
   const symbol = params.currencySymbol ?? "$";
   const rate = parseFloat(params.currencyRate ?? "1") || 1;
-  const heroName = (params.hero ?? profile?.hero) === "girl"
-    ? (isAr ? "لولو" : "Lulu")
-    : (isAr ? "آدم" : "Adam");
+  const heroName = (params.hero ?? profile?.hero) === "girl" ? "Sara" : "Adam";
   const childName = params.name || profile?.childName || (isAr ? "طفلك" : "your child");
 
   const [loading, setLoading] = useState(false);
@@ -138,7 +128,7 @@ export default function Done() {
           <Text style={{ fontWeight: "900", fontSize: 18, color: c.text, textAlign: isAr ? "right" : "left" }}>
             {isAr ? "ماذا يحصل طفلك؟" : "What your child gets:"}
           </Text>
-          {(isAr ? BENEFITS_AR : BENEFITS_EN).map((b, i) => (
+          {BENEFITS_EN.map((b, i) => (
             <View key={i} style={{
               flexDirection: isAr ? "row-reverse" : "row",
               alignItems: "flex-start", gap: 12,

@@ -11,39 +11,36 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
-import { useLang } from "@/hooks/useT";
 import { STORIES, type Story } from "@/constants/stories";
 import { setCurrentStoryId } from "@/lib/storyStore";
 import { getJSON, STORAGE_KEYS } from "@/lib/storage";
 
-type Filter = "all" | "ar" | "en" | "young" | "older";
+type Filter = "all" | "young" | "older";
 
-// Gradient card backgrounds per story id
 const CARD_BG: Record<string, [string, string]> = {
   "1":  ["#7C3AED", "#4C1D95"],
-  "2":  ["#059669", "#065F46"],
+  "2":  ["#047857", "#064E3B"],
   "3":  ["#1D4ED8", "#1E3A8A"],
-  "4":  ["#4338CA", "#312E81"],
+  "4":  ["#6D28D9", "#3B0764"],
   "5":  ["#D97706", "#92400E"],
-  "6":  ["#E11D48", "#9F1239"],
-  "7":  ["#047857", "#064E3B"],
+  "6":  ["#059669", "#065F46"],
+  "7":  ["#D97706", "#064E3B"],
   "8":  ["#0369A1", "#0C4A6E"],
-  "9":  ["#6D28D9", "#3B0764"],
-  "10": ["#D97706", "#064E3B"],
+  "9":  ["#E11D48", "#9F1239"],
+  "10": ["#4338CA", "#312E81"],
 };
 
-// Approximate reading time and age info per story
 const STORY_DISPLAY: Record<string, { durationMin: number; ageRange: string }> = {
-  "1":  { durationMin: 3, ageRange: "4-8" },
-  "2":  { durationMin: 3, ageRange: "4-8" },
-  "3":  { durationMin: 3, ageRange: "5-9" },
-  "4":  { durationMin: 3, ageRange: "4-8" },
-  "5":  { durationMin: 3, ageRange: "4-8" },
-  "6":  { durationMin: 4, ageRange: "6-10" },
-  "7":  { durationMin: 4, ageRange: "6-10" },
-  "8":  { durationMin: 4, ageRange: "5-9" },
+  "1":  { durationMin: 4, ageRange: "6-10" },
+  "2":  { durationMin: 3, ageRange: "5-9"  },
+  "3":  { durationMin: 3, ageRange: "5-9"  },
+  "4":  { durationMin: 4, ageRange: "6-10" },
+  "5":  { durationMin: 4, ageRange: "5-10" },
+  "6":  { durationMin: 3, ageRange: "5-9"  },
+  "7":  { durationMin: 3, ageRange: "4-8"  },
+  "8":  { durationMin: 4, ageRange: "6-10" },
   "9":  { durationMin: 4, ageRange: "6-10" },
-  "10": { durationMin: 4, ageRange: "5-10" },
+  "10": { durationMin: 4, ageRange: "6-10" },
 };
 
 const STARS_COUNT = 40;
@@ -56,7 +53,6 @@ const starPositions = Array.from({ length: STARS_COUNT }, (_, i) => ({
 
 export default function StoriesScreen() {
   const router = useRouter();
-  const lang = useLang();
   const [filter, setFilter] = useState<Filter>("all");
   const [listened, setListened] = useState<Record<string, boolean>>({});
 
@@ -68,8 +64,6 @@ export default function StoriesScreen() {
 
   const filtered = useMemo(() => {
     return STORIES.filter((s) => {
-      if (filter === "ar") return s.lang === "ar";
-      if (filter === "en") return s.lang === "en";
       if (filter === "young") {
         const minAge = parseInt((STORY_DISPLAY[s.id]?.ageRange ?? "5-9").split("-")[0]!);
         return minAge <= 5;
@@ -82,12 +76,10 @@ export default function StoriesScreen() {
     });
   }, [filter]);
 
-  const filters: { id: Filter; labelEn: string; labelAr: string }[] = [
-    { id: "all",   labelEn: "All",       labelAr: "الكل" },
-    { id: "ar",    labelEn: "Arabic",    labelAr: "العربية" },
-    { id: "en",    labelEn: "English",   labelAr: "الإنجليزية" },
-    { id: "young", labelEn: "3–6 yrs",  labelAr: "٣–٦ سنوات" },
-    { id: "older", labelEn: "7–10 yrs", labelAr: "٧–١٠ سنوات" },
+  const filters: { id: Filter; label: string }[] = [
+    { id: "all",   label: "All Stories" },
+    { id: "young", label: "Ages 4–6"    },
+    { id: "older", label: "Ages 6–10"   },
   ];
 
   function handleStoryPress(story: Story) {
@@ -120,10 +112,10 @@ export default function StoriesScreen() {
 
         <View style={{ padding: 20, paddingTop: 10 }}>
           <Text style={{ fontSize: 28, fontWeight: "800", color: "#FFF", textAlign: "center", letterSpacing: 0.5 }}>
-            {lang === "ar" ? "🌙 قصص قبل النوم" : "🌙 Bedtime Stories"}
+            🌙 Bedtime Stories
           </Text>
           <Text style={{ color: "#a78bfa", textAlign: "center", fontSize: 14, marginTop: 4 }}>
-            {lang === "ar" ? "أطفئ الأضواء واستمع 🌟" : "Dim the lights and listen 🌟"}
+            Dim the lights and listen 🌟
           </Text>
         </View>
 
@@ -149,7 +141,7 @@ export default function StoriesScreen() {
                 }}
               >
                 <Text style={{ color: active ? "#FFF" : "#c4b5fd", fontWeight: "700", fontSize: 13 }}>
-                  {lang === "ar" ? f.labelAr : f.labelEn}
+                  {f.label}
                 </Text>
               </Pressable>
             );
@@ -160,7 +152,7 @@ export default function StoriesScreen() {
         <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 40 }}>
           {filtered.map((story) => {
             const bg = CARD_BG[story.id] ?? (["#7C3AED", "#4C1D95"] as [string, string]);
-            const display = STORY_DISPLAY[story.id] ?? { durationMin: 3, ageRange: "4-8" };
+            const display = STORY_DISPLAY[story.id] ?? { durationMin: 3, ageRange: "5-9" };
             return (
               <Pressable
                 key={story.id}
@@ -171,19 +163,13 @@ export default function StoriesScreen() {
                   colors={[...bg, bg[1]]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={{
-                    borderRadius: 20,
-                    padding: 18,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 14,
-                  }}
+                  style={{ borderRadius: 20, padding: 18, flexDirection: "row", alignItems: "center", gap: 14 }}
                 >
                   <Text style={{ fontSize: 52 }}>{story.emoji}</Text>
                   <View style={{ flex: 1, gap: 4 }}>
                     <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
                       <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 16, flex: 1 }}>
-                        {lang === "ar" ? story.titleAr : story.titleEn}
+                        {story.titleEn}
                       </Text>
                       {listened[story.id] && (
                         <View style={{ backgroundColor: "#10b981", borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
@@ -191,33 +177,19 @@ export default function StoriesScreen() {
                         </View>
                       )}
                     </View>
-                    {lang === "ar" && (
-                      <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>
-                        {story.titleEn}
-                      </Text>
-                    )}
                     <View style={{ flexDirection: "row", gap: 12, marginTop: 4 }}>
                       <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12 }}>
-                        ⏱ {display.durationMin} {lang === "ar" ? "دقائق" : "min"}
+                        ⏱ {display.durationMin} min
                       </Text>
                       <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12 }}>
-                        👶 {display.ageRange} {lang === "ar" ? "سنوات" : "yrs"}
+                        👶 {display.ageRange} yrs
                       </Text>
                       <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12 }}>
-                        {story.lang === "ar" ? "🇸🇦 عربي" : "🇬🇧 English"}
+                        🇬🇧 English
                       </Text>
                     </View>
                   </View>
-                  <View
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 22,
-                      backgroundColor: "rgba(255,255,255,0.2)",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
+                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" }}>
                     <Text style={{ fontSize: 20 }}>▶️</Text>
                   </View>
                 </LinearGradient>

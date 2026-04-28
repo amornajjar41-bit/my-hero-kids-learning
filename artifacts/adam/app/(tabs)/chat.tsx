@@ -493,7 +493,7 @@ export default function Chat() {
     if (!historyLoaded || messages.length > 0 || greetedRef.current) return;
     greetedRef.current = true;
     const name = profile?.childName ?? "";
-    const heroN = profile?.hero === "girl" ? "Lulu" : "Adam";
+    const heroN = profile?.hero === "girl" ? "Sara" : "Adam";
     const greeting = lang === "ar"
       ? `مرحباً ${name}! أنا ${heroN}. كيف أقدر أساعدك اليوم؟`
       : `Hey ${name}! I'm ${heroN}. What can I help you with today?`;
@@ -542,7 +542,7 @@ export default function Chat() {
   }, []);
 
   const voice = profile?.hero === "girl" ? "nova" : "echo";
-  const heroName = profile?.hero === "girl" ? "Lulu" : "Adam";
+  const heroName = profile?.hero === "girl" ? "Sara" : "Adam";
 
   const dismissTutorial = async () => {
     setShowTutorial(false);

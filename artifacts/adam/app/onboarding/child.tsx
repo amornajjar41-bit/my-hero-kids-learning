@@ -339,7 +339,7 @@ export default function ChildInfo() {
             <Text style={{ flex: 1, color: c.mutedForeground, fontSize: 13, textAlign: isAr ? "right" : "left" }}>
               {isAr
                 ? `بطلك هو ${params.hero === "girl" ? "لولو" : "آدم"} — يمكنك تغييره لاحقاً`
-                : `Your hero is ${params.hero === "girl" ? "Lulu" : "Adam"} — you can change later`}
+                : `Your hero is ${params.hero === "girl" ? "Sara" : "Adam"} — you can change later`}
             </Text>
           </View>
 

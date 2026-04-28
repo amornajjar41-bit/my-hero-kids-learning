@@ -26,11 +26,11 @@ const SECTIONS_EN = [
   },
   {
     title: "5. AI-Powered Content",
-    body: `My Hero uses advanced artificial intelligence (AI) to power Adam and Lulu's responses:\n\n• While we work extremely hard to ensure accuracy and age-appropriateness, AI responses should be verified for critical academic work\n• AI can occasionally make mistakes — always encourage your child to verify important facts with teachers\n• We continuously improve our AI's educational quality and safety\n• The AI is designed to guide children to discover answers, not simply provide them — this is intentional and educationally proven\n• All AI conversations are subject to safety monitoring`,
+    body: `My Hero uses advanced artificial intelligence (AI) to power Adam and Sara's responses:\n\n• While we work extremely hard to ensure accuracy and age-appropriateness, AI responses should be verified for critical academic work\n• AI can occasionally make mistakes — always encourage your child to verify important facts with teachers\n• We continuously improve our AI's educational quality and safety\n• The AI is designed to guide children to discover answers, not simply provide them — this is intentional and educationally proven\n• All AI conversations are subject to safety monitoring`,
   },
   {
     title: "6. Intellectual Property",
-    body: `All content in My Hero — including Adam and Lulu characters, stories, games, lesson content, and design — is owned by My Hero Education Ltd and protected by copyright. You may not reproduce, distribute, or create derivative works from any app content without written permission.`,
+    body: `All content in My Hero — including Adam and Sara characters, stories, games, lesson content, and design — is owned by My Hero Education Ltd and protected by copyright. You may not reproduce, distribute, or create derivative works from any app content without written permission.`,
   },
   {
     title: "7. Limitation of Liability",

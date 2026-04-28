@@ -8,6 +8,5 @@ export function useT() {
 }
 
 export function useLang(): "en" | "ar" {
-  const { profile } = useApp();
-  return profile?.language ?? "en";
+  return "en";
 }

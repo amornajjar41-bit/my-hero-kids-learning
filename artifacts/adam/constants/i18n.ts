@@ -21,7 +21,7 @@ export const t = {
 
   pickHero: { en: "Pick your hero!", ar: "اختر بطلك!" },
   heroBoy: { en: "Adam", ar: "آدم" },
-  heroGirl: { en: "Lulu", ar: "لولو" },
+  heroGirl: { en: "Sara", ar: "Sara" },
   parentInfo: { en: "Parent details", ar: "بيانات ولي الأمر" },
   parentEmail: { en: "Parent email", ar: "بريد ولي الأمر" },
   parentEmailHelp: {
