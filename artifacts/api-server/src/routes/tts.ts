@@ -15,7 +15,6 @@
  */
 import { Router, type IRouter } from "express";
 import { createHash } from "crypto";
-import { synthesize, STORY_VOICES } from "../lib/edge-tts";
 
 const router: IRouter = Router();
 
@@ -169,8 +168,9 @@ router.post("/tts", async (req, res) => {
   }
 });
 
-// ── Edge TTS story endpoint ───────────────────────────────────────────────────
-// Uses Ana (EN) / Zariyah (AR) — separate from WaveNet chat TTS
+// ── Story TTS endpoint (Google Neural2 — warm, natural, non-robotic) ─────────
+// Uses Neural2-F for EN (natural female) and Wavenet-A for AR (best Arabic female)
+// Completely separate from WaveNet chat TTS. Slower rate, slightly warmer pitch.
 router.post("/tts/edge-story", async (req, res) => {
   const { text, lang = "en" } = req.body as { text?: string; lang?: string };
 
@@ -180,22 +180,39 @@ router.post("/tts/edge-story", async (req, res) => {
   }
 
   const voiceLang: "en" | "ar" = lang === "ar" ? "ar" : "en";
-  const voice = STORY_VOICES[voiceLang];
+  const voiceParams = voiceLang === "ar"
+    ? { languageCode: "ar-XA", name: "ar-XA-Wavenet-A", ssmlGender: "FEMALE" }
+    : { languageCode: "en-US", name: "en-US-Neural2-F", ssmlGender: "FEMALE" };
+  const speakingRate = voiceLang === "ar" ? 0.76 : 0.78;
+  const pitch        = voiceLang === "ar" ? 0.0  : 2.0;
 
-  const cacheK = createHash("md5").update(`edge-story::${voiceLang}::${text.slice(0, 300)}`).digest("hex");
+  const cacheK = createHash("md5").update(`story-neural::${voiceLang}::${text.slice(0, 300)}`).digest("hex");
   if (memCache.has(cacheK)) {
     res.json({ base64: memCache.get(cacheK), mimeType: "audio/mpeg", cached: true });
     return;
   }
 
+  const apiKey = process.env["GOOGLE_TTS_API_KEY"];
+  if (!apiKey) { res.status(500).json({ error: "TTS key not configured" }); return; }
+
   try {
-    const buffer = await synthesize(text, voice, "-15%", "+0Hz", 20000);
-    const base64 = buffer.toString("base64");
-    cacheSet(cacheK, base64);
-    res.json({ base64, mimeType: "audio/mpeg", cached: false });
+    const resp = await fetch(`${GOOGLE_TTS_URL}?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: { text },
+        voice: voiceParams,
+        audioConfig: { audioEncoding: "MP3", speakingRate, pitch },
+      }),
+    });
+    if (!resp.ok) throw new Error(`Google TTS ${resp.status}`);
+    const data = await resp.json() as { audioContent?: string };
+    if (!data.audioContent) throw new Error("no audioContent");
+    cacheSet(cacheK, data.audioContent);
+    res.json({ base64: data.audioContent, mimeType: "audio/mpeg", cached: false });
   } catch (err: any) {
-    req.log.error({ err: err?.message }, "Edge TTS story fallback failed");
-    res.status(500).json({ error: "edge tts failed" });
+    req.log.error({ err: err?.message }, "Story TTS (Neural2) failed");
+    res.status(500).json({ error: "story tts failed" });
   }
 });
 

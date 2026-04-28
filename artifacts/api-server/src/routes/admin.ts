@@ -8,7 +8,6 @@
  */
 import { Router, type IRouter, type Request, type Response } from "express";
 import { supabase } from "../lib/supabase";
-import { synthesizeStory } from "../lib/edge-tts";
 
 const router: IRouter = Router();
 
@@ -21,6 +20,10 @@ const LESSON_LANG_EN: LangCode = "en";
 const LESSON_LANG_AR: LangCode = "ar";
 const STORY_LANG_EN: LangCode  = "en";
 const STORY_LANG_AR: LangCode  = "ar";
+
+// Story voice params: Neural2-F for EN (warm, natural) | Wavenet-A for AR (best available)
+const STORY_VOICE_EN = { languageCode: "en-US", name: "en-US-Neural2-F", ssmlGender: "FEMALE" as const };
+const STORY_VOICE_AR = { languageCode: "ar-XA", name: "ar-XA-Wavenet-A", ssmlGender: "FEMALE" as const };
 
 // ── Google WaveNet synthesis ──────────────────────────────────────────────────
 function rateToSpeakingRate(rate: string): number {
@@ -426,8 +429,49 @@ async function generateAndStore(
   }
 }
 
-/** Story audio uses Edge TTS Ana (EN) and Zariyah (AR) — never WaveNet */
-async function generateAndStoreEdgeStory(
+/**
+ * High-quality story synthesis using Google Neural2 (EN) / WaveNet-A (AR).
+ * Warm, calm, slow — ideal for bedtime storytelling. Completely non-robotic.
+ */
+async function synthesizeStoryGoogle(
+  text: string,
+  lang: "en" | "ar",
+  timeoutMs = 22000,
+): Promise<Buffer> {
+  const apiKey = process.env["GOOGLE_TTS_API_KEY"];
+  if (!apiKey) throw new Error("GOOGLE_TTS_API_KEY not set");
+
+  const voiceParams = lang === "ar" ? STORY_VOICE_AR : STORY_VOICE_EN;
+  const speakingRate = lang === "ar" ? 0.76 : 0.78;  // calm, slow for kids
+  const pitch        = lang === "ar" ? 0.0  : 2.0;   // slightly warm for EN
+
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${GOOGLE_TTS_URL}?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: { text },
+        voice: voiceParams,
+        audioConfig: { audioEncoding: "MP3", speakingRate, pitch },
+      }),
+      signal: ctrl.signal,
+    });
+    if (!response.ok) {
+      const err = await response.text().catch(() => "");
+      throw new Error(`Story TTS ${response.status}: ${err}`);
+    }
+    const data = await response.json() as { audioContent?: string };
+    if (!data.audioContent) throw new Error("Story TTS: no audioContent");
+    return Buffer.from(data.audioContent, "base64");
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
+/** Store pre-generated story audio using Google Neural2 — runs once via admin panel */
+async function generateAndStoreStory(
   path: string,
   text: string,
   lang: "en" | "ar",
@@ -438,7 +482,7 @@ async function generateAndStoreEdgeStory(
     if (exists) return true;
   }
   try {
-    const buffer = await synthesizeStory(text, lang);
+    const buffer = await synthesizeStoryGoogle(text, lang);
     return await uploadAudio("stories-audio", path, buffer);
   } catch {
     return false;
@@ -622,7 +666,7 @@ router.post("/api/admin/generate-stories", async (req, res) => {
 
   await runConcurrent(STORY_SENTENCES, 2, async (sentence) => {
     const path = `story-${sentence.storyId}/sentence-${sentence.index}`;
-    await generateAndStoreEdgeStory(path, sentence.text, sentence.lang as "en" | "ar");
+    await generateAndStoreStory(path, sentence.text, sentence.lang as "en" | "ar");
     progress++;
     sseWrite(res, { progress, total, message: `Story ${sentence.storyId} sentence ${sentence.index}`, percent: Math.round((progress / total) * 100) });
   });

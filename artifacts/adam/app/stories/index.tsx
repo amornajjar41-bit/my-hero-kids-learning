@@ -27,7 +27,7 @@ export default function StoriesIndex() {
     return (
       <Pressable
         key={story.id}
-        onPress={() => router.push(`/stories/${story.id}` as any)}
+        onPress={() => router.push({ pathname: "/stories/[id]", params: { id: story.id } } as any)}
         style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
       >
         <SoftCard>
