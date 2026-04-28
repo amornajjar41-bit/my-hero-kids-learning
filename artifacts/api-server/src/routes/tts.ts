@@ -15,6 +15,7 @@
  */
 import { Router, type IRouter } from "express";
 import { createHash } from "crypto";
+import { synthesize, STORY_VOICES } from "../lib/edge-tts";
 
 const router: IRouter = Router();
 
@@ -165,6 +166,36 @@ router.post("/tts", async (req, res) => {
   } catch (err: any) {
     req.log.error({ err: err?.message }, "Google WaveNet TTS failed");
     res.status(500).json({ error: "tts failed" });
+  }
+});
+
+// ── Edge TTS story endpoint ───────────────────────────────────────────────────
+// Uses Ana (EN) / Zariyah (AR) — separate from WaveNet chat TTS
+router.post("/tts/edge-story", async (req, res) => {
+  const { text, lang = "en" } = req.body as { text?: string; lang?: string };
+
+  if (!text || typeof text !== "string" || !text.trim()) {
+    res.status(400).json({ error: "text required" });
+    return;
+  }
+
+  const voiceLang: "en" | "ar" = lang === "ar" ? "ar" : "en";
+  const voice = STORY_VOICES[voiceLang];
+
+  const cacheK = createHash("md5").update(`edge-story::${voiceLang}::${text.slice(0, 300)}`).digest("hex");
+  if (memCache.has(cacheK)) {
+    res.json({ base64: memCache.get(cacheK), mimeType: "audio/mpeg", cached: true });
+    return;
+  }
+
+  try {
+    const buffer = await synthesize(text, voice, "-15%", "+0Hz", 20000);
+    const base64 = buffer.toString("base64");
+    cacheSet(cacheK, base64);
+    res.json({ base64, mimeType: "audio/mpeg", cached: false });
+  } catch (err: any) {
+    req.log.error({ err: err?.message }, "Edge TTS story fallback failed");
+    res.status(500).json({ error: "edge tts failed" });
   }
 });
 

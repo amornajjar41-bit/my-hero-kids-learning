@@ -112,6 +112,18 @@ export async function ttsSpeak(opts: {
   return postJSON("/api/tts", opts);
 }
 
+/** Edge TTS for stories — uses Ana (EN) or Zariyah (AR), never WaveNet */
+export async function ttsEdgeStory(opts: {
+  text: string;
+  lang: "en" | "ar";
+}): Promise<{ base64: string; mimeType: string } | null> {
+  try {
+    return await postJSON<{ base64: string; mimeType: string }>("/api/tts/edge-story", opts);
+  } catch {
+    return null;
+  }
+}
+
 export async function reportSafetyAlert(opts: {
   childName: string;
   parentEmail: string;

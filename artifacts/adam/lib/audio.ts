@@ -1,20 +1,18 @@
 /**
- * AudioManager — Google WaveNet-backed TTS player.
- *
- * Calls /api/tts (Google WaveNet) → receives base64 MP3 → plays it.
- * Native: expo-audio + FileSystem  |  Web: singleton <audio> element
+ * AudioManager — TTS player for chat (WaveNet) and stories (Edge TTS).
  *
  * Public API:
- *   speak(text, voice, speed?)  → fetch + play
- *   stopAll()                   → async stop with 50ms hardware cooldown
- *   stop()                      → sync stop (for useEffect cleanup returns)
- *   setSoundEnabled(on)         → global mute
- *   isSpeaking()                → playback state
+ *   speak(text, voice, speed?)      → WaveNet (chat / lessons)
+ *   speakEdgeStory(text, lang)      → Edge TTS Ana/Zariyah (stories only)
+ *   stopAll()                       → async stop with 50ms hardware cooldown
+ *   stop()                          → sync stop (for useEffect cleanup returns)
+ *   setSoundEnabled(on)             → global mute
+ *   isSpeaking()                    → playback state
  */
 import { Platform } from "react-native";
 import { createAudioPlayer, AudioModule } from "expo-audio";
 import * as FileSystem from "expo-file-system";
-import { ttsSpeak } from "./api";
+import { ttsSpeak, ttsEdgeStory } from "./api";
 
 // ── Singleton web <audio> element ─────────────────────────────────────────────
 let _webEl: HTMLAudioElement | null = null;
@@ -72,28 +70,86 @@ export function stop(): void {
 }
 
 // ── In-app TTS cache (avoid re-fetching the same phrase) ──────────────────────
-// Key: full text + voice — avoids collisions from short-prefix keying
-const _ttsCache = new Map<string, string>(); // key → base64
+const _ttsCache = new Map<string, string>();
 const TTS_CACHE_MAX = 100;
 
 function ttsCacheKey(text: string, voice: string): string {
-  // Use full text so long responses with similar openings don't collide
   return `${voice}::${text}`;
 }
 
-function ttsCacheGet(text: string, voice: string): string | undefined {
-  return _ttsCache.get(ttsCacheKey(text, voice));
+function ttsCacheGet(k: string): string | undefined {
+  return _ttsCache.get(k);
 }
 
-function ttsCacheSet(text: string, voice: string, base64: string): void {
+function ttsCacheSet(k: string, base64: string): void {
   if (_ttsCache.size >= TTS_CACHE_MAX) {
     const oldest = _ttsCache.keys().next().value;
     if (oldest) _ttsCache.delete(oldest);
   }
-  _ttsCache.set(ttsCacheKey(text, voice), base64);
+  _ttsCache.set(k, base64);
 }
 
-// ── speak() ───────────────────────────────────────────────────────────────────
+// ── Shared playback helper ────────────────────────────────────────────────────
+// Both speak() and speakEdgeStory() funnel through this after fetching audio.
+function _doPlay(base64: string, textForTimeout: string, myGen: number): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (myGen !== _generation) { resolve(); return; }
+
+    try {
+      if (Platform.OS === "web") {
+        const el = getWebEl();
+        const uri = `data:audio/mpeg;base64,${base64}`;
+        function cleanup() {
+          el.removeEventListener("ended", onEnd);
+          el.removeEventListener("error", onErr);
+        }
+        const onEnd = () => { cleanup(); resolve(); };
+        const onErr = () => { cleanup(); resolve(); };
+        el.addEventListener("ended", onEnd, { once: true });
+        el.addEventListener("error", onErr, { once: true });
+        el.src = uri;
+        el.load();
+        el.play().catch(() => { cleanup(); resolve(); });
+
+      } else {
+        const tmpUri = (FileSystem.cacheDirectory ?? "") + `tts_${Date.now()}_${Math.random().toString(36).slice(2)}.mp3`;
+        FileSystem.writeAsStringAsync(tmpUri, base64, {
+          encoding: FileSystem.EncodingType.Base64,
+        }).then(() => {
+          if (myGen !== _generation) { resolve(); return; }
+
+          const player = createAudioPlayer({ uri: tmpUri });
+          _nativePlayer = player;
+
+          player.addListener("playbackStatusUpdate", (status: any) => {
+            if (status.didJustFinish) {
+              if (_nativePlayer === player) _nativePlayer = null;
+              FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
+              resolve();
+            }
+          });
+
+          player.play();
+
+          // Safety timeout: 120ms/char, min 8s, max 90s
+          const safetyMs = Math.min(Math.max(textForTimeout.length * 120, 8000), 90000);
+          setTimeout(() => {
+            if (_nativePlayer === player) {
+              _nativePlayer = null;
+              FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
+            }
+            resolve();
+          }, safetyMs);
+
+        }).catch(() => resolve());
+      }
+    } catch {
+      resolve();
+    }
+  });
+}
+
+// ── speak() — WaveNet (chat, lessons) ────────────────────────────────────────
 export async function speak(
   text: string,
   voice: "echo" | "nova" = "echo",
@@ -118,88 +174,57 @@ export async function speak(
     } catch { /* ignore */ }
   }
 
-  // Cache key includes ageGroup so young-child (slow) audio is cached separately
   const cacheKey = ageGroup ? `${voice}:${ageGroup}` : voice;
-  let base64 = ttsCacheGet(text, cacheKey);
+  const ck = ttsCacheKey(text, cacheKey);
+  let base64 = ttsCacheGet(ck);
 
   if (!base64) {
     try {
       const result = await ttsSpeak({ text, voice, ageGroup });
       if (!result?.audioBase64) return;
       base64 = result.audioBase64;
-      ttsCacheSet(text, cacheKey, base64);
+      ttsCacheSet(ck, base64);
     } catch {
       return;
     }
   }
 
   if (myGen !== _generation) return;
+  return _doPlay(base64, text, myGen);
+}
 
-  return new Promise<void>((resolve) => {
-    if (myGen !== _generation) { resolve(); return; }
+// ── speakEdgeStory() — Edge TTS Ana/Zariyah (stories only) ───────────────────
+export async function speakEdgeStory(
+  text: string,
+  lang: "en" | "ar",
+): Promise<void> {
+  if (!_soundEnabled || !text?.trim()) return;
 
+  stop();
+  const myGen = _generation;
+
+  await new Promise<void>((r) => setTimeout(r, 50));
+  if (myGen !== _generation) return;
+
+  if (Platform.OS !== "web") {
     try {
-      if (Platform.OS === "web") {
-        const el = getWebEl();
-        const uri = `data:audio/mpeg;base64,${base64}`;
+      await AudioModule.setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+      });
+    } catch { /* ignore */ }
+  }
 
-        function cleanup() {
-          el.removeEventListener("ended", onEnd);
-          el.removeEventListener("error", onErr);
-        }
-        const onEnd = () => { cleanup(); resolve(); };
-        const onErr = () => { cleanup(); resolve(); };
+  const ck = ttsCacheKey(text, `edge-story::${lang}`);
+  let base64 = ttsCacheGet(ck);
 
-        el.addEventListener("ended", onEnd, { once: true });
-        el.addEventListener("error", onErr, { once: true });
-        el.src = uri;
-        el.load();
-        el.play().catch(() => { cleanup(); resolve(); });
+  if (!base64) {
+    const result = await ttsEdgeStory({ text, lang });
+    if (!result?.base64) return;
+    base64 = result.base64;
+    ttsCacheSet(ck, base64);
+  }
 
-      } else {
-        const tmpUri = (FileSystem.cacheDirectory ?? "") + `tts_${Date.now()}.mp3`;
-        FileSystem.writeAsStringAsync(tmpUri, base64!, {
-          encoding: FileSystem.EncodingType.Base64,
-        }).then(() => {
-          if (myGen !== _generation) { resolve(); return; }
-
-          const player = createAudioPlayer({ uri: tmpUri });
-          _nativePlayer = player;
-
-          // Track whether playback has actually started so we don't resolve early
-          let playbackStarted = false;
-
-          player.addListener("playbackStatusUpdate", (status: any) => {
-            // Only count as "started" once we see isPlaying=true
-            if (status.isPlaying) playbackStarted = true;
-
-            // Only resolve on genuine completion — NOT on isLoaded===false which
-            // fires during buffering/intermediate states and causes premature cutoff
-            if (status.didJustFinish) {
-              if (_nativePlayer === player) _nativePlayer = null;
-              FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
-              resolve();
-            }
-          });
-
-          player.play();
-
-          // Safety timeout: generous budget per character so long explanations
-          // never get cut off. 120ms/char, min 8s, max 90s.
-          const safetyMs = Math.min(Math.max(text.length * 120, 8000), 90000);
-          setTimeout(() => {
-            if (_nativePlayer === player) {
-              _nativePlayer = null;
-              FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
-            }
-            resolve();
-          }, safetyMs);
-
-        }).catch(() => resolve());
-      }
-    } catch (e) {
-      console.warn("[AudioManager] play error", e);
-      resolve();
-    }
-  });
+  if (myGen !== _generation) return;
+  return _doPlay(base64, text, myGen);
 }

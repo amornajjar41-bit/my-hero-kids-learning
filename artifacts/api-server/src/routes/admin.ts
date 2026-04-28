@@ -8,6 +8,7 @@
  */
 import { Router, type IRouter, type Request, type Response } from "express";
 import { supabase } from "../lib/supabase";
+import { synthesizeStory } from "../lib/edge-tts";
 
 const router: IRouter = Router();
 
@@ -425,6 +426,25 @@ async function generateAndStore(
   }
 }
 
+/** Story audio uses Edge TTS Ana (EN) and Zariyah (AR) — never WaveNet */
+async function generateAndStoreEdgeStory(
+  path: string,
+  text: string,
+  lang: "en" | "ar",
+  skipIfExists = true,
+): Promise<boolean> {
+  if (skipIfExists) {
+    const exists = await fileExists("stories-audio", `${path}.mp3`);
+    if (exists) return true;
+  }
+  try {
+    const buffer = await synthesizeStory(text, lang);
+    return await uploadAudio("stories-audio", path, buffer);
+  } catch {
+    return false;
+  }
+}
+
 // ── Build lesson audio items ──────────────────────────────────────────────────
 type AudioItem = { bucket: string; path: string; text: string; lang: LangCode; rate: string; pitch: string; label: string };
 
@@ -600,9 +620,9 @@ router.post("/api/admin/generate-stories", async (req, res) => {
 
   sseWrite(res, { progress: 0, total, message: `Starting generation of ${total} story audio segments...` });
 
-  await runConcurrent(STORY_SENTENCES, 3, async (sentence) => {
+  await runConcurrent(STORY_SENTENCES, 2, async (sentence) => {
     const path = `story-${sentence.storyId}/sentence-${sentence.index}`;
-    await generateAndStore("stories-audio", path, sentence.text, sentence.lang, sentence.rate, sentence.pitch);
+    await generateAndStoreEdgeStory(path, sentence.text, sentence.lang as "en" | "ar");
     progress++;
     sseWrite(res, { progress, total, message: `Story ${sentence.storyId} sentence ${sentence.index}`, percent: Math.round((progress / total) * 100) });
   });

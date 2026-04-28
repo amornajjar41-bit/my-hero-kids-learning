@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, usePathname } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
@@ -14,18 +14,21 @@ import { useLang } from "@/hooks/useT";
 import { useApp } from "@/contexts/AppContext";
 import { STORIES } from "@/constants/stories";
 import { preloadStory, storyPath, playPreloaded, stopPreloaded } from "@/lib/lessonAudio";
-import { speak, stopAll } from "@/lib/audio";
+import { speakEdgeStory, stopAll } from "@/lib/audio";
 
 export default function StoryReader() {
   const c = useColors();
   const router = useRouter();
   const lang = useLang();
   const params = useLocalSearchParams<{ id: string }>();
-  const { profile, saveProgress, addPoints } = useApp();
+  const pathname = usePathname();
+  const { saveProgress, addPoints } = useApp();
 
-  const storyId = Array.isArray(params.id) ? params.id[0] : (params.id ?? "");
+  // useLocalSearchParams can occasionally miss the segment on first render;
+  // usePathname() ("/stories/3") is always reliable as a fallback.
+  const pathId = pathname.split("/").filter(Boolean).pop() ?? "";
+  const storyId = (Array.isArray(params.id) ? params.id[0] : params.id) || pathId;
   const story = STORIES.find((s) => s.id === storyId) ?? STORIES[0]!;
-  const voice = profile?.hero === "girl" ? "nova" : "echo";
 
   const [sentenceIdx, setSentenceIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -55,7 +58,7 @@ export default function StoryReader() {
     setSentenceIdx(idx);
     setIsPlaying(true);
     const path = storyPath(story.id, idx);
-    await playPreloaded(path, () => speak(story.sentences[idx] ?? "", voice));
+    await playPreloaded(path, () => speakEdgeStory(story.sentences[idx] ?? "", story.lang as "en" | "ar"));
     setIsPlaying(false);
     if (autoPlayRef.current) {
       await new Promise<void>((r) => setTimeout(r, 600));
