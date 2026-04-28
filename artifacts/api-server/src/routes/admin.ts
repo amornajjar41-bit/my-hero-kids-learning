@@ -24,9 +24,9 @@ const LESSON_LANG_AR: LangCode = "ar";
 const STORY_LANG_EN: LangCode  = "en";
 const STORY_LANG_AR: LangCode  = "ar";
 
-// Story voice params: Neural2-F for EN (warm, natural) | Wavenet-D for AR (smoothest Arabic female)
+// Story voice params: Neural2-F for EN (warm, natural) | Wavenet-A for AR (warm, natural Arabic female)
 const STORY_VOICE_EN = { languageCode: "en-US", name: "en-US-Neural2-F", ssmlGender: "FEMALE" as const };
-const STORY_VOICE_AR = { languageCode: "ar-XA", name: "ar-XA-Wavenet-D", ssmlGender: "FEMALE" as const };
+const STORY_VOICE_AR = { languageCode: "ar-XA", name: "ar-XA-Wavenet-A", ssmlGender: "FEMALE" as const };
 
 // ── Google WaveNet synthesis ──────────────────────────────────────────────────
 function rateToSpeakingRate(rate: string): number {

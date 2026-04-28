@@ -45,12 +45,14 @@ export async function transcribeAudio(
   };
 
   if (language === "ar") {
-    body.speech_model = "universal";
+    // universal-2 supports Arabic and bilingual (AR+EN) content
+    body.speech_models = ["universal-2"];
     body.language_code = "ar";
     body.language_detection = true;
   } else {
-    body.speech_model = "best";
-    body.language_code = "en_us";
+    // universal-2 supports English and bilingual content
+    body.speech_models = ["universal-2"];
+    body.language_code = "en";
   }
 
   const transcriptRes = await fetch(`${BASE}/transcript`, {

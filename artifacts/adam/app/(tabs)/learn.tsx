@@ -102,20 +102,6 @@ export default function LearnTab() {
           </SoftCard>
         </Pressable>
 
-        <Pressable
-          onPress={() => router.push("/stories" as any)}
-          style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
-        >
-          <View style={{ backgroundColor: "#1A0F3F", borderRadius: c.radius, padding: 22 }}>
-            <Text style={{ fontSize: 44 }}>🌙</Text>
-            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 22, marginTop: 8 }}>
-              {lang === "ar" ? "قصص ما قبل النوم" : "Bedtime Stories"}
-            </Text>
-            <Text style={{ color: "#FFF", opacity: 0.8, marginTop: 4, fontSize: 13 }}>
-              {lang === "ar" ? "١٠ قصص بالعربي والإنجليزي" : "10 stories · Arabic & English"}
-            </Text>
-          </View>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
