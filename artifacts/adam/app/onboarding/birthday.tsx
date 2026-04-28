@@ -8,37 +8,12 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { SoftCard } from "@/components/SoftCard";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
-import { pad } from "@/lib/utils";
 import type { Profile } from "@/lib/storage";
 
-const monthsEn = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-const monthsAr = [
-  "يناير",
-  "فبراير",
-  "مارس",
-  "أبريل",
-  "مايو",
-  "يونيو",
-  "يوليو",
-  "أغسطس",
-  "سبتمبر",
-  "أكتوبر",
-  "نوفمبر",
-  "ديسمبر",
-];
+function pad(n: number) { return String(n).padStart(2, "0"); }
+
+const MONTHS_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 
 export default function Birthday() {
   const c = useColors();
@@ -55,18 +30,26 @@ export default function Birthday() {
     currencySymbol: string;
     currencyRate: string;
     name: string;
-    age: "4-6" | "7-9" | "10-12";
+    age: "4-6" | "7-9" | "10-12" | "13-14";
     dob: string;
+    childMonth: string;
+    childDay: string;
   }>();
   const isAr = params.lang === "ar";
-  const [month, setMonth] = useState(0); // 0..11
-  const [day, setDay] = useState(1);
+  const months = isAr ? MONTHS_AR : MONTHS_EN;
 
-  const months = isAr ? monthsAr : monthsEn;
+  // Pre-populate from DOB entered on previous screen
+  const preMonth = params.childMonth !== undefined ? parseInt(params.childMonth, 10) : 0;
+  const preDay   = params.childDay   !== undefined ? parseInt(params.childDay,   10) : 1;
+
+  const [month, setMonth] = useState(preMonth); // 0-based
+  const [day, setDay]     = useState(preDay);
 
   const finalize = async () => {
-    const year = new Date().getFullYear() - 8;
-    const childBirthday = `${year}-${pad(month + 1)}-${pad(day)}`;
+    // Use the actual DOB year from the previous screen, not a hardcoded offset
+    const dobYear = params.dob ? parseInt(params.dob.split("-")[0], 10) : new Date().getFullYear() - 8;
+    const childBirthday = `${dobYear}-${pad(month + 1)}-${pad(day)}`;
+
     const profile: Profile = {
       language: params.lang,
       hero: params.hero,
@@ -106,32 +89,21 @@ export default function Birthday() {
         <View style={{ alignItems: "center", marginTop: 8 }}>
           <AdamCharacter hero={params.hero} size={100} />
         </View>
-        <Text
-          style={{
-            fontSize: 24,
-            fontWeight: "800",
-            color: c.text,
-            textAlign: "center",
-          }}
-        >
+
+        <Text style={{ fontSize: 24, fontWeight: "800", color: c.text, textAlign: "center" }}>
           {isAr
             ? "شي أخير يا بطل! 🎂 امتى عيد ميلادك؟"
             : "One last thing hero! 🎂 When is YOUR birthday?"}
         </Text>
-        <Text
-          style={{
-            fontSize: 14,
-            color: c.mutedForeground,
-            textAlign: "center",
-          }}
-        >
+        <Text style={{ fontSize: 14, color: c.mutedForeground, textAlign: "center" }}>
           {isAr
             ? "بدي أعملك أكبر احتفال بالتاريخ! 🎉🎊"
             : "I want to throw you the BIGGEST celebration ever! 🎉🎊"}
         </Text>
 
+        {/* Month grid */}
         <SoftCard>
-          <Text style={{ fontWeight: "700", color: c.text, marginBottom: 8 }}>
+          <Text style={{ fontWeight: "700", color: c.text, marginBottom: 8, textAlign: isAr ? "right" : "left" }}>
             {isAr ? "الشهر" : "Month"}
           </Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
@@ -143,19 +115,15 @@ export default function Birthday() {
                   onPress={() => setMonth(idx)}
                   style={({ pressed }) => ({
                     backgroundColor: sel ? c.primary : c.muted,
-                    paddingVertical: 8,
-                    paddingHorizontal: 12,
-                    borderRadius: 10,
+                    paddingVertical: 10,
+                    paddingHorizontal: 14,
+                    borderRadius: 12,
                     opacity: pressed ? 0.8 : 1,
+                    borderWidth: sel ? 0 : 1,
+                    borderColor: c.muted,
                   })}
                 >
-                  <Text
-                    style={{
-                      color: sel ? "#FFF" : c.text,
-                      fontWeight: "700",
-                      fontSize: 13,
-                    }}
-                  >
+                  <Text style={{ color: sel ? "#FFF" : c.text, fontWeight: "700", fontSize: 13 }}>
                     {m}
                   </Text>
                 </Pressable>
@@ -164,8 +132,9 @@ export default function Birthday() {
           </View>
         </SoftCard>
 
+        {/* Day grid */}
         <SoftCard>
-          <Text style={{ fontWeight: "700", color: c.text, marginBottom: 8 }}>
+          <Text style={{ fontWeight: "700", color: c.text, marginBottom: 8, textAlign: isAr ? "right" : "left" }}>
             {isAr ? "اليوم" : "Day"}
           </Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
@@ -177,21 +146,16 @@ export default function Birthday() {
                   key={d}
                   onPress={() => setDay(d)}
                   style={({ pressed }) => ({
-                    width: 38,
-                    height: 38,
-                    borderRadius: 19,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
                     backgroundColor: sel ? c.primary : c.muted,
                     alignItems: "center",
                     justifyContent: "center",
                     opacity: pressed ? 0.85 : 1,
                   })}
                 >
-                  <Text
-                    style={{
-                      color: sel ? "#FFF" : c.text,
-                      fontWeight: "700",
-                    }}
-                  >
+                  <Text style={{ color: sel ? "#FFF" : c.text, fontWeight: "700", fontSize: 14 }}>
                     {d}
                   </Text>
                 </Pressable>
@@ -200,8 +164,25 @@ export default function Birthday() {
           </View>
         </SoftCard>
 
+        {/* Confirmation hint */}
+        <View style={{
+          backgroundColor: c.primary + "15",
+          borderRadius: 14,
+          padding: 14,
+          flexDirection: isAr ? "row-reverse" : "row",
+          alignItems: "center",
+          gap: 10,
+        }}>
+          <Text style={{ fontSize: 28 }}>🎂</Text>
+          <Text style={{ flex: 1, color: c.text, fontSize: 13, fontWeight: "600", textAlign: isAr ? "right" : "left" }}>
+            {isAr
+              ? `عيد ميلادك: ${months[month]} ${day} 🎉`
+              : `Birthday: ${months[month]} ${day} 🎉`}
+          </Text>
+        </View>
+
         <PrimaryButton
-          title={isAr ? "تم" : "Done"}
+          title={isAr ? "تم! يلا نبدأ 🚀" : "Done! Let's go 🚀"}
           fullWidth
           onPress={finalize}
         />
