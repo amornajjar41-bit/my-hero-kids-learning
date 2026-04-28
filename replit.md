@@ -36,7 +36,7 @@ Expo SDK 54 + expo-router mobile app for ages 3–15: bilingual EN/AR homework h
 - **Backend routes** (artifacts/api-server):
   - `/api/chat` — gpt-4o-mini, language-specific system prompt (EN/AR), Socratic teaching, ai_cache exact+semantic, suggestions, highFive flag
   - `/api/tts` — Edge TTS WebSocket (en-US-GuyNeural/en-US-AnaNeural/ar-SA-HamedNeural/ar-SA-ZariyahNeural) + gpt-audio-mini fallback
-  - `/api/transcribe` — AssemblyAI polling + gpt-audio-mini fallback
+  - `/api/transcribe` — OpenAI Whisper-1 (replaces broken AssemblyAI integration). Writes audio to tmp file, calls whisper-1 with language hint, returns trimmed text.
   - `/api/auth/register`, `/api/auth/login`, `/api/auth/validate` — persistent auth
   - `/api/safety-alert` — stores in Supabase safety_alerts + sends email (via RESEND_API_KEY if set)
   - `/api/trial/usage` (GET) — returns TTS/STT/photo usage vs limits for session
