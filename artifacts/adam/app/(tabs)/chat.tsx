@@ -452,12 +452,16 @@ export default function Chat() {
   const [tooShort, setTooShort] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [recSeconds, setRecSeconds] = useState(0);
+  const [transcribing, setTranscribing] = useState(false);
   const [adamPose, setAdamPose] = useState<CharacterPose>("normal");
   const [childMemory, setChildMemory] = useState<ChildMemory>(defaultChildMemory);
   const [suggestions, setSuggestions] = useState<ChatSuggestion[]>([]);
   const [showHighFive, setShowHighFive] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const recStartTime = useRef<number>(0);
+  const recTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pttScale = useRef(new Animated.Value(1)).current;
   const highFiveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -510,6 +514,10 @@ export default function Chat() {
     useCallback(() => {
       return () => {
         stopAudio();
+        _clearRecTimers();
+        setIsRecording(false);
+        setRecSeconds(0);
+        setTranscribing(false);
         // Also kill any active recording so mic releases immediately
         if (Platform.OS !== "web" && _nativeRec) {
           try { _nativeRec.stop(); } catch { /* ignore */ }
@@ -679,14 +687,21 @@ export default function Chat() {
     }
   };
 
+  const _clearRecTimers = () => {
+    if (recTimerRef.current) { clearInterval(recTimerRef.current); recTimerRef.current = null; }
+    if (autoStopRef.current) { clearTimeout(autoStopRef.current); autoStopRef.current = null; }
+  };
+
   const startRec = async () => {
     setMicError(null);
+    setTooShort(false);
     setAdamPose("excited");
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
     recStartTime.current = Date.now();
-    Animated.spring(pttScale, { toValue: 0.92, useNativeDriver: false, tension: 200 }).start();
+    setRecSeconds(0);
+    Animated.spring(pttScale, { toValue: 0.88, useNativeDriver: false, tension: 200 }).start();
 
     try {
       if (Platform.OS === "web") {
@@ -695,44 +710,74 @@ export default function Chat() {
         await nativeStartRecording();
       }
       setIsRecording(true);
+
+      // Live timer — update every second
+      recTimerRef.current = setInterval(() => {
+        setRecSeconds((s) => s + 1);
+      }, 1000);
+
+      // Auto-stop after 45 seconds to prevent runaway recordings
+      autoStopRef.current = setTimeout(() => {
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+        }
+        stopRec();
+      }, 45000);
+
     } catch (e: any) {
+      _clearRecTimers();
       const denied = e?.name === "NotAllowedError" || e?.message?.includes("permission") || e?.message?.includes("denied");
       setMicError(denied
-        ? (lang === "ar" ? "📵 يرجى السماح بالميكروفون في الإعدادات" : "📵 Please allow microphone access in Settings")
-        : (lang === "ar" ? "⚠️ المايك ما اشتغل، جرب مرة ثانية" : "⚠️ Mic failed, try again"));
+        ? "📵 Please allow microphone access in Settings"
+        : "⚠️ Mic failed, try again");
       setAdamPose("normal");
       setTimeout(() => setMicError(null), 4000);
     }
   };
 
   const stopRec = async () => {
+    _clearRecTimers();
     Animated.spring(pttScale, { toValue: 1, useNativeDriver: false, tension: 200 }).start();
     const duration = Date.now() - recStartTime.current;
     setIsRecording(false);
+    setRecSeconds(0);
 
-    // FIX 4: 1.5 second minimum for reliable Whisper transcription
-    if (duration < 1500) {
+    // Release haptic so the user feels the button was registered
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+
+    // Need at least 1.2 seconds of audio for reliable transcription
+    if (duration < 1200) {
       setTooShort(true);
-      setTimeout(() => setTooShort(false), 2800);
-      // Clean up native recorder if started
+      setTimeout(() => setTooShort(false), 3000);
       if (Platform.OS !== "web" && _nativeRec) {
         try { await _nativeRec.stop(); } catch { /* ignore */ }
         _nativeRec = null;
+      }
+      if (Platform.OS === "web") {
+        try { _wavStream?.getTracks().forEach((t) => t.stop()); _wavProcessor?.disconnect(); _wavSource?.disconnect(); _wavCtx?.close(); } catch { /* ignore */ }
+        _wavStream = null; _wavProcessor = null; _wavSource = null; _wavCtx = null; _wavChunks = [];
       }
       return;
     }
 
     try {
-      setBusy(true);
+      setTranscribing(true);
       setAdamPose("thinking");
       const { base64, mimeType } = Platform.OS === "web"
         ? await webStopRecording()
         : await nativeStopRecording();
 
-      if (!base64) { setTooShort(true); setTimeout(() => setTooShort(false), 2200); setBusy(false); return; }
+      if (!base64) {
+        setTooShort(true);
+        setTranscribing(false);
+        setTimeout(() => setTooShort(false), 2200);
+        return;
+      }
 
       const { text } = await transcribe({ audioBase64: base64, mimeType, language: lang });
-      setBusy(false);
+      setTranscribing(false);
       if (text?.trim()) {
         await send(text);
       } else {
@@ -741,11 +786,11 @@ export default function Chat() {
         setTimeout(() => setTooShort(false), 2500);
       }
     } catch (e) {
-      console.warn("[ptt] transcribe failed", e);
+      setTranscribing(false);
       setBusy(false);
       setAdamPose("normal");
-      setMicError(lang === "ar" ? "⚠️ ما قدرت أفهم الصوت، حاول مرة ثانية" : "⚠️ Couldn't understand audio, try again");
-      setTimeout(() => setMicError(null), 3000);
+      setMicError("⚠️ Couldn't understand audio, please try again");
+      setTimeout(() => setMicError(null), 3500);
     }
   };
 
@@ -813,19 +858,22 @@ export default function Chat() {
           borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
         }}>
           <Text style={{ fontSize: 11, fontWeight: "700", color: c.text }}>
-            {busy ? (lang === "ar" ? "💭 يفكر..." : "💭 Thinking...") :
-             isRecording ? (lang === "ar" ? "🎤 يسمع..." : "🎤 Listening...") :
-             adamPose === "happy" ? (lang === "ar" ? "😊 سعيد!" : "😊 Happy!") :
-             adamPose === "excited" ? (lang === "ar" ? "🎉 متحمس!" : "🎉 Excited!") :
-             (lang === "ar" ? "💚 جاهز" : "💚 Ready")}
+            {transcribing ? "⏳ Transcribing..." :
+             busy ? "💭 Thinking..." :
+             isRecording ? "🎤 Listening..." :
+             adamPose === "happy" ? "😊 Happy!" :
+             adamPose === "excited" ? "🎉 Excited!" :
+             "💚 Ready"}
           </Text>
         </View>
 
-        {/* Recording indicator */}
+        {/* Recording indicator — shows live timer */}
         {isRecording && (
-          <View style={{ position: "absolute", top: 10, right: 14, flexDirection: "row", gap: 5, alignItems: "center", backgroundColor: "rgba(0,0,0,0.65)", borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 }}>
+          <View style={{ position: "absolute", top: 10, right: 14, flexDirection: "row", gap: 5, alignItems: "center", backgroundColor: "rgba(0,0,0,0.70)", borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 }}>
             <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#EF4444" }} />
-            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 11 }}>REC</Text>
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12 }}>
+              {`0:${recSeconds < 10 ? "0" : ""}${recSeconds}`}
+            </Text>
           </View>
         )}
       </LinearGradient>
@@ -887,10 +935,12 @@ export default function Chat() {
           {busy && <TypingBubble lang={lang} />}
 
           {tooShort && (
-            <View style={{ alignSelf: "flex-start", backgroundColor: "#FEF3C7", borderRadius: 16, padding: 12 }}>
-              <Text style={{ color: "#92400E", fontWeight: "700" }}>
-                {lang === "ar" ? "اضغط المايك لمدة أطول وأنت تتكلم! 🎤" : "Hold the button longer while you speak! 🎤"}
-              </Text>
+            <View style={{ alignSelf: "flex-start", backgroundColor: "#FEF3C7", borderRadius: 16, padding: 12, flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Text style={{ fontSize: 20 }}>🎤</Text>
+              <View>
+                <Text style={{ color: "#92400E", fontWeight: "800", fontSize: 14 }}>Hold a bit longer!</Text>
+                <Text style={{ color: "#92400E", fontSize: 12, marginTop: 2 }}>Keep holding while you speak</Text>
+              </View>
             </View>
           )}
 
@@ -947,34 +997,42 @@ export default function Chat() {
 
             {/* Big PTT button */}
             <View style={{ alignItems: "center", gap: 4 }}>
-              {isRecording && <Waveform active={isRecording} />}
+              {isRecording && <Waveform active />}
               <View style={{ alignItems: "center", justifyContent: "center" }}>
                 <PulseRing active={isRecording} />
                 <Animated.View style={{ transform: [{ scale: pttScale }] }}>
                   <Pressable
                     onPressIn={startRec}
                     onPressOut={stopRec}
+                    disabled={transcribing || busy}
                     style={{
                       width: 88, height: 88, borderRadius: 44,
-                      backgroundColor: isRecording ? "#EF4444" : "#FF6B35",
+                      backgroundColor: transcribing || busy ? "#9CA3AF" : isRecording ? "#EF4444" : "#FF6B35",
                       alignItems: "center", justifyContent: "center",
                       shadowColor: isRecording ? "#EF4444" : "#FF6B35",
-                      shadowOpacity: 0.55, shadowRadius: 14, shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: transcribing || busy ? 0.2 : 0.55,
+                      shadowRadius: 14, shadowOffset: { width: 0, height: 4 },
                       elevation: 8,
                     }}
                   >
-                    <Ionicons name={isRecording ? "stop" : "mic"} size={36} color="#FFF" />
+                    {transcribing ? (
+                      <Text style={{ fontSize: 26 }}>⏳</Text>
+                    ) : (
+                      <Ionicons name={isRecording ? "stop" : "mic"} size={36} color="#FFF" />
+                    )}
                   </Pressable>
                 </Animated.View>
               </View>
-              {!isRecording && (
-                <Text style={{ color: c.mutedForeground, fontWeight: "700", fontSize: 11 }}>
-                  {lang === "ar" ? "اضغط وحكي 🎤" : "Hold to talk 🎤"}
+              {/* Label below button */}
+              {transcribing ? (
+                <Text style={{ color: "#6B7280", fontWeight: "700", fontSize: 11 }}>Transcribing...</Text>
+              ) : isRecording ? (
+                <Text style={{ color: "#EF4444", fontWeight: "800", fontSize: 13 }}>
+                  {`0:${recSeconds < 10 ? "0" : ""}${recSeconds}  Release to send`}
                 </Text>
-              )}
-              {isRecording && (
-                <Text style={{ color: c.mutedForeground, fontSize: 11 }}>
-                  {lang === "ar" ? "ارفع إصبعك للإرسال" : "Release to send"}
+              ) : (
+                <Text style={{ color: c.mutedForeground, fontWeight: "700", fontSize: 11 }}>
+                  Hold to talk 🎤
                 </Text>
               )}
             </View>

@@ -57,9 +57,9 @@ export async function transcribeAudio(
 
   const { id } = (await transcriptRes.json()) as { id: string };
 
-  // 3. Poll until completed (max ~40s), checking every 600ms for low latency
-  for (let attempt = 0; attempt < 70; attempt++) {
-    await new Promise((r) => setTimeout(r, 600));
+  // 3. Poll until completed (max ~40s), checking every 400ms for low latency
+  for (let attempt = 0; attempt < 100; attempt++) {
+    await new Promise((r) => setTimeout(r, 400));
     const pollRes = await fetch(`${BASE}/transcript/${id}`, {
       headers: { authorization: ASSEMBLYAI_KEY },
     });

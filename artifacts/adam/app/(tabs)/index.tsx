@@ -174,26 +174,22 @@ export default function Home() {
           </Pressable>
         </View>
 
-        <View style={{ flexDirection: "row", gap: 12 }}>
-          <Pressable
-            onPress={() => { playChime("tap"); router.push("/learn/english"); }}
-            style={({ pressed }) => ({
-              flex: 1, backgroundColor: c.blue, borderRadius: c.radius, padding: 16, opacity: pressed ? 0.85 : 1,
-            })}
-          >
-            <Text style={{ fontSize: 28 }}>🇬🇧</Text>
-            <Text style={{ color: "#FFF", fontWeight: "800", marginTop: 6 }}>{t("learnEnglish")}</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => { playChime("tap"); router.push("/learn/arabic"); }}
-            style={({ pressed }) => ({
-              flex: 1, backgroundColor: c.green, borderRadius: c.radius, padding: 16, opacity: pressed ? 0.85 : 1,
-            })}
-          >
-            <Text style={{ fontSize: 28 }}>🇸🇦</Text>
-            <Text style={{ color: "#FFF", fontWeight: "800", marginTop: 6 }}>{t("learnArabic")}</Text>
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={() => { playChime("tap"); router.push("/learn/english"); }}
+          style={({ pressed }) => ({
+            backgroundColor: c.blue, borderRadius: c.radius, padding: 18, opacity: pressed ? 0.85 : 1,
+            flexDirection: "row", alignItems: "center", gap: 14,
+          })}
+        >
+          <Text style={{ fontSize: 36 }}>🇬🇧</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 17 }}>{t("learnEnglish")}</Text>
+            <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, marginTop: 2 }}>
+              {progress.lessonsCompleted.length} lessons completed
+            </Text>
+          </View>
+          <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 22 }}>›</Text>
+        </Pressable>
 
         <BadgeShelf />
 
