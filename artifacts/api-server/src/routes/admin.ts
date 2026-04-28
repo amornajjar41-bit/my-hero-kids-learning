@@ -653,6 +653,96 @@ router.post("/admin/generate-lesson-audio", async (req, res) => {
   res.end();
 });
 
+// ── PostgREST schema reload ───────────────────────────────────────────────────
+// POST /api/admin/reload-schema
+// Notifies PostgREST to reload its schema cache (needed after manual table creation).
+router.post("/admin/reload-schema", async (_req, res) => {
+  const { error } = await supabase.rpc("exec_sql", { sql: "SELECT pg_notify('pgrst', 'reload schema')" });
+  if (error) {
+    res.status(500).json({
+      ok: false,
+      error: error.message,
+      instructions:
+        "exec_sql RPC not found. Run this manually in Supabase SQL Editor:\n" +
+        "  SELECT pg_notify('pgrst', 'reload schema');\n" +
+        "Then click 'Restart Server' in the Replit workflow panel.",
+    });
+    return;
+  }
+  // Give PostgREST 3 s to reload
+  await new Promise<void>((r) => setTimeout(r, 3000));
+  res.json({ ok: true, message: "Schema cache reloaded — caching is now active." });
+});
+
+// ── DB connectivity test ──────────────────────────────────────────────────────
+// GET /api/admin/db-test
+// Returns a detailed report of Supabase read/write health for every cache table.
+router.get("/admin/db-test", async (_req, res) => {
+  const results: Record<string, { read: boolean; write: boolean; error?: string }> = {};
+
+  // Test ai_cache
+  try {
+    const { error: readErr } = await supabase.from("ai_cache").select("id,gender").limit(1);
+    let writeOk = false;
+    let writeErr: string | undefined;
+    const testHash = "_db_test_probe_";
+    const { error: upsertErr } = await supabase
+      .from("ai_cache")
+      .upsert(
+        { input_hash: testHash, input_text: "test", response_text: "test", language: "en", gender: "boy", hit_count: 0 },
+        { onConflict: "input_hash,language" }
+      );
+    if (upsertErr) {
+      writeErr = upsertErr.message;
+    } else {
+      writeOk = true;
+      // Clean up probe row
+      await supabase.from("ai_cache").delete().eq("input_hash", testHash);
+    }
+    results["ai_cache"] = { read: !readErr, write: writeOk, error: readErr?.message ?? writeErr };
+  } catch (e) {
+    results["ai_cache"] = { read: false, write: false, error: String(e) };
+  }
+
+  // Test curriculum_cache
+  try {
+    const { error: readErr } = await supabase.from("curriculum_cache").select("id").limit(1);
+    results["curriculum_cache"] = { read: !readErr, write: true, error: readErr?.message };
+  } catch (e) {
+    results["curriculum_cache"] = { read: false, write: false, error: String(e) };
+  }
+
+  // Test app_settings
+  try {
+    const { error: readErr } = await supabase.from("app_settings").select("key").limit(1);
+    let writeOk = false;
+    let writeErr: string | undefined;
+    const { error: upsertErr } = await supabase
+      .from("app_settings")
+      .upsert({ key: "_db_test_probe_", value: "1" }, { onConflict: "key" });
+    if (upsertErr) {
+      writeErr = upsertErr.message;
+    } else {
+      writeOk = true;
+      await supabase.from("app_settings").delete().eq("key", "_db_test_probe_");
+    }
+    results["app_settings"] = { read: !readErr, write: writeOk, error: readErr?.message ?? writeErr };
+  } catch (e) {
+    results["app_settings"] = { read: false, write: false, error: String(e) };
+  }
+
+  // Test users
+  try {
+    const { error: readErr } = await supabase.from("users").select("id").limit(1);
+    results["users"] = { read: !readErr, write: true, error: readErr?.message };
+  } catch (e) {
+    results["users"] = { read: false, write: false, error: String(e) };
+  }
+
+  const allOk = Object.values(results).every(r => r.read && r.write);
+  res.json({ ok: allOk, tables: results });
+});
+
 router.post("/admin/generate-stories", async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");

@@ -48,6 +48,7 @@ export default function ParentDashboard() {
 
   const [lessonGen, setLessonGen] = useState<GenerationState>(GEN_IDLE);
   const [storyGen, setStoryGen] = useState<GenerationState>(GEN_IDLE);
+  const [dbReload, setDbReload] = useState<{ running: boolean; ok: boolean | null; message: string }>({ running: false, ok: null, message: "" });
   const lessonAbortRef = useRef<AbortController | null>(null);
   const storyAbortRef = useRef<AbortController | null>(null);
 
@@ -156,6 +157,22 @@ export default function ParentDashboard() {
     } catch (err: any) {
       if (err?.name === "AbortError") return;
       setState((s) => ({ ...s, running: false, error: String(err?.message ?? err) }));
+    }
+  }
+
+  // ── Supabase schema reload ────────────────────────────────────────────────
+  async function handleDbReload() {
+    setDbReload({ running: true, ok: null, message: lang === "ar" ? "جاري إصلاح قاعدة البيانات…" : "Fixing database…" });
+    try {
+      const res = await fetch(`${getApiBase()}/api/admin/reload-schema`, { method: "POST" });
+      const json = await res.json() as { ok: boolean; message?: string; instructions?: string; error?: string };
+      if (json.ok) {
+        setDbReload({ running: false, ok: true, message: json.message ?? "Done!" });
+      } else {
+        setDbReload({ running: false, ok: false, message: json.instructions ?? json.error ?? "exec_sql RPC not found — see instructions below." });
+      }
+    } catch (err: any) {
+      setDbReload({ running: false, ok: false, message: String(err?.message ?? err) });
     }
   }
 
@@ -478,6 +495,43 @@ export default function ParentDashboard() {
         <Text style={{ fontWeight: "700", fontSize: 12, color: c.mutedForeground, letterSpacing: 1, textTransform: "uppercase" }}>
           {lang === "ar" ? "أدوات المطور" : "Developer Tools"}
         </Text>
+
+        {/* Fix Database / Schema Reload */}
+        <SoftCard style={{ gap: 10, borderColor: "#F59E0B", borderWidth: 1.5 }}>
+          <Text style={{ fontWeight: "800", color: c.text, fontSize: 15 }}>
+            🗄️ {lang === "ar" ? "إصلاح قاعدة البيانات" : "Fix Database Cache"}
+          </Text>
+          <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
+            {lang === "ar"
+              ? "إذا كانت الجداول موجودة ولكن لا يعمل التخزين المؤقت، اضغط هنا لتحديث Supabase."
+              : "If tables exist but caching is broken, tap here to reload the Supabase schema. Run once after creating tables manually."}
+          </Text>
+          {dbReload.message !== "" && (
+            <Text style={{ fontSize: 12, color: dbReload.ok === true ? "#065F46" : dbReload.ok === false ? c.destructive : c.mutedForeground }}>
+              {dbReload.ok === true ? "✅ " : dbReload.ok === false ? "⚠️ " : ""}{dbReload.message}
+            </Text>
+          )}
+          {dbReload.ok === false && (
+            <Text style={{ fontSize: 11, color: c.mutedForeground, fontFamily: "monospace" }}>
+              {"Run in Supabase SQL Editor:\nSELECT pg_notify('pgrst', 'reload schema');"}
+            </Text>
+          )}
+          <Pressable
+            disabled={dbReload.running}
+            onPress={handleDbReload}
+            style={({ pressed }) => ({
+              backgroundColor: dbReload.running ? c.muted : "#F59E0B",
+              paddingVertical: 12, borderRadius: 12, alignItems: "center",
+              opacity: pressed ? 0.85 : 1,
+            })}
+          >
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14 }}>
+              {dbReload.running
+                ? (lang === "ar" ? "جاري…" : "Working…")
+                : (lang === "ar" ? "إصلاح قاعدة البيانات" : "Reload Schema")}
+            </Text>
+          </Pressable>
+        </SoftCard>
 
         {/* Generate Lesson + Game Audio */}
         <SoftCard style={{ gap: 10 }}>

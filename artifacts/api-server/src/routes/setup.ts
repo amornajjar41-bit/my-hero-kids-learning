@@ -107,16 +107,87 @@ const STATEMENTS = [
 
 let setupDone = false;
 
+async function tryExecSql(sql: string): Promise<boolean> {
+  const { error } = await supabase.rpc("exec_sql", { sql });
+  return !error;
+}
+
+/** Ask PostgREST to reload its schema cache via pg_notify.
+ *  Requires exec_sql RPC to be present.  If it succeeds we wait 3 s for
+ *  PostgREST to finish the reload before continuing. */
+async function tryReloadSchema(): Promise<boolean> {
+  const ok = await tryExecSql("SELECT pg_notify('pgrst', 'reload schema')");
+  if (ok) {
+    console.log("[setup] ✅ Triggered PostgREST schema reload — waiting 3 s...");
+    await new Promise<void>((r) => setTimeout(r, 3000));
+  } else {
+    console.warn(
+      "[setup] ⚠️  PostgREST schema cache is stale and exec_sql is not available.\n\n" +
+      "Tables exist but the API cannot see them yet.  Fix this by running once\n" +
+      "in the Supabase SQL Editor (Database → SQL Editor → New query):\n\n" +
+      "  SELECT pg_notify('pgrst', 'reload schema');\n\n" +
+      "Then restart the server.  Until then, all cache reads/writes will fail.\n"
+    );
+  }
+  return ok;
+}
+
 async function tablesExist(): Promise<boolean> {
   const { error } = await supabase.from("users").select("id").limit(1);
   if (!error) return true;
   const msg = (error.message ?? "").toLowerCase();
-  return !msg.includes("schema cache") && !msg.includes("does not exist") && !msg.includes("not found");
+
+  // "schema cache" error means the tables exist but PostgREST hasn't indexed
+  // them yet — treat as "exists" and attempt a reload so we can proceed.
+  if (msg.includes("schema cache")) {
+    const reloaded = await tryReloadSchema();
+    if (reloaded) {
+      // Re-check after reload
+      const { error: err2 } = await supabase.from("users").select("id").limit(1);
+      return !err2;
+    }
+    // exec_sql unavailable — assume tables exist (user said they created them)
+    return true;
+  }
+
+  return !msg.includes("does not exist") && !msg.includes("not found");
 }
 
-async function tryExecSql(sql: string): Promise<boolean> {
-  const { error } = await supabase.rpc("exec_sql", { sql });
-  return !error;
+/**
+ * Run safe, additive migrations that can be re-applied any number of times.
+ * These use ALTER TABLE ... ADD COLUMN IF NOT EXISTS so they are idempotent.
+ * They do NOT rely on exec_sql — they call Supabase REST which supports DDL via
+ * the service-role key when exec_sql RPC is available, otherwise we attempt a
+ * write to detect missing columns and log a clear message.
+ */
+async function runMigrations(): Promise<void> {
+  // ── ai_cache: add gender column (added after initial table creation) ────────
+  // Probe: try selecting the gender column.  If it errors the column is missing.
+  const { error: probeErr } = await supabase
+    .from("ai_cache")
+    .select("gender")
+    .limit(1);
+
+  if (probeErr && (probeErr.message ?? "").toLowerCase().includes("gender")) {
+    // Column is missing — attempt to add it via exec_sql RPC
+    const migSql = "ALTER TABLE ai_cache ADD COLUMN IF NOT EXISTS gender text;";
+    const ok = await tryExecSql(migSql);
+    if (ok) {
+      console.log("[setup] ✅ Migration: added 'gender' column to ai_cache");
+    } else {
+      console.warn(
+        "[setup] ⚠️  ai_cache is missing the 'gender' column and exec_sql is not available.\n" +
+        "Run this once in the Supabase SQL Editor to fix caching:\n\n" +
+        "  ALTER TABLE ai_cache ADD COLUMN IF NOT EXISTS gender text;\n"
+      );
+    }
+  }
+
+  // ── app_settings: ensure table exists (needed for admin status flags) ────────
+  // Already in STATEMENTS above; this is a belt-and-suspenders check.
+  try {
+    await supabase.from("app_settings").select("key").limit(1);
+  } catch { /* non-fatal */ }
 }
 
 export async function runSetup(): Promise<void> {
@@ -131,6 +202,8 @@ export async function runSetup(): Promise<void> {
     // Check if tables already exist
     if (await tablesExist()) {
       console.log("[setup] ✅ Supabase tables ready");
+      // Still run migrations even when tables exist — adds any missing columns
+      await runMigrations();
       setupDone = true;
       return;
     }

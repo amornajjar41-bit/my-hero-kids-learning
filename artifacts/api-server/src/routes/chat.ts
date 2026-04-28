@@ -280,13 +280,18 @@ async function checkCache(
 ): Promise<{ response_text: string; audio_url: string | null } | null> {
   try {
     // Exact hash match — must match gender so Adam never gets Lulu's cached reply
-    const { data: exact } = await supabase
+    const { data: exact, error: exactErr } = await supabase
       .from("ai_cache")
       .select("response_text, audio_url, created_at, hit_count")
       .eq("input_hash", inputHash)
       .eq("language", language)
       .eq("gender", gender)
       .maybeSingle();
+
+    if (exactErr) {
+      console.warn("[cache] checkCache exact-lookup error:", exactErr.message);
+      return null;
+    }
 
     if (exact) {
       const age = Date.now() - new Date(exact.created_at).getTime();
@@ -307,13 +312,18 @@ async function checkCache(
     }
 
     // Semantic match — only search same gender to avoid cross-character contamination
-    const { data: candidates } = await supabase
+    const { data: candidates, error: candErr } = await supabase
       .from("ai_cache")
       .select("input_text, response_text, audio_url, created_at")
       .eq("language", language)
       .eq("gender", gender)
       .order("created_at", { ascending: false })
       .limit(1000);
+
+    if (candErr) {
+      console.warn("[cache] checkCache candidates-lookup error:", candErr.message);
+      return null;
+    }
 
     if (candidates) {
       for (const c of candidates) {
@@ -325,8 +335,8 @@ async function checkCache(
         }
       }
     }
-  } catch {
-    // Cache is best-effort
+  } catch (err) {
+    console.warn("[cache] checkCache exception:", err);
   }
 
   return null;
@@ -340,7 +350,7 @@ async function saveCache(
   gender: "boy" | "girl"
 ): Promise<void> {
   try {
-    await supabase
+    const { error } = await supabase
       .from("ai_cache")
       .upsert(
         {
@@ -354,8 +364,11 @@ async function saveCache(
         },
         { onConflict: "input_hash,language" }
       );
-  } catch {
-    // Non-fatal
+    if (error) {
+      console.warn("[cache] saveCache upsert error:", error.message, "| code:", error.code);
+    }
+  } catch (err) {
+    console.warn("[cache] saveCache exception:", err);
   }
 }
 
