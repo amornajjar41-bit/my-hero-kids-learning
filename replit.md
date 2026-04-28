@@ -28,16 +28,22 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 ## Adam – Kids Learning App (artifacts/adam)
 
-Expo mobile app for ages 3–15: bilingual EN/AR homework helper (guides, never gives answers) + Learn EN/AR + 6 games + parent dashboard. Brand: "My Hero".
+Expo SDK 54 + expo-router mobile app for ages 3–15: bilingual EN/AR homework helper. Characters: Adam (boy) and Lulu (girl). Brand: "My Hero".
 
 - **Stack**: Expo SDK 54 + expo-router, AsyncStorage, expo-audio, expo-image-picker, expo-haptics, expo-linear-gradient, react-native-reanimated.
-- **Backend routes** (artifacts/api-server): `/api/chat` (text+image, hint-only, childMemory injection), `/api/tts` (echo=boy, nova=girl, contentType param for speed control), `/api/transcribe`, `/api/parent/weekly-report`.
-- **Trial / Paywall**: 7-day free trial → $19.99/mo or $189/yr (demo only — no charges).
-- **Screens**: onboarding (welcome→hero→parent[T&C checkbox]→child→birthday→done), tabs (home/chat/learn/games), learn/[language], learn/lesson/[id] with Hook→Introduce→See→Challenge→Celebrate flow, dictionary, 6 games, parent (dashboard/controls/upgrade/why-adam), terms, blocked (screen-time), birthday-celebration.
-- **Storage keys**: profile, progress, chatHistory, onboardingDone, storiesListened, voiceTutorialDone, safetyAlerts, childMemory (learning profile), termsAccepted.
-- **Games**: Word Puzzle, Math Blast, Letter Match, Jigsaw, Story Builder (📖 branching narrative + science facts), Memory Champion (🧠 Word Flash + Color Sequence + Story Memory).
-- **AI chat**: Upgraded system prompt with Socratic teaching, emotional intelligence, age adaptation (3-5/6-8/9-12 rules). Child memory profile (strong/weak subjects, interests, pace, recent topics) loaded and sent with every request. Memory auto-updated from detected keywords.
-- **TTS**: contentType param → "explanation" = slow+calm teacher, "story" = soothing storyteller, "celebration" = energetic, "greeting" = warm. Pauses inserted between sentences.
-- **Sound effects**: chime.ts synthesizes all sounds client-side via Web Audio API — tap/pop, success, unlock, sparkle, whoosh, bell, wrong, celebration.
-- **Logo**: HeroLogo component (shield + gradient + star) displayed at top of home screen.
-- **Terms**: Full bilingual T&C page at /terms. Checkbox required during onboarding. Link in parent dashboard.
+- **Database**: Replit PostgreSQL (via `pg` Pool + DATABASE_URL). All tables created automatically on server startup via setup.ts. Supabase kept only for audio file storage.
+- **Auth**: Custom (no Supabase Auth). Email + bcrypt password stored in `users` table. Sessions stored in `app_settings` key/value. Session token persisted in AsyncStorage + localStorage.
+- **Backend routes** (artifacts/api-server):
+  - `/api/chat` — gpt-4o-mini, language-specific system prompt (EN/AR), Socratic teaching, ai_cache exact+semantic, suggestions, highFive flag
+  - `/api/tts` — Edge TTS WebSocket (en-US-GuyNeural/en-US-AnaNeural/ar-SA-HamedNeural/ar-SA-ZariyahNeural) + gpt-audio-mini fallback
+  - `/api/transcribe` — AssemblyAI polling + gpt-audio-mini fallback
+  - `/api/auth/register`, `/api/auth/login`, `/api/auth/validate` — persistent auth
+- **Trial / Pricing**: 7-day free trial. Plans shown only on done.tsx after registration. Monthly $24.99 / 6-month $135.99 / Yearly $236.99. Local currency conversion via constants/countries.ts (36 countries).
+- **Onboarding flow**: welcome → hero → parent (email/password/country) → child (DOB picker) → birthday → done (subscription plans).
+- **Chat UI**: Emoji opening buttons (🎒📚🎮😊) when no messages. Suggestion chips after each AI reply. High Five sticker animation (slides in, auto-dismisses 3.5s) when highFive=true.
+- **System prompt**: Two separate prompts (SYSTEM_PROMPT_EN / SYSTEM_PROMPT_AR) — fully language-specific with proper vocabulary, forbidden phrases, and tone for each language.
+- **AI Cache**: PostgreSQL ai_cache table with exact hash match + semantic word-overlap (≥80%) matching. 30-day cache TTL.
+- **TTS Voices**: Boy EN: en-US-GuyNeural, Boy AR: ar-SA-HamedNeural, Girl EN: en-US-AnaNeural, Girl AR: ar-SA-ZariyahNeural.
+- **Screens**: onboarding (welcome→hero→parent→child→birthday→done), tabs (home/chat/learn/games), learn/[language], learn/lesson/[id], 6 games, parent dashboard, terms, blocked (screen-time), birthday-celebration.
+- **DB Tables**: users, children, messages, ai_cache, lesson_progress, safety_alerts, app_settings, curriculum_cache, daily_tips.
+- **Sound effects**: chime.ts synthesizes all sounds client-side via Web Audio API.

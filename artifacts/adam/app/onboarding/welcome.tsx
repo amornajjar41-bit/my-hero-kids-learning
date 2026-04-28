@@ -253,13 +253,8 @@ export default function Welcome() {
 
               {/* Trial + trust */}
               <View style={{ backgroundColor: "rgba(249,115,22,0.25)", borderRadius: 16, padding: 16, marginTop: 14, borderWidth: 1, borderColor: "rgba(249,115,22,0.4)" }}>
-                <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 15, textAlign: "center", marginBottom: 4 }}>
-                  {isAr ? "🎁 جرّب ٣ أيام مجاناً — بدون بطاقة بنكية" : "🎁 Try free for 3 days — no credit card needed"}
-                </Text>
-                <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, textAlign: "center", lineHeight: 18 }}>
-                  {isAr
-                    ? "بعدها: $19.99 شهرياً أو $189 سنوياً (وفّر %21)"
-                    : "Then $19.99/month or $189/year (save 21%)"}
+                <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 15, textAlign: "center" }}>
+                  {isAr ? "🎁 جرّب ٧ أيام مجاناً — بدون بطاقة بنكية" : "🎁 Try free for 7 days — no credit card needed"}
                 </Text>
               </View>
 

@@ -49,8 +49,14 @@ export default function Birthday() {
     hero: "boy" | "girl";
     parentName: string;
     parentEmail: string;
+    password: string;
+    country: string;
+    currency: string;
+    currencySymbol: string;
+    currencyRate: string;
     name: string;
     age: "4-6" | "7-9" | "10-12";
+    dob: string;
   }>();
   const isAr = params.lang === "ar";
   const [month, setMonth] = useState(0); // 0..11
@@ -75,7 +81,23 @@ export default function Birthday() {
       soundOn: true,
     };
     await saveProfile(profile);
-    router.replace("/onboarding/done");
+    router.replace({
+      pathname: "/onboarding/done",
+      params: {
+        lang: params.lang,
+        hero: params.hero,
+        parentEmail: params.parentEmail,
+        password: params.password,
+        parentName: params.parentName,
+        country: params.country,
+        currency: params.currency,
+        currencySymbol: params.currencySymbol,
+        currencyRate: params.currencyRate,
+        name: params.name,
+        age: params.age,
+        dob: params.dob || childBirthday,
+      },
+    });
   };
 
   return (

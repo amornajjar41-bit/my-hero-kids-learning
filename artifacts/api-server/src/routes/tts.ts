@@ -1,18 +1,21 @@
 import { Router, type IRouter } from "express";
-import { openai } from "../lib/openai";
+import { createHash } from "crypto";
+import { synthesize, VOICES } from "../lib/edge-tts";
+import { supabase } from "../lib/supabase";
+import { query, queryOne } from "../lib/db";
 
 const router: IRouter = Router();
 
-const cache = new Map<string, string>();
-const MAX_CACHE = 1000;
+// In-memory LRU cache (base64 audio)
+const memCache = new Map<string, string>();
+const MAX_MEM_CACHE = 500;
 
-function cacheKey(text: string, voice: string, contentType: string) {
-  return `${voice}::${contentType}::${text}`;
+function cacheKey(text: string, voice: string): string {
+  return createHash("md5").update(`${voice}::${text}`).digest("hex");
 }
 
-function summarizeForSpeech(text: string, maxChars = 320): string {
+function cleanText(text: string, maxChars = 400): string {
   const cleaned = text
-    // eslint-disable-next-line no-misleading-character-class
     .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}]/gu, "")
     .replace(/\*\*/g, "")
     .replace(/[*_`#]/g, "")
@@ -27,12 +30,39 @@ function summarizeForSpeech(text: string, maxChars = 320): string {
   return out || cleaned.slice(0, maxChars);
 }
 
-/** Insert natural pauses after sentence-ending punctuation for calmer speech. */
-function addPauses(text: string): string {
-  // Add a short pause marker after sentence ends (the TTS engine uses commas as breath points)
-  return text
-    .replace(/([.!?؟])\s+/g, "$1 ... ")
-    .replace(/([،,])\s+/g, "$1 ");
+async function getCachedAudioUrl(text: string, voice: string): Promise<string | null> {
+  try {
+    const key = cacheKey(text, voice);
+    const row = await queryOne<{ audio_url: string }>(
+      `SELECT audio_url FROM ai_cache WHERE input_hash = $1 AND audio_url IS NOT NULL LIMIT 1`,
+      [key]
+    );
+    return row?.audio_url ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function uploadAudioToStorage(
+  audioBuffer: Buffer,
+  voice: string,
+  textHash: string
+): Promise<string | null> {
+  try {
+    const bucket = voice.includes("ar-SA") ? "stories-audio" : "lessons-audio";
+    const path = `tts/${voice}/${textHash}.mp3`;
+    const { error } = await supabase.storage
+      .from(bucket)
+      .upload(path, audioBuffer, {
+        contentType: "audio/mpeg",
+        upsert: true,
+      });
+    if (error) return null;
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    return data.publicUrl;
+  } catch {
+    return null;
+  }
 }
 
 router.post("/tts", async (req, res) => {
@@ -40,15 +70,15 @@ router.post("/tts", async (req, res) => {
     const {
       text,
       voice = "echo",
-      speed = 1.0,
+      gender = "boy",
+      language = "en",
       maxChars,
-      contentType = "explanation",
     } = req.body as {
       text: string;
       voice?: string;
-      speed?: number;
+      gender?: "boy" | "girl";
+      language?: "en" | "ar";
       maxChars?: number;
-      contentType?: "explanation" | "greeting" | "celebration" | "story";
     };
 
     if (!text || typeof text !== "string") {
@@ -56,62 +86,76 @@ router.post("/tts", async (req, res) => {
       return;
     }
 
-    const limit = typeof maxChars === "number" && maxChars > 0 ? Math.min(maxChars, 800) : 320;
-    let speechText = summarizeForSpeech(text, limit);
+    const limit = typeof maxChars === "number" && maxChars > 0 ? Math.min(maxChars, 800) : 400;
+    const speechText = cleanText(text, limit);
 
-    // For educational explanations and stories, add natural pauses
-    if (contentType === "explanation" || contentType === "story") {
-      speechText = addPauses(speechText);
+    // Determine Edge TTS voice
+    const voiceKey = gender === "girl"
+      ? language === "ar" ? "girl-ar" : "girl-en"
+      : language === "ar" ? "boy-ar" : "boy-en";
+    const edgeVoice = VOICES[voiceKey] ?? VOICES["boy-en"]!;
+
+    const key = cacheKey(speechText, edgeVoice);
+
+    // 1. Check in-memory cache
+    if (memCache.has(key)) {
+      return res.json({ audioBase64: memCache.get(key), mimeType: "audio/mpeg", cached: true });
     }
 
-    const key = cacheKey(speechText, voice, contentType);
-    if (cache.has(key)) {
-      res.json({ audioBase64: cache.get(key), mimeType: "audio/mpeg", cached: true });
-      return;
+    // 2. Check Supabase storage URL cache
+    const cachedUrl = await getCachedAudioUrl(speechText, edgeVoice);
+    if (cachedUrl) {
+      return res.json({ audioUrl: cachedUrl, mimeType: "audio/mpeg", cached: true });
     }
 
-    // Build a content-type-appropriate system prompt
-    const voiceStyle = (() => {
-      switch (contentType) {
-        case "explanation":
-          return "You are a patient, calm, and warm teacher reading educational content to a child. Speak SLOWLY and CLEARLY at about 0.85x normal pace. Pause naturally between sentences. Your tone is kind, steady, and encouraging — like a caring teacher explaining something important. Never rush.";
-        case "story":
-          return "You are a warm, engaging storyteller reading a bedtime story to a child. Speak at a calm, soothing pace — slightly slower than normal. Add gentle expression to characters and exciting moments, but always remain calm and relaxing. Your voice should make the child feel safe and curious.";
-        case "celebration":
-          return "You are an enthusiastic cartoon superhero celebrating a child's achievement! Speak with energy, joy, and excitement. Use a cheerful, upbeat tone. You are SO proud of this child!";
-        case "greeting":
-          return "You are a friendly, warm cartoon hero greeting a child. Speak naturally, warmly, and with a gentle smile in your voice.";
-        default:
-          return "You are a warm, patient, child-friendly voice. Speak clearly and at a comfortable pace.";
-      }
-    })();
+    // 3. Generate with Edge TTS
+    const audioBuffer = await synthesize(speechText, edgeVoice);
+    const audioBase64 = audioBuffer.toString("base64");
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response = await (openai.chat.completions.create as any)({
-      model: "gpt-audio-mini",
-      modalities: ["text", "audio"],
-      audio: { voice, format: "mp3" },
-      messages: [
-        { role: "system", content: voiceStyle },
-        { role: "user", content: speechText },
-      ],
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const audioData = (response.choices[0]?.message as any)?.audio?.data as string | undefined;
-    if (!audioData) throw new Error("no audio returned");
-
-    void speed;
-
-    if (cache.size >= MAX_CACHE) {
-      const firstKey = cache.keys().next().value;
-      if (firstKey) cache.delete(firstKey);
+    // Update in-memory cache
+    if (memCache.size >= MAX_MEM_CACHE) {
+      const firstKey = memCache.keys().next().value;
+      if (firstKey) memCache.delete(firstKey);
     }
-    cache.set(key, audioData);
+    memCache.set(key, audioBase64);
 
-    res.json({ audioBase64: audioData, mimeType: "audio/mpeg", cached: false });
-  } catch (err) {
+    // Upload to Supabase storage async (non-blocking)
+    uploadAudioToStorage(audioBuffer, edgeVoice, key)
+      .then(async (audioUrl) => {
+        if (audioUrl) {
+          await query(
+            `INSERT INTO ai_cache (input_hash, input_text, response_text, audio_url, language, gender, hit_count, created_at)
+             VALUES ($1, $2, '', $3, $4, $5, 0, now())
+             ON CONFLICT (input_hash, language) DO UPDATE SET audio_url = EXCLUDED.audio_url`,
+            [key, speechText, audioUrl, language, gender]
+          );
+        }
+      })
+      .catch(() => {});
+
+    res.json({ audioBase64, mimeType: "audio/mpeg", cached: false });
+  } catch (err: any) {
     req.log.error({ err }, "tts error");
+    // Fallback: try old gpt-audio-mini
+    try {
+      const { openai } = await import("../lib/openai");
+      const { text, voice = "echo" } = req.body;
+      const response = await (openai.chat.completions.create as any)({
+        model: "gpt-audio-mini",
+        modalities: ["text", "audio"],
+        audio: { voice, format: "mp3" },
+        messages: [
+          { role: "system", content: "Read this text clearly for a child." },
+          { role: "user", content: text?.slice(0, 300) ?? "" },
+        ],
+      });
+      const audioData = (response.choices[0]?.message as any)?.audio?.data;
+      if (audioData) {
+        return res.json({ audioBase64: audioData, mimeType: "audio/mpeg", cached: false, fallback: true });
+      }
+    } catch {
+      // ignore fallback failure
+    }
     res.status(500).json({ error: "tts failed" });
   }
 });

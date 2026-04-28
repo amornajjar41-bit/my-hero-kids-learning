@@ -5,6 +5,8 @@ import ttsRouter from "./tts";
 import transcribeRouter from "./transcribe";
 import parentRouter from "./parent";
 import safetyRouter from "./safety";
+import authRouter from "./auth";
+import setupRouter, { runSetup } from "./setup";
 
 const router: IRouter = Router();
 
@@ -14,5 +16,10 @@ router.use(ttsRouter);
 router.use(transcribeRouter);
 router.use(parentRouter);
 router.use(safetyRouter);
+router.use(authRouter);
+router.use(setupRouter);
+
+// Run DB setup on startup (non-blocking)
+runSetup().catch(console.error);
 
 export default router;

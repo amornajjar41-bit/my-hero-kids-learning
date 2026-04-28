@@ -33,7 +33,7 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useT, useLang } from "@/hooks/useT";
-import { chatSend, transcribe, type ChatMessage } from "@/lib/api";
+import { chatSend, transcribe, type ChatMessage, type ChatSuggestion } from "@/lib/api";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
 import { getJSON, setJSON, STORAGE_KEYS, type SafetyAlert, type ChildMemory, defaultChildMemory } from "@/lib/storage";
 
@@ -184,6 +184,145 @@ function VoiceTutorial({ visible, onDismiss, lang, heroName }: { visible: boolea
   );
 }
 
+// ── Emoji Opening Buttons ────────────────────────────────────────────────────
+const EMOJI_OPENERS = [
+  { emoji: "🎒", en: "Help me with homework", ar: "ساعدني بالواجب", color: "#3B82F6" },
+  { emoji: "🎮", en: "Let's play a game!", ar: "يلا نلعب!", color: "#10B981" },
+  { emoji: "📚", en: "I want to learn something", ar: "بدي أتعلم شي", color: "#8B5CF6" },
+  { emoji: "😊", en: "Just saying hi!", ar: "بس أسلم عليك!", color: "#F59E0B" },
+];
+
+function EmojiButton({ item, lang, onTap, delay }: {
+  item: typeof EMOJI_OPENERS[0]; lang: string; onTap: (t: string) => void; delay: number;
+}) {
+  const scale = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const t = setTimeout(() => {
+      Animated.spring(scale, { toValue: 1, useNativeDriver: false, tension: 120, friction: 8 }).start();
+    }, delay);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPress={() => onTap(lang === "ar" ? item.ar : item.en)}
+        style={({ pressed }) => ({
+          backgroundColor: item.color + "18",
+          borderRadius: 20,
+          borderWidth: 2,
+          borderColor: item.color + "60",
+          padding: 16,
+          alignItems: "center",
+          gap: 8,
+          minWidth: 130,
+          opacity: pressed ? 0.8 : 1,
+        })}
+      >
+        <Text style={{ fontSize: 36 }}>{item.emoji}</Text>
+        <Text style={{ color: "#374151", fontWeight: "700", fontSize: 13, textAlign: "center" }}>
+          {lang === "ar" ? item.ar : item.en}
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function EmojiOpening({ lang, heroName, hero, onTap }: {
+  lang: string; heroName: string; hero?: string; onTap: (text: string) => void;
+}) {
+  return (
+    <View style={{ padding: 8, gap: 12 }}>
+      <Text style={{ textAlign: "center", fontSize: 15, fontWeight: "700", color: "#6B7280", marginBottom: 4 }}>
+        {lang === "ar" ? `مرحباً! أنا ${heroName} 👋 كيف أساعدك اليوم؟` : `Hey! I'm ${heroName} 👋 What shall we do?`}
+      </Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
+        {EMOJI_OPENERS.map((item, i) => (
+          <EmojiButton key={item.en} item={item} lang={lang} onTap={onTap} delay={i * 100} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ── Suggestion Buttons ────────────────────────────────────────────────────────
+function SuggestionButtons({ suggestions, onTap }: {
+  suggestions: ChatSuggestion[]; onTap: (text: string) => void;
+}) {
+  if (!suggestions || suggestions.length === 0) return null;
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, paddingLeft: 8, marginTop: 4 }}>
+      {suggestions.map((s) => (
+        <Pressable
+          key={s.key}
+          onPress={() => onTap(s.text)}
+          style={({ pressed }) => ({
+            backgroundColor: "#F3F4F6",
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: "#E5E7EB",
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            opacity: pressed ? 0.75 : 1,
+          })}
+        >
+          <Text style={{ color: "#374151", fontSize: 13, fontWeight: "600" }}>{s.text}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+// ── High Five Sticker ─────────────────────────────────────────────────────────
+function HighFiveSticker({ visible, onDismiss }: { visible: boolean; onDismiss: () => void }) {
+  const slide = useRef(new Animated.Value(300)).current;
+  const scale = useRef(new Animated.Value(0.5)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(slide, { toValue: 0, useNativeDriver: false, tension: 80, friction: 8 }),
+        Animated.spring(scale, { toValue: 1, useNativeDriver: false, tension: 100, friction: 7 }),
+      ]).start();
+    } else {
+      slide.setValue(300);
+      scale.setValue(0.5);
+    }
+  }, [visible, slide, scale]);
+
+  if (!visible) return null;
+  return (
+    <Animated.View
+      style={{
+        position: "absolute",
+        right: 16,
+        bottom: 160,
+        transform: [{ translateX: slide }, { scale }],
+        zIndex: 100,
+      }}
+    >
+      <Pressable
+        onPress={onDismiss}
+        style={{
+          backgroundColor: "#FFF",
+          borderRadius: 24,
+          padding: 16,
+          alignItems: "center",
+          shadowColor: "#FF6B35",
+          shadowOpacity: 0.3,
+          shadowRadius: 12,
+          elevation: 8,
+          minWidth: 120,
+          borderWidth: 2,
+          borderColor: "#FF6B35",
+        }}
+      >
+        <Text style={{ fontSize: 48 }}>🤚</Text>
+        <Text style={{ fontWeight: "900", color: "#FF6B35", fontSize: 14, marginTop: 4 }}>High Five!</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 // ── Native recorder (imperative, module-level) ──────────────────────────────
 let _nativeRec: any = null;
 
@@ -313,9 +452,12 @@ export default function Chat() {
   const [isRecording, setIsRecording] = useState(false);
   const [adamPose, setAdamPose] = useState<CharacterPose>("normal");
   const [childMemory, setChildMemory] = useState<ChildMemory>(defaultChildMemory);
+  const [suggestions, setSuggestions] = useState<ChatSuggestion[]>([]);
+  const [showHighFive, setShowHighFive] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const recStartTime = useRef<number>(0);
   const pttScale = useRef(new Animated.Value(1)).current;
+  const highFiveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
   useEffect(() => {
@@ -336,11 +478,12 @@ export default function Chat() {
     setJSON(STORAGE_KEYS.chatHistory, messages).catch(() => {});
   }, [messages, historyLoaded]);
 
+  // Clear suggestions when chat is cleared
   useEffect(() => {
     if (historyLoaded && messages.length === 0) {
-      setMessages([{ role: "assistant", text: t("chatHello") }]);
+      setSuggestions([]);
     }
-  }, [historyLoaded, messages.length, t]);
+  }, [historyLoaded, messages.length]);
 
   // FIX 3: Stop all audio when this screen unmounts / navigates away
   useEffect(() => {
@@ -382,13 +525,14 @@ export default function Chat() {
     setBusy(true);
     setAdamPose("thinking");
     try {
-      const { reply, safetyAlert } = await chatSend({
+      const { reply, safetyAlert, suggestions: newSuggestions, highFive } = await chatSend({
         language: lang,
         childName: profile?.childName ?? "hero",
         heroName,
-        ageGroup: profile?.ageGroup ?? "7-9",
+        ageGroup: (profile?.ageGroup ?? "7-9") as any,
         history: newHistory,
         childMemory,
+        gender: profile?.hero ?? "boy",
       });
 
       // Update child memory with recent topic
@@ -426,6 +570,19 @@ export default function Chat() {
         };
         const prev = await getJSON<SafetyAlert[]>(STORAGE_KEYS.safetyAlerts);
         await setJSON(STORAGE_KEYS.safetyAlerts, [...(prev ?? []).slice(-49), newAlert]);
+      }
+
+      // Update suggestions
+      setSuggestions(newSuggestions ?? []);
+
+      // High Five sticker
+      if (highFive) {
+        setShowHighFive(true);
+        if (highFiveTimer.current) clearTimeout(highFiveTimer.current);
+        highFiveTimer.current = setTimeout(() => setShowHighFive(false), 3500);
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        }
       }
 
       Keyboard.dismiss();
@@ -618,32 +775,57 @@ export default function Chat() {
       {/* ──────────────────────────────────────────────── */}
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
+        {/* High Five Sticker Overlay */}
+        <HighFiveSticker visible={showHighFive} onDismiss={() => setShowHighFive(false)} />
+
         {/* Messages */}
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={{ padding: 14, gap: 10, paddingBottom: 20 }}
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
-          {messages.map((m, i) => (
-            <View key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "86%" }}>
-              {m.imageBase64 && (
-                <Image source={{ uri: `data:image/jpeg;base64,${m.imageBase64}` }} style={{ width: 180, height: 180, borderRadius: 14, marginBottom: 6 }} resizeMode="cover" />
-              )}
-              <LinearGradient
-                colors={m.role === "user" ? [c.primary, "#FFA76A"] : [c.card, c.card]}
-                style={{ padding: 14, borderRadius: 18, borderTopLeftRadius: m.role === "user" ? 18 : 4, borderTopRightRadius: m.role === "user" ? 4 : 18 }}
-              >
-                <Text style={{ color: m.role === "user" ? "#FFF" : c.text, fontSize: 16, lineHeight: 22, textAlign: lang === "ar" ? "right" : "left" }}>
-                  {m.text}
-                </Text>
-                {m.role === "assistant" && (
-                  <View style={{ marginTop: 8, alignSelf: "flex-start" }}>
-                    <SpeakButton text={m.text} voice={voice} size={32} />
-                  </View>
+          {/* Emoji opening when no messages */}
+          {messages.length === 0 && historyLoaded && !busy && (
+            <EmojiOpening
+              lang={lang}
+              heroName={heroName}
+              hero={profile?.hero}
+              onTap={(text) => send(text)}
+            />
+          )}
+
+          {messages.map((m, i) => {
+            const isLastAssistant = m.role === "assistant" && i === messages.length - 1;
+            return (
+              <View key={i}>
+                <View style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "86%" }}>
+                  {m.imageBase64 && (
+                    <Image source={{ uri: `data:image/jpeg;base64,${m.imageBase64}` }} style={{ width: 180, height: 180, borderRadius: 14, marginBottom: 6 }} resizeMode="cover" />
+                  )}
+                  <LinearGradient
+                    colors={m.role === "user" ? [c.primary, "#FFA76A"] : [c.card, c.card]}
+                    style={{ padding: 14, borderRadius: 18, borderTopLeftRadius: m.role === "user" ? 18 : 4, borderTopRightRadius: m.role === "user" ? 4 : 18 }}
+                  >
+                    <Text style={{ color: m.role === "user" ? "#FFF" : c.text, fontSize: 16, lineHeight: 22, textAlign: lang === "ar" ? "right" : "left" }}>
+                      {m.text}
+                    </Text>
+                    {m.role === "assistant" && (
+                      <View style={{ marginTop: 8, alignSelf: "flex-start" }}>
+                        <SpeakButton text={m.text} voice={voice} size={32} />
+                      </View>
+                    )}
+                  </LinearGradient>
+                </View>
+                {/* Suggestion buttons after last AI message */}
+                {isLastAssistant && !busy && suggestions.length > 0 && (
+                  <SuggestionButtons
+                    suggestions={suggestions}
+                    onTap={(text) => { setSuggestions([]); send(text); }}
+                  />
                 )}
-              </LinearGradient>
-            </View>
-          ))}
+              </View>
+            );
+          })}
 
           {busy && <TypingBubble lang={lang} />}
 

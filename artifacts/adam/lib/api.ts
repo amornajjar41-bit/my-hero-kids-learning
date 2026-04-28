@@ -45,14 +45,24 @@ export type ChildMemoryForApi = {
   recentTopics?: string[];
 };
 
+export type ChatSuggestion = { text: string; key: string };
+
 export async function chatSend(opts: {
   language: "en" | "ar";
   childName: string;
   heroName?: string;
-  ageGroup: "4-6" | "7-9" | "10-12";
+  ageGroup: "4-6" | "7-9" | "10-12" | "13-14";
   history: ChatMessage[];
   childMemory?: ChildMemoryForApi | null;
-}): Promise<{ reply: string; safetyAlert: string | null }> {
+  gender?: "boy" | "girl";
+  sessionId?: string;
+}): Promise<{
+  reply: string;
+  safetyAlert: string | null;
+  suggestions?: ChatSuggestion[];
+  highFive?: boolean;
+  cached?: boolean;
+}> {
   const last = opts.history[opts.history.length - 1];
   const imageBase64 = last?.imageBase64;
   const messages = opts.history.map((m) => ({ role: m.role, content: m.text }));
@@ -64,6 +74,8 @@ export async function chatSend(opts: {
     ageGroup: opts.ageGroup,
     imageBase64,
     childMemory: opts.childMemory ?? null,
+    gender: opts.gender ?? "boy",
+    sessionId: opts.sessionId,
   });
 }
 
