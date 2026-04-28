@@ -48,9 +48,11 @@ export default function ParentDashboard() {
 
   const [lessonGen, setLessonGen] = useState<GenerationState>(GEN_IDLE);
   const [storyGen, setStoryGen] = useState<GenerationState>(GEN_IDLE);
+  const [chatPrewarm, setChatPrewarm] = useState<GenerationState>(GEN_IDLE);
   const [dbReload, setDbReload] = useState<{ running: boolean; ok: boolean | null; message: string }>({ running: false, ok: null, message: "" });
   const lessonAbortRef = useRef<AbortController | null>(null);
   const storyAbortRef = useRef<AbortController | null>(null);
+  const chatAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     getJSON<SafetyAlert[]>(STORAGE_KEYS.safetyAlerts).then((v) => {
@@ -625,6 +627,54 @@ export default function ParentDashboard() {
               {storyGen.running
                 ? (lang === "ar" ? "جاري التوليد…" : "Generating…")
                 : (lang === "ar" ? "ابدأ التوليد" : "Start Generation")}
+            </Text>
+          </Pressable>
+        </SoftCard>
+
+        {/* Pre-warm Chat Cache */}
+        <SoftCard style={{ gap: 10, borderColor: "#059669", borderWidth: 1.5 }}>
+          <Text style={{ fontWeight: "800", color: c.text, fontSize: 15 }}>
+            🧠 {lang === "ar" ? "تسخين ذاكرة التخزين المؤقت" : "Pre-warm Chat Cache"}
+          </Text>
+          <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
+            {lang === "ar"
+              ? "يولّد إجابات لـ 160 سؤالاً شائعاً في الرياضيات والعلوم واللغة ويحفظها مسبقاً — بعد ذلك تظهر الإجابات فوراً بدون الاتصال بـ OpenAI."
+              : "Generates answers for 160 common math, science, and language questions and saves them — after this, those answers appear instantly without calling OpenAI."}
+          </Text>
+
+          {chatPrewarm.running && (
+            <View style={{ gap: 6 }}>
+              <View style={{ height: 8, backgroundColor: c.muted, borderRadius: 4, overflow: "hidden" }}>
+                <View style={{ height: "100%", width: `${chatPrewarm.percent}%`, backgroundColor: "#059669", borderRadius: 4 }} />
+              </View>
+              <Text style={{ fontSize: 12, color: c.mutedForeground }} numberOfLines={1}>
+                {chatPrewarm.percent}% — {chatPrewarm.message}
+              </Text>
+            </View>
+          )}
+
+          {chatPrewarm.done && !chatPrewarm.running && (
+            <Text style={{ color: "#065F46", fontWeight: "700", fontSize: 13 }}>
+              ✅ {lang === "ar" ? "اكتمل!" : "Done!"}
+            </Text>
+          )}
+          {chatPrewarm.error !== "" && (
+            <Text style={{ color: c.destructive, fontSize: 12 }}>⚠️ {chatPrewarm.error}</Text>
+          )}
+
+          <Pressable
+            disabled={chatPrewarm.running}
+            onPress={() => runGeneration("/api/admin/prewarm-chat", chatAbortRef, setChatPrewarm)}
+            style={({ pressed }) => ({
+              backgroundColor: chatPrewarm.running ? c.muted : "#059669",
+              paddingVertical: 12, borderRadius: 12, alignItems: "center",
+              opacity: pressed ? 0.85 : 1,
+            })}
+          >
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14 }}>
+              {chatPrewarm.running
+                ? (lang === "ar" ? "جاري التوليد…" : "Generating…")
+                : (lang === "ar" ? "ابدأ التسخين" : "Start Pre-warming")}
             </Text>
           </Pressable>
         </SoftCard>

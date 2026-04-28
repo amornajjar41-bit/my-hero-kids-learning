@@ -7,8 +7,10 @@
  * Uses Google WaveNet TTS (same API as /tts route).
  */
 import { Router, type IRouter, type Request, type Response } from "express";
+import { createHash } from "crypto";
 import { supabase } from "../lib/supabase";
 import { directDbAvailable, query, queryOne } from "../lib/db";
+import { openaiChat } from "../lib/openai-chat";
 
 const router: IRouter = Router();
 
@@ -299,77 +301,166 @@ const LESSON_WORDS: WordItem[] = [
 type StorySentence = { storyId: string; index: number; text: string; lang: LangCode; rate: string; pitch: string };
 
 const STORY_SENTENCES: StorySentence[] = [
-  // Story 1 — Arabic
+  // Story 1 — Arabic: الولد الذي لم يتوقف
   ...([
-    "في غابة بعيدة... كان يعيش أسد صغير اسمه ليو.",
-    "كان ليو يحب اللعب... لكنه كان خائفاً من الظلام.",
-    "سمع صوت بكاء عصفور سقط من عشه.",
-    "قال... أنا خائف... لكن العصفور يحتاجني.",
-    "خطا نحو الظلام ووجد العصفور.",
-    "أدرك أن الشجاعة هي فعل الشيء الصحيح حتى وأنت خائف.",
+    "كان ياسر طفلاً في الثامنة من عمره، يعشق اختراع الأشياء من قطع الخشب والأسلاك القديمة.",
+    "حلمه الكبير كان أن يصنع مروحة صغيرة تعمل بدون كهرباء.",
+    "كل يوم بعد المدرسة، جلس في الحديقة أمامه صندوق المواد: قطع خشب، وبكرات خيط، وزجاجات فارغة.",
+    "المحاولة الأولى فشلت. والثانية. والثالثة. والرابعة.",
+    "قال له أصدقاؤه ذات مرة: هذا مستحيل يا ياسر. استسلم!",
+    "لكن ياسر ابتسم وقال: كل مرة أفشل فيها، أتعلم شيئاً جديداً لم أكن أعرفه.",
+    "في المحاولة التاسعة، غيّر شكل الأجنحة وأضاف ثقلاً صغيراً في المركز.",
+    "حين أمسك بها وأطلقها في الهواء، دارت ببطء، ثم بسرعة أكبر، ثم طارت!",
+    "صاح ياسر بفرح حتى سمعه الجيران، وركض أبوه إلى الحديقة ليرى ما حدث.",
+    "قال أبوه بفخر: أنت لم تنجح في المحاولة الأولى، نجحت في التاسعة. هذه هي قيمة الصبر الحقيقية.",
+    "في تلك الليلة، كتب ياسر في دفتره بأكبر خط يستطيع: الصبر يفتح الأبواب المغلقة.",
+    "وعندما كبر، أصبح مهندساً اخترع أشياء ساعدت آلاف الأطفال في بلده.",
+    "وكل اختراع في حياته بدأ بنفس الطريقة: فكرة، وفشل، وعودة من جديد.",
   ].map((text, index) => ({ storyId: "1", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 2 — Arabic
+  // Story 2 — Arabic: بذرة الأمل
   ...([
-    "نجمة اسمها لمى بكت من الحنان على الأرض الجافة.",
-    "دموعها صارت مطراً فازهرت الأزهار وضحك الأطفال.",
-    "دموعها لم تكن ضعفاً... كانت هديتها للعالم.",
+    "في يوم حار جداً، وجدت سارة بذرة صغيرة في قلب أرض جافة وقاحلة.",
+    "قالت لها أختها الكبيرة: هذه الأرض ميتة يا سارة، لن ينبت فيها شيء.",
+    "لكن سارة حملت البذرة بعناية، وزرعتها بيديها الصغيرتين في ركن قريب من مجرى ماء قديم.",
+    "كل صباح، قبل المدرسة، جلبت كوباً من الماء وسقت البذرة بهدوء.",
+    "مرت ثلاثة أسابيع كاملة بلا أي علامة على النمو.",
+    "بكت سارة يوماً واحداً فقط، ثم قالت: ربما تحتاج البذرة وقتاً أطول.",
+    "في الأسبوع الرابع، ظهر شيء أخضر صغير يشق التراب برفق.",
+    "كل يوم كان ينمو أكثر، حتى أصبح شجيرة صغيرة تلقي ظلاً لطيفاً على الأرض.",
+    "جاءت الطيور، ثم الفراشات، ثم الأطفال يجلسون في ظلها.",
+    "قالت الأخت الكبيرة بدهشة: كنت مخطئة تماماً يا سارة.",
+    "ابتسمت سارة وقالت: الأرض لم تكن ميتة يا أختي. كانت تنتظر من يصدق بها.",
+    "وعلمت سارة في ذلك اليوم درساً لم تنسه طول حياتها:",
+    "كل شيء عظيم في هذا العالم بدأ بشيء صغير جداً، وبقلب لا يستسلم.",
   ].map((text, index) => ({ storyId: "2", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 3 — Arabic
+  // Story 3 — Arabic: النهر والطفل
   ...([
-    "فيلو ينسى كل شيء.",
-    "جدته قالت: الذاكرة في القلب لا تنسى أبداً.",
-    "هل نسيت أن تحب أصدقاءك؟ لا أبداً.",
-    "إذن أنت لا تنسى ما يهم.",
+    "كان النهر الذي تحبه مريم يوماً مليئاً بالأسماك والأزهار والصوت الجميل.",
+    "لكن في صيف عامها العاشر، لاحظت مريم أن قمامة كثيرة تراكمت على ضفته.",
+    "الأسماك أصبحت قليلة، والطيور توقفت عن المجيء، والماء أصبح معتماً وحزيناً.",
+    "قالت لأمها: النهر مريض يا أمي. ماذا يمكنني أن أفعل؟",
+    "قالت أمها بحنان: أنت صغيرة يا مريم. ما الذي يستطيع طفل أن يفعله؟",
+    "لم تقبل مريم هذه الإجابة.",
+    "في صباح السبت التالي، جاءت بقفازات وأكياس وبدأت تنظف الضفة وحدها.",
+    "بعد ساعة، انضم صديقها كريم. ثم جارتها ليلى. ثم والد كريم. ثم مزيد من الناس.",
+    "بنهاية ذلك اليوم، كان هناك خمسة وعشرون شخصاً يعملون معاً بسعادة.",
+    "في الأسبوع التالي، عادت أولى الطيور. وفي الشهر التالي، عادت الأسماك.",
+    "قال والد كريم لمريم: أنتِ لم تنتظري أحداً يأذن لك بإصلاح ما كان مكسوراً.",
+    "ابتسمت مريم ونظرت إلى النهر وهو يعود ليغني من جديد.",
+    "وأدركت: يكفي أن تبدأ أنت لكي يتحرك العالم من حولك.",
   ].map((text, index) => ({ storyId: "3", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 4 — Arabic
+  // Story 4 — Arabic: طريق النجوم
   ...([
-    "سامي وجد بذرة تلمع.",
-    "سقاها كل ليلة.",
-    "ضحك الجميع... لكنه لم يتوقف.",
-    "نبت ضوء أضاء القرية.",
-    "كل شيء جميل يحتاج وقتاً ومحبة وصبراً.",
+    "كان تامر طفلاً لا ينام في الليل بسهولة، لأن رأسه كان دائماً مليئاً بالأسئلة.",
+    "في ليلة صافية جميلة، جلس مع أمه على السطح ونظرا معاً إلى السماء.",
+    "سأل تامر: أمي، كم عدد النجوم في السماء؟",
+    "قالت أمه: هذا سؤال عظيم. حتى العلماء لا يعرفون الإجابة الكاملة.",
+    "تعجب تامر: حتى العلماء؟",
+    "قالت أمه: يقدّرون أن في مجرتنا وحدها أكثر من مئتي مليار نجم. والمجرات كثيرة جداً لا تُعد.",
+    "شعر تامر بشيء غريب جميل في صدره، كأن العالم أكبر بكثير مما تخيّل.",
+    "سأل: هل النجوم التي نراها موجودة الآن؟",
+    "قالت أمه: ليس بالضرورة. الضوء يسافر سنوات طويلة ليصلنا. بعض النجوم التي نراها ماتت منذ آلاف السنين. أنت تنظر إلى الماضي.",
+    "صمت تامر طويلاً وهو يفكر، ثم قال: أريد أن أكون عالماً يدرس النجوم.",
+    "قالت أمه بابتسامة: إذن ابدأ الليلة. كل سؤال تسأله هو خطوة نحو ذلك.",
+    "نام تامر تلك الليلة وهو يبتسم، وعيناه ما زالتا تريان النجوم.",
+    "وعلم أن الفضول وحده هو أول خطوة في كل اكتشاف عظيم.",
   ].map((text, index) => ({ storyId: "4", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 5 — Arabic
+  // Story 5 — Arabic: الكتاب المفتوح
   ...([
-    "ليلى كرهت القراءة.",
-    "دخلت مكتبة وحيدة.",
-    "الكتب أخذتها في رحلات لعوالم مختلفة.",
-    "صباحاً كانت تمسك كتاباً ولا تستطيع التوقف.",
+    "كان جد نور يجلس كل مساء في كرسيه القديم بجانب النافذة ويقرأ بهدوء.",
+    "سألته نور وهي في السابعة من عمرها: جدي، لماذا تقرأ دائماً؟",
+    "وضع الجد كتابه وابتسم لها.",
+    "قال: لأن كل كتاب باب.",
+    "قالت نور باهتمام: باب إلى أين؟",
+    "قال: إلى أماكن لن تصلي إليها بقدميك. إلى أفكار لن تفكريها وحدك. إلى حكمة ناس عاشوا قبلنا بآلاف السنين وتركوها لنا هدية.",
+    "أمسكت نور بكتاب صغير من الرف وبدأت تقرأ ببطء.",
+    "بعد صفحات قليلة، نسيت الغرفة. نسيت الوقت. رأت الجبال والأنهار والشخصيات كأنها أمامها.",
+    "حين أغلقت الكتاب، سألها جدها: أين كنتِ يا نور؟",
+    "ضحكت وقالت: كنت في الجبال يا جدي!",
+    "قال الجد بهدوء: هذا هو السر. القارئ لا يعيش حياة واحدة، يعيش مئات الحيوات.",
+    "منذ تلك الليلة، أصبحت نور تقرأ كل يوم. في كل كتاب، فتحت باباً جديداً على عالم لم تكن تعرفه.",
+    "وأدركت أن الكلمات التي تقرأها اليوم تصنع الإنسان الذي ستصبحه غداً.",
   ].map((text, index) => ({ storyId: "5", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 6 — English
+  // Story 6 — English: The Girl Who Never Stopped Trying
   ...([
-    "Pip the cloud could only make snowflakes.",
-    "Others laughed.",
-    "But on a hot day children danced with joy catching snowflakes.",
-    "Being different was not something to fix. It was something to share.",
+    "Layla was eight years old, and she had one big dream: to make a light bulb glow using only a lemon from her grandmother's garden.",
+    "Every afternoon after school, she spread her notebook on the kitchen table, lined up her copper clips and wires, and placed three lemons in a row.",
+    "Her first experiment failed completely. The bulb stayed cold and dark no matter how many times she checked.",
+    "She wrote in her notebook: Experiment one — did not work. The wire was too thin. Tomorrow I will try something thicker.",
+    "Her second try failed. So did her third and her fourth.",
+    "Her older brother came in and said: Give up, Layla. Lemons are for lemonade, not for science!",
+    "Layla looked at her notes calmly and said: Thomas Edison failed more than a thousand times before he made the light bulb. I have only failed four times.",
+    "On her seventh experiment, she pressed a copper coin and a zinc clip into the lemon, connected the wires very carefully, and held her breath.",
+    "A tiny, soft golden light blinked on.",
+    "Layla sat very still for a long moment — then laughed so loudly that her mother came running from the next room.",
+    "Her mother held Layla's face gently and said: You did not succeed because you were clever. You succeeded because you refused to stop.",
+    "That night, Layla wrote on the very last page of her notebook in the biggest letters she could: Every mistake is a step closer to your answer.",
+    "She kept learning — about batteries, circuits, and solar energy. She won three science competitions.",
+    "Many years later, Layla led a team of engineers who brought electricity to twelve villages in the desert, where children finally did their homework under electric light — and on her desk, she always kept that small lemon notebook to remind herself that great things never come easy, but everything worth doing is worth trying one more time.",
   ].map((text, index) => ({ storyId: "6", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
-  // Story 7 — English
+  // Story 7 — English: The Boy Who Talked to Trees
   ...([
-    "Mia the cat feared water.",
-    "But on a stormy night she woke keeper Tom to save a ship.",
-    "Love is always bigger than fear.",
+    "Idris was ten years old and had a habit that made his classmates laugh: he talked to trees.",
+    "Every morning on his way to school, he stopped at the oldest oak in the neighborhood, placed his hand on its bark, and said: Good morning. Are you growing today?",
+    "His friends thought it was silly. Trees cannot hear you, they said.",
+    "But Idris had read that plants respond to sound and vibration, and he believed that listening — even to something that cannot speak back — was a form of respect.",
+    "One spring, the city decided to cut down the old oak tree to widen the road.",
+    "Idris felt something break inside him. That tree had stood in that spot for more than sixty years.",
+    "He did not shout or cry. Instead, he went home and wrote a careful letter to the city council, full of facts about how trees clean the air, cool streets, and protect neighborhoods from floods.",
+    "He collected forty-three signatures from neighbors and asked his teacher to help him present the letter at a local meeting.",
+    "The council listened carefully. They decided to reroute the road and spare the tree.",
+    "The old oak still stands today, with a small sign beside it that reads: Protected by the community.",
+    "Idris's mother asked him: How did you know what to do?",
+    "He said: I learned it from the tree. It stood there for sixty years, quietly giving shade and clean air to everyone, without ever asking for anything. I just tried to do the same.",
+    "And that day, Idris understood something he would carry his whole life: the earth is always listening — and it is up to us to listen back.",
   ].map((text, index) => ({ storyId: "7", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
-  // Story 8 — English
+  // Story 8 — English: Two Seeds in the Same Garden
   ...([
-    "Omar drew every sunset.",
-    "People said it was a waste.",
-    "A famous artist saw his wall and said he captured what no camera could.",
-    "How each day felt when it ended.",
+    "Maya and Rowan were neighbors and best friends, but they argued about one thing: whose garden vegetables grew better.",
+    "Maya's family planted tomatoes, and Rowan's family planted cucumbers, and every summer both families competed to grow the most beautiful harvest.",
+    "One summer, a long dry spell hit their neighborhood. The sun beat down without mercy, and the wells ran low.",
+    "Maya's tomato plants began to wilt. Rowan's cucumber plants also struggled to survive.",
+    "One afternoon, both children sat at the fence between their gardens, feeling defeated.",
+    "Rowan said: My cucumbers need shade. The sun is burning them.",
+    "Maya said: My tomatoes need more water. The soil dries out too fast.",
+    "They looked at each other — and then, at exactly the same time, they both had the same idea.",
+    "What if the cucumber vines climbed Maya's fence and gave shade to the tomatoes? And what if the tomato roots broke up the soil so water could reach the cucumbers more easily?",
+    "They tried it together. They moved soil, repositioned plants, and shared what little water they had equally.",
+    "By the end of summer, both gardens were the most productive they had ever been.",
+    "Their parents stood looking at the harvest in amazement. Maya's mother said quietly: They did better together than we ever did apart.",
+    "Maya and Rowan smiled at each other across the fence and understood what the garden had been showing them all along: when you help someone else grow, you always grow too.",
   ].map((text, index) => ({ storyId: "8", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
-  // Story 9 — English
+  // Story 9 — English: The Star Keeper's Question
   ...([
-    "Everyone feared giant Boru except Nadia who waved every day.",
-    "He slowly waved back.",
-    "What they feared was just lonely.",
-    "One wave can change everything.",
+    "Nora could not sleep. Every night she lay in bed staring at the ceiling, full of questions she could not stop thinking about.",
+    "One night her father found her at the window with her face pressed against the glass, looking up at the sky.",
+    "What are you looking at? he asked.",
+    "The stars, she said. I want to know how far away they are. And whether there are people on them. And what is beyond the very last star.",
+    "Her father sat beside her and said: Those are very good questions. Even the best scientists in the world have not answered all of them yet.",
+    "Nora frowned and said: But scientists know so many things already. Like that light takes eight minutes to travel from the sun to Earth. And that the universe is fourteen billion years old.",
+    "Yes, said her father. And all of that started with someone exactly like you, sitting in the dark, looking up, and asking: I wonder why. I wonder how.",
+    "Nora thought about that for a long, quiet moment.",
+    "Then she asked: So my questions are not silly?",
+    "Her father said gently: Your questions are exactly the right size. Questions are the beginning of every great discovery.",
+    "That night, Nora started a notebook. On the first page she wrote: Things I want to understand. And she filled the first page completely before she fell asleep.",
+    "She grew up to become a scientist who studied distant galaxies. On her first published paper, she wrote in the dedication: To every child who ever stared at the sky and wondered.",
+    "And every single night before sleep, she still asked one more question — because she knew that was exactly where everything important begins.",
   ].map((text, index) => ({ storyId: "9", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
-  // Story 10 — English
+  // Story 10 — English: The Last Bee
   ...([
-    "Zara and Max argued all day over the last cookie.",
-    "They fell asleep exhausted.",
-    "Mother ate it with tea.",
-    "Both children laughed in the morning.",
-    "Some arguments end with nobody winning. That is perfectly fine.",
+    "One warm spring morning, Amira noticed that the apple tree in her grandfather's orchard had not bloomed for two years in a row.",
+    "Her grandfather said with a sad voice: There are no more bees here, Amira. Without bees, the flowers cannot become fruit.",
+    "Where did they go? she asked.",
+    "He sighed. When people use too many chemicals, when wildflowers disappear, when there is no safe place left for bees to nest — they leave. Or they die.",
+    "Amira stood very still, thinking. Then she said quietly: We have to bring them back.",
+    "She went to the library and researched what bees need: wildflowers, clean water, and small patches of bare earth to nest in. No chemicals. Just nature.",
+    "She asked her grandfather to let her plant one corner of the orchard with lavender, clover, and sunflowers. He agreed.",
+    "She also built two small bee hotels from bamboo sticks and pinecones, exactly the way a library book had shown her.",
+    "She watered the flowers carefully every day through a dry spring and a long, hot summer.",
+    "In late summer, the first bee arrived. Then three more. Then a small colony discovered the corner of the orchard and decided to stay.",
+    "The following spring, for the first time in two years, the apple tree burst into white blossoms, beautiful and full.",
+    "Her grandfather stood under the blossoming tree with tears in his eyes. You brought it back, he said softly.",
+    "Amira watched the bees moving busily from flower to flower and understood something she would never forget: every living creature holds the world together — and every single one deserves a place to belong.",
   ].map((text, index) => ({ storyId: "10", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
 ];
 
@@ -743,6 +834,153 @@ router.post("/admin/generate-stories", async (req, res) => {
   } catch { /* best effort */ }
 
   sseWrite(res, { progress: total, total, done: true, message: "All story audio generated!" });
+  res.end();
+});
+
+// ── Chat cache pre-warming ────────────────────────────────────────────────────
+// POST /api/admin/prewarm-chat
+// Pre-populates ai_cache with common educational Q&A so OpenAI is never called
+// for these high-frequency questions.
+router.post("/admin/prewarm-chat", async (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  function normText(t: string): string {
+    return t.toLowerCase().replace(/[^\w\s\u0600-\u06ff]/g, " ").replace(/\s+/g, " ").trim();
+  }
+  function makeHash(normalizedInput: string, language: string, ageGroup: string, gender: string): string {
+    return createHash("sha256").update(`${normalizedInput}:${language}:${ageGroup}:${gender}`).digest("hex");
+  }
+
+  const SYSTEM_EN = `You are a super fun learning hero for children. Your name is Adam. Teaching best friend who explains clearly and makes learning exciting. Simple words, short sentences, emojis. Address boy as 'champ', girl as 'champion'. Always respond in English.`;
+  const SYSTEM_AR = `أنت بطل تعلّم خارق ممتع للأطفال. اسمك آدم. صديق معلّم يشرح بوضوح ويجعل التعلم ممتعاً. كلمات بسيطة، جمل قصيرة، إيموجي. خاطب الولد بـ'يا بطل' والبنت بـ'يا بطلة'. تكلّم العربية دائماً.`;
+
+  type PrewarmItem = { question: string; language: "en" | "ar"; ageGroup: string; gender: "boy" | "girl" };
+
+  const EN_QUESTIONS = [
+    "what is 6 times 7",
+    "what is 8 times 9",
+    "what is 12 times 12",
+    "what is 15 plus 28",
+    "what is 100 minus 47",
+    "how does multiplication work",
+    "what is the capital of France",
+    "what is gravity",
+    "why is the sky blue",
+    "what is photosynthesis",
+    "how do you spell beautiful",
+    "what are vowels",
+    "what is a noun",
+    "what is a verb",
+    "what is the largest planet",
+    "how many planets are in the solar system",
+    "what is the water cycle",
+    "how do plants make food",
+    "what is 7 times 8",
+    "what is 9 times 6",
+  ];
+
+  const AR_QUESTIONS = [
+    "كم يساوي 6 ضرب 7",
+    "كم يساوي 8 ضرب 9",
+    "كم يساوي 12 ضرب 12",
+    "كم يساوي 15 زائد 28",
+    "كم يساوي 100 ناقص 47",
+    "كيف يعمل الضرب",
+    "ما عاصمة فرنسا",
+    "ما هي الجاذبية",
+    "لماذا السماء زرقاء",
+    "ما هو التمثيل الضوئي",
+    "ما هو الفعل في اللغة العربية",
+    "ما هو الاسم في اللغة العربية",
+    "ما هو أكبر كوكب في المجموعة الشمسية",
+    "كم عدد الكواكب في المجموعة الشمسية",
+    "ما هي دورة الماء",
+    "كيف تصنع النباتات غذاءها",
+    "كم يساوي 7 ضرب 8",
+    "ما هي الأرقام الزوجية",
+    "ما هي الأرقام الفردية",
+    "كيف أكتب قصة قصيرة",
+  ];
+
+  const items: PrewarmItem[] = [];
+  for (const q of EN_QUESTIONS) {
+    for (const ageGroup of ["7-9", "10-12"]) {
+      for (const gender of ["boy", "girl"] as const) {
+        items.push({ question: q, language: "en", ageGroup, gender });
+      }
+    }
+  }
+  for (const q of AR_QUESTIONS) {
+    for (const ageGroup of ["7-9", "10-12"]) {
+      for (const gender of ["boy", "girl"] as const) {
+        items.push({ question: q, language: "ar", ageGroup, gender });
+      }
+    }
+  }
+
+  const total = items.length;
+  let done = 0;
+  let skipped = 0;
+  let saved = 0;
+
+  sseWrite(res, { progress: 0, total, message: `Pre-warming ${total} chat cache entries...` });
+
+  await runConcurrent(items, 4, async (item) => {
+    const norm = normText(item.question);
+    const hash = makeHash(norm, item.language, item.ageGroup, item.gender);
+
+    // Skip if already cached
+    if (directDbAvailable()) {
+      const existing = await queryOne<{ id: number }>(
+        "SELECT id FROM ai_cache WHERE input_hash = $1 AND language = $2 AND gender = $3 LIMIT 1",
+        [hash, item.language, item.gender]
+      ).catch(() => null);
+      if (existing) { done++; skipped++; return; }
+    }
+
+    try {
+      const systemPrompt = item.language === "en"
+        ? `${SYSTEM_EN}\n\nAge group: ${item.ageGroup}. Adapt to this age.`
+        : `${SYSTEM_AR}\n\nالفئة العمرية: ${item.ageGroup}. تكيّف مع هذا العمر.`;
+
+      const completion = await openaiChat.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: item.question },
+        ],
+        max_tokens: 200,
+        temperature: 0.7,
+      });
+      const reply = completion.choices[0]?.message?.content?.trim() ?? "";
+      if (!reply) { done++; return; }
+
+      if (directDbAvailable()) {
+        await query(
+          `INSERT INTO ai_cache(input_hash,input_text,response_text,language,gender,hit_count)
+           VALUES($1,$2,$3,$4,$5,0)
+           ON CONFLICT(input_hash,language) DO NOTHING`,
+          [hash, item.question, reply, item.language, item.gender]
+        ).catch(() => {});
+      } else {
+        await supabase.from("ai_cache").upsert(
+          { input_hash: hash, input_text: item.question, response_text: reply, language: item.language, gender: item.gender, hit_count: 0 },
+          { onConflict: "input_hash,language" }
+        );
+      }
+      saved++;
+    } catch { /* skip on API error */ }
+
+    done++;
+    if (done % 10 === 0 || done === total) {
+      sseWrite(res, { progress: done, total, saved, skipped, percent: Math.round((done / total) * 100), message: `Cached: ${saved} new, ${skipped} already exist` });
+    }
+  });
+
+  sseWrite(res, { progress: total, total, done: true, saved, skipped, message: `Done! ${saved} new responses cached, ${skipped} already existed.` });
   res.end();
 });
 
