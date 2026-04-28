@@ -31,9 +31,10 @@ export async function transcribeAudio(
   const { upload_url } = (await uploadRes.json()) as { upload_url: string };
 
   // 2. Submit transcription — English only, universal-3-pro for best accuracy
+  // Note: AssemblyAI deprecated "speech_model" (string) — must use "speech_models" (array)
   const body: Record<string, unknown> = {
     audio_url: upload_url,
-    speech_model: "universal-3-pro",
+    speech_models: ["universal-3-pro"],
     language_code: "en",
     punctuate: true,
     format_text: true,
