@@ -21,9 +21,9 @@ const LESSON_LANG_AR: LangCode = "ar";
 const STORY_LANG_EN: LangCode  = "en";
 const STORY_LANG_AR: LangCode  = "ar";
 
-// Story voice params: Neural2-F for EN (warm, natural) | Wavenet-A for AR (best available)
+// Story voice params: Neural2-F for EN (warm, natural) | Wavenet-D for AR (smoothest Arabic female)
 const STORY_VOICE_EN = { languageCode: "en-US", name: "en-US-Neural2-F", ssmlGender: "FEMALE" as const };
-const STORY_VOICE_AR = { languageCode: "ar-XA", name: "ar-XA-Wavenet-A", ssmlGender: "FEMALE" as const };
+const STORY_VOICE_AR = { languageCode: "ar-XA", name: "ar-XA-Wavenet-D", ssmlGender: "FEMALE" as const };
 
 // ── Google WaveNet synthesis ──────────────────────────────────────────────────
 function rateToSpeakingRate(rate: string): number {
@@ -442,8 +442,8 @@ async function synthesizeStoryGoogle(
   if (!apiKey) throw new Error("GOOGLE_TTS_API_KEY not set");
 
   const voiceParams = lang === "ar" ? STORY_VOICE_AR : STORY_VOICE_EN;
-  const speakingRate = lang === "ar" ? 0.76 : 0.78;  // calm, slow for kids
-  const pitch        = lang === "ar" ? 0.0  : 2.0;   // slightly warm for EN
+  const speakingRate = lang === "ar" ? 0.9 : 0.88;   // natural storytelling pace
+  const pitch        = 0.0;                           // neutral — no artificial pitch shift
 
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -666,7 +666,7 @@ router.post("/admin/generate-stories", async (req, res) => {
 
   await runConcurrent(STORY_SENTENCES, 2, async (sentence) => {
     const path = `story-${sentence.storyId}/sentence-${sentence.index}`;
-    await generateAndStoreStory(path, sentence.text, sentence.lang as "en" | "ar");
+    await generateAndStoreStory(path, sentence.text, sentence.lang as "en" | "ar", false); // always regenerate
     progress++;
     sseWrite(res, { progress, total, message: `Story ${sentence.storyId} sentence ${sentence.index}`, percent: Math.round((progress / total) * 100) });
   });

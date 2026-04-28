@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { getCurrentStoryId } from "@/lib/storyStore";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
@@ -23,9 +24,11 @@ export default function StoryReader() {
   const params = useLocalSearchParams<{ id: string }>();
   const { saveProgress, addPoints } = useApp();
 
-  // Normalise — params.id can be a string or string[] depending on platform
-  const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const storyId = rawId ?? "";
+  // Primary: module store set just before navigation (100% reliable on all platforms).
+  // Fallback: URL params (reliable on web but occasionally delayed on native).
+  const storeId = getCurrentStoryId();
+  const rawParam = Array.isArray(params.id) ? params.id[0] : params.id;
+  const storyId = storeId || rawParam || "";
   const story = (storyId ? STORIES.find((s) => s.id === storyId) : null) ?? STORIES[0]!;
 
   const [sentenceIdx, setSentenceIdx] = useState(0);

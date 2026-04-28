@@ -181,10 +181,10 @@ router.post("/tts/edge-story", async (req, res) => {
 
   const voiceLang: "en" | "ar" = lang === "ar" ? "ar" : "en";
   const voiceParams = voiceLang === "ar"
-    ? { languageCode: "ar-XA", name: "ar-XA-Wavenet-A", ssmlGender: "FEMALE" }
+    ? { languageCode: "ar-XA", name: "ar-XA-Wavenet-D", ssmlGender: "FEMALE" }
     : { languageCode: "en-US", name: "en-US-Neural2-F", ssmlGender: "FEMALE" };
-  const speakingRate = voiceLang === "ar" ? 0.76 : 0.78;
-  const pitch        = voiceLang === "ar" ? 0.0  : 2.0;
+  const speakingRate = voiceLang === "ar" ? 0.9 : 0.88;
+  const pitch        = 0.0;
 
   const cacheK = createHash("md5").update(`story-neural::${voiceLang}::${text.slice(0, 300)}`).digest("hex");
   if (memCache.has(cacheK)) {
