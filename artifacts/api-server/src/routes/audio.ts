@@ -49,7 +49,7 @@ async function fetchAudioBase64(path: string): Promise<string | null> {
   }
 }
 
-router.post("/api/audio/batch", async (req, res) => {
+router.post("/audio/batch", async (req, res) => {
   try {
     const { paths } = req.body as { paths: string[] };
     if (!Array.isArray(paths) || paths.length === 0) {

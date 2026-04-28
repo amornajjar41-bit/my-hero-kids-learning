@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter, usePathname } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
@@ -21,14 +21,12 @@ export default function StoryReader() {
   const router = useRouter();
   const lang = useLang();
   const params = useLocalSearchParams<{ id: string }>();
-  const pathname = usePathname();
   const { saveProgress, addPoints } = useApp();
 
-  // useLocalSearchParams can occasionally miss the segment on first render;
-  // usePathname() ("/stories/3") is always reliable as a fallback.
-  const pathId = pathname.split("/").filter(Boolean).pop() ?? "";
-  const storyId = (Array.isArray(params.id) ? params.id[0] : params.id) || pathId;
-  const story = STORIES.find((s) => s.id === storyId) ?? STORIES[0]!;
+  // Normalise — params.id can be a string or string[] depending on platform
+  const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const storyId = rawId ?? "";
+  const story = (storyId ? STORIES.find((s) => s.id === storyId) : null) ?? STORIES[0]!;
 
   const [sentenceIdx, setSentenceIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);

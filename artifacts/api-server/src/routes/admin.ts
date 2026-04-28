@@ -602,7 +602,7 @@ function sseWrite(res: Response, data: object) {
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
-router.get("/api/admin/status", async (_req, res) => {
+router.get("/admin/status", async (_req, res) => {
   try {
     const { data } = await supabase
       .from("app_settings")
@@ -623,7 +623,7 @@ router.get("/api/admin/status", async (_req, res) => {
   }
 });
 
-router.post("/api/admin/generate-lesson-audio", async (req, res) => {
+router.post("/admin/generate-lesson-audio", async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
@@ -653,7 +653,7 @@ router.post("/api/admin/generate-lesson-audio", async (req, res) => {
   res.end();
 });
 
-router.post("/api/admin/generate-stories", async (req, res) => {
+router.post("/admin/generate-stories", async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
