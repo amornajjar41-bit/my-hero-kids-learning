@@ -4,6 +4,7 @@ import * as Haptics from "expo-haptics";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "expo-router";
 import { useWindowDimensions } from "react-native";
 import React, {
   useCallback,
@@ -502,10 +503,30 @@ export default function Chat() {
     return () => clearTimeout(timer);
   }, [historyLoaded, messages.length]);
 
-  // FIX 3: Stop all audio when this screen unmounts / navigates away
-  useEffect(() => {
-    return () => { stopAudio(); };
-  }, []);
+  // Stop ALL audio the instant the screen loses focus (tab switch, back, any navigation).
+  // useFocusEffect fires on every blur — useEffect cleanup only fires on unmount,
+  // which never happens for tab screens in React Native.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        stopAudio();
+        // Also kill any active recording so mic releases immediately
+        if (Platform.OS !== "web" && _nativeRec) {
+          try { _nativeRec.stop(); } catch { /* ignore */ }
+          _nativeRec = null;
+        }
+        if (Platform.OS === "web") {
+          try {
+            _wavStream?.getTracks().forEach((t) => t.stop());
+            _wavProcessor?.disconnect();
+            _wavSource?.disconnect();
+            _wavCtx?.close();
+          } catch { /* ignore */ }
+          _wavStream = null; _wavProcessor = null; _wavSource = null; _wavCtx = null; _wavChunks = [];
+        }
+      };
+    }, [])
+  );
 
   // Request mic permission on native at startup
   useEffect(() => {

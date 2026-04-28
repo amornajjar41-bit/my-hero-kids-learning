@@ -292,14 +292,16 @@ async function checkCache(
       const age = Date.now() - new Date(exact.created_at).getTime();
       if (age < 30 * 24 * 60 * 60 * 1000) {
         // Increment hit count (best-effort, non-blocking)
-        supabase
-          .from("ai_cache")
-          .update({ hit_count: (exact as any).hit_count + 1 })
-          .eq("input_hash", inputHash)
-          .eq("language", language)
-          .eq("gender", gender)
-          .then(() => {})
-          .catch(() => {});
+        void (async () => {
+          try {
+            await supabase
+              .from("ai_cache")
+              .update({ hit_count: (exact as any).hit_count + 1 })
+              .eq("input_hash", inputHash)
+              .eq("language", language)
+              .eq("gender", gender);
+          } catch { /* ignore */ }
+        })();
         return { response_text: exact.response_text, audio_url: exact.audio_url };
       }
     }
@@ -518,10 +520,10 @@ router.post("/chat", async (req, res) => {
       saveCache(inputHash, userText, reply, language as "en" | "ar", gender as "boy" | "girl").catch(() => {});
     }
 
-    res.json({ reply, safetyAlert, suggestions, highFive, cached: false });
+    return res.json({ reply, safetyAlert, suggestions, highFive, cached: false });
   } catch (err) {
     req.log.error({ err }, "chat error");
-    res.status(500).json({ error: "chat failed" });
+    return res.status(500).json({ error: "chat failed" });
   }
 });
 

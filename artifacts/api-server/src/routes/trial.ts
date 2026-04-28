@@ -46,7 +46,7 @@ router.get("/trial/usage", async (req, res) => {
 
     const isPaid = user.subscription_plan !== "trial";
 
-    res.json({
+    return res.json({
       tts: {
         usedSeconds: user.trial_tts_used_seconds ?? 0,
         limitSeconds: TRIAL_LIMITS.tts_seconds,
@@ -67,7 +67,7 @@ router.get("/trial/usage", async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "trial usage error");
-    res.status(500).json({ error: "failed" });
+    return res.status(500).json({ error: "failed" });
   }
 });
 
@@ -115,10 +115,10 @@ router.post("/trial/usage", async (req, res) => {
 
     await supabase.from("users").update(updatePayload).eq("id", userId);
 
-    res.json({ ok: true, blocked });
+    return res.json({ ok: true, blocked });
   } catch (err) {
     req.log.error({ err }, "trial update error");
-    res.status(500).json({ error: "failed" });
+    return res.status(500).json({ error: "failed" });
   }
 });
 
@@ -142,9 +142,9 @@ router.post("/trial/check-photo", async (req, res) => {
     const isPaid = user.subscription_plan !== "trial";
     const allowed = isPaid || (user.trial_photos_used ?? 0) < TRIAL_LIMITS.photos;
 
-    res.json({ allowed, used: user.trial_photos_used ?? 0, limit: TRIAL_LIMITS.photos });
+    return res.json({ allowed, used: user.trial_photos_used ?? 0, limit: TRIAL_LIMITS.photos });
   } catch {
-    res.json({ allowed: true });
+    return res.json({ allowed: true });
   }
 });
 
