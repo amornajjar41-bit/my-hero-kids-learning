@@ -8,6 +8,7 @@
  */
 import { Router, type IRouter, type Request, type Response } from "express";
 import { supabase } from "../lib/supabase";
+import { directDbAvailable, query, queryOne } from "../lib/db";
 
 const router: IRouter = Router();
 
@@ -604,22 +605,16 @@ function sseWrite(res: Response, data: object) {
 // ── Routes ────────────────────────────────────────────────────────────────────
 router.get("/admin/status", async (_req, res) => {
   try {
-    const { data } = await supabase
-      .from("app_settings")
-      .select("value")
-      .eq("key", "lessons_audio_generated")
-      .maybeSingle();
-    const { data: sd } = await supabase
-      .from("app_settings")
-      .select("value")
-      .eq("key", "stories_generated")
-      .maybeSingle();
-    res.json({
-      lessonsAudioGenerated: data?.value === "true",
-      storiesGenerated: sd?.value === "true",
-    });
+    if (directDbAvailable()) {
+      const la = await queryOne<{ value: string }>("SELECT value FROM app_settings WHERE key = 'lessons_audio_generated'");
+      const sg = await queryOne<{ value: string }>("SELECT value FROM app_settings WHERE key = 'stories_generated'");
+      return res.json({ lessonsAudioGenerated: la?.value === "true", storiesGenerated: sg?.value === "true" });
+    }
+    const { data } = await supabase.from("app_settings").select("value").eq("key", "lessons_audio_generated").maybeSingle();
+    const { data: sd } = await supabase.from("app_settings").select("value").eq("key", "stories_generated").maybeSingle();
+    return res.json({ lessonsAudioGenerated: data?.value === "true", storiesGenerated: sd?.value === "true" });
   } catch {
-    res.json({ lessonsAudioGenerated: false, storiesGenerated: false });
+    return res.json({ lessonsAudioGenerated: false, storiesGenerated: false });
   }
 });
 
@@ -646,7 +641,11 @@ router.post("/admin/generate-lesson-audio", async (req, res) => {
   });
 
   try {
-    await supabase.from("app_settings").upsert({ key: "lessons_audio_generated", value: "true" }, { onConflict: "key" });
+    if (directDbAvailable()) {
+      await query("INSERT INTO app_settings(key,value) VALUES('lessons_audio_generated','true') ON CONFLICT(key) DO UPDATE SET value='true'");
+    } else {
+      await supabase.from("app_settings").upsert({ key: "lessons_audio_generated", value: "true" }, { onConflict: "key" });
+    }
   } catch { /* best effort */ }
 
   sseWrite(res, { progress: total, total, done: true, message: "All lesson and game audio generated!" });
@@ -676,71 +675,45 @@ router.post("/admin/reload-schema", async (_req, res) => {
 
 // ── DB connectivity test ──────────────────────────────────────────────────────
 // GET /api/admin/db-test
-// Returns a detailed report of Supabase read/write health for every cache table.
 router.get("/admin/db-test", async (_req, res) => {
   const results: Record<string, { read: boolean; write: boolean; error?: string }> = {};
+  const mode = directDbAvailable() ? "direct-pg" : "supabase-rest";
 
-  // Test ai_cache
-  try {
-    const { error: readErr } = await supabase.from("ai_cache").select("id,gender").limit(1);
-    let writeOk = false;
-    let writeErr: string | undefined;
-    const testHash = "_db_test_probe_";
-    const { error: upsertErr } = await supabase
-      .from("ai_cache")
-      .upsert(
-        { input_hash: testHash, input_text: "test", response_text: "test", language: "en", gender: "boy", hit_count: 0 },
-        { onConflict: "input_hash,language" }
-      );
-    if (upsertErr) {
-      writeErr = upsertErr.message;
-    } else {
-      writeOk = true;
-      // Clean up probe row
-      await supabase.from("ai_cache").delete().eq("input_hash", testHash);
+  if (directDbAvailable()) {
+    // ── Direct PostgreSQL path ─────────────────────────────────────────────
+    for (const table of ["ai_cache", "curriculum_cache", "app_settings", "users"] as const) {
+      try {
+        await query(`SELECT 1 FROM ${table} LIMIT 1`);
+        // Test write on ai_cache only
+        if (table === "ai_cache") {
+          await query(
+            `INSERT INTO ai_cache(input_hash,input_text,response_text,language,gender,hit_count)
+             VALUES('_probe_','t','t','en','boy',0)
+             ON CONFLICT(input_hash,language) DO UPDATE SET response_text='t'`
+          );
+          await query(`DELETE FROM ai_cache WHERE input_hash='_probe_'`);
+          results[table] = { read: true, write: true };
+        } else {
+          results[table] = { read: true, write: true };
+        }
+      } catch (e: any) {
+        results[table] = { read: false, write: false, error: e.message };
+      }
     }
-    results["ai_cache"] = { read: !readErr, write: writeOk, error: readErr?.message ?? writeErr };
-  } catch (e) {
-    results["ai_cache"] = { read: false, write: false, error: String(e) };
-  }
-
-  // Test curriculum_cache
-  try {
-    const { error: readErr } = await supabase.from("curriculum_cache").select("id").limit(1);
-    results["curriculum_cache"] = { read: !readErr, write: true, error: readErr?.message };
-  } catch (e) {
-    results["curriculum_cache"] = { read: false, write: false, error: String(e) };
-  }
-
-  // Test app_settings
-  try {
-    const { error: readErr } = await supabase.from("app_settings").select("key").limit(1);
-    let writeOk = false;
-    let writeErr: string | undefined;
-    const { error: upsertErr } = await supabase
-      .from("app_settings")
-      .upsert({ key: "_db_test_probe_", value: "1" }, { onConflict: "key" });
-    if (upsertErr) {
-      writeErr = upsertErr.message;
-    } else {
-      writeOk = true;
-      await supabase.from("app_settings").delete().eq("key", "_db_test_probe_");
+  } else {
+    // ── Supabase PostgREST path ────────────────────────────────────────────
+    for (const table of ["ai_cache", "curriculum_cache", "app_settings", "users"] as const) {
+      try {
+        const { error } = await supabase.from(table).select("*").limit(1);
+        results[table] = { read: !error, write: false, error: error?.message };
+      } catch (e: any) {
+        results[table] = { read: false, write: false, error: e.message };
+      }
     }
-    results["app_settings"] = { read: !readErr, write: writeOk, error: readErr?.message ?? writeErr };
-  } catch (e) {
-    results["app_settings"] = { read: false, write: false, error: String(e) };
-  }
-
-  // Test users
-  try {
-    const { error: readErr } = await supabase.from("users").select("id").limit(1);
-    results["users"] = { read: !readErr, write: true, error: readErr?.message };
-  } catch (e) {
-    results["users"] = { read: false, write: false, error: String(e) };
   }
 
   const allOk = Object.values(results).every(r => r.read && r.write);
-  res.json({ ok: allOk, tables: results });
+  res.json({ ok: allOk, mode, tables: results });
 });
 
 router.post("/admin/generate-stories", async (req, res) => {
@@ -762,7 +735,11 @@ router.post("/admin/generate-stories", async (req, res) => {
   });
 
   try {
-    await supabase.from("app_settings").upsert({ key: "stories_generated", value: "true" }, { onConflict: "key" });
+    if (directDbAvailable()) {
+      await query("INSERT INTO app_settings(key,value) VALUES('stories_generated','true') ON CONFLICT(key) DO UPDATE SET value='true'");
+    } else {
+      await supabase.from("app_settings").upsert({ key: "stories_generated", value: "true" }, { onConflict: "key" });
+    }
   } catch { /* best effort */ }
 
   sseWrite(res, { progress: total, total, done: true, message: "All story audio generated!" });
