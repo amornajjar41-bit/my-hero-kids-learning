@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export type AgeGroup = "4-6" | "7-9" | "10-12";
+export type AgeGroup = "4-6" | "7-9" | "10-12" | "13-14";
 export type Hero = "boy" | "girl";
 export type ScreenLimit = 2 | 4 | 6 | 0; // 0 = unlimited
 

@@ -15,6 +15,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { SoftCard } from "@/components/SoftCard";
 import { useColors } from "@/hooks/useColors";
+import { useApp } from "@/contexts/AppContext";
+import type { Profile, AgeGroup } from "@/lib/storage";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const MONTHS_EN = ["January","February","March","April","May","June",
@@ -162,6 +164,7 @@ function DropdownPicker({
 export default function ChildInfo() {
   const c = useColors();
   const router = useRouter();
+  const { saveProfile } = useApp();
   const params = useLocalSearchParams<{
     lang: "en" | "ar";
     hero: "boy" | "girl";
@@ -210,17 +213,37 @@ export default function ChildInfo() {
 
   const yearOptions = YEARS.map(y => ({ label: String(y), value: y }));
 
-  function handleContinue() {
+  async function handleContinue() {
     if (!canContinue) return;
-    router.push({
-      pathname: "/onboarding/birthday",
+    const profile: Profile = {
+      language: params.lang,
+      hero: params.hero,
+      childName: name,
+      ageGroup: ageGroup! as AgeGroup,
+      parentEmail: params.parentEmail,
+      parentName: params.parentName,
+      childBirthday: dobFormatted,
+      trialStartedAt: new Date().toISOString(),
+      isPaid: false,
+      screenLimitHours: 2,
+      soundOn: true,
+    };
+    await saveProfile(profile);
+    router.replace({
+      pathname: "/onboarding/done",
       params: {
-        ...params,
+        lang: params.lang,
+        hero: params.hero,
+        parentEmail: params.parentEmail,
+        password: params.password,
+        parentName: params.parentName,
+        country: params.country,
+        currency: params.currency,
+        currencySymbol: params.currencySymbol,
+        currencyRate: params.currencyRate,
         name,
         age: ageGroup!,
         dob: dobFormatted,
-        childMonth: String(selectedMonth!),
-        childDay: String(effectiveDay!),
       },
     });
   }

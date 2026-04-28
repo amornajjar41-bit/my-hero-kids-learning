@@ -13,8 +13,51 @@ export default function StoriesIndex() {
   const c = useColors();
   const router = useRouter();
   const lang = useLang();
-  // Only show stories in the user's selected language
-  const userStories = STORIES.filter((s) => s.lang === lang);
+
+  const userLangStories = STORIES.filter((s) => s.lang === lang);
+  const otherLangStories = STORIES.filter((s) => s.lang !== lang);
+  const otherLang = lang === "ar" ? "en" : "ar";
+
+  const groupLabel = (l: "en" | "ar") =>
+    l === "ar"
+      ? (lang === "ar" ? "قصص عربية 🌙" : "Arabic Stories 🌙")
+      : (lang === "ar" ? "قصص إنجليزية ⭐" : "English Stories ⭐");
+
+  function StoryCard({ story }: { story: (typeof STORIES)[number] }) {
+    return (
+      <Pressable
+        key={story.id}
+        onPress={() =>
+          router.push({
+            pathname: "/stories/[id]",
+            params: { id: story.id },
+          } as any)
+        }
+        style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+      >
+        <SoftCard>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+            <Text style={{ fontSize: 44 }}>{story.emoji}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: "800", fontSize: 16, color: c.text }}>
+                {lang === "ar" ? story.titleAr : story.titleEn}
+              </Text>
+              <Text
+                style={{ color: c.mutedForeground, fontSize: 12, marginTop: 2 }}
+                numberOfLines={2}
+              >
+                {lang === "ar" ? story.moral.ar : story.moral.en}
+              </Text>
+              <Text style={{ color: c.mutedForeground, fontSize: 11, marginTop: 4 }}>
+                🎵 {story.sentences.length} {lang === "ar" ? "مقاطع" : "parts"}
+              </Text>
+            </View>
+            <Ionicons name="play-circle" size={32} color={c.primary} />
+          </View>
+        </SoftCard>
+      </Pressable>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
@@ -33,35 +76,28 @@ export default function StoriesIndex() {
           🌙 {lang === "ar" ? "قصص ما قبل النوم" : "Bedtime Stories"}
         </Text>
       </View>
+
       <ScrollView contentContainerStyle={{ padding: 18, gap: 12 }}>
-        {userStories.map((story) => (
-          <Pressable
-            key={story.id}
-            onPress={() => router.push(`/stories/${story.id}` as any)}
-            style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
-          >
-            <SoftCard>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-                <Text style={{ fontSize: 48 }}>{story.emoji}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontWeight: "800", fontSize: 16, color: c.text }}>
-                    {lang === "ar" ? story.titleAr : story.titleEn}
-                  </Text>
-                  <Text
-                    style={{ color: c.mutedForeground, fontSize: 12, marginTop: 2 }}
-                    numberOfLines={2}
-                  >
-                    {lang === "ar" ? story.moral.ar : story.moral.en}
-                  </Text>
-                  <Text style={{ color: c.mutedForeground, fontSize: 11, marginTop: 4 }}>
-                    🎵 {story.sentences.length} {lang === "ar" ? "مقاطع" : "parts"}
-                  </Text>
-                </View>
-                <Ionicons name="play-circle" size={32} color={c.primary} />
-              </View>
-            </SoftCard>
-          </Pressable>
-        ))}
+        {/* User's language stories first */}
+        <Text style={{
+          fontWeight: "800", fontSize: 14, color: c.primary,
+          textAlign: lang === "ar" ? "right" : "left",
+          marginBottom: 4,
+        }}>
+          {groupLabel(lang as "en" | "ar")}
+        </Text>
+        {userLangStories.map((s) => <StoryCard key={s.id} story={s} />)}
+
+        {/* Other language stories */}
+        <Text style={{
+          fontWeight: "800", fontSize: 14, color: c.mutedForeground,
+          textAlign: lang === "ar" ? "right" : "left",
+          marginTop: 8, marginBottom: 4,
+        }}>
+          {groupLabel(otherLang)}
+        </Text>
+        {otherLangStories.map((s) => <StoryCard key={s.id} story={s} />)}
+
         <View style={{ height: 20 }} />
       </ScrollView>
     </SafeAreaView>

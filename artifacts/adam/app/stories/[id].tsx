@@ -20,10 +20,11 @@ export default function StoryReader() {
   const c = useColors();
   const router = useRouter();
   const lang = useLang();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string }>();
   const { profile, saveProgress, addPoints } = useApp();
 
-  const story = STORIES.find((s) => s.id === id) ?? STORIES[0]!;
+  const storyId = Array.isArray(params.id) ? params.id[0] : (params.id ?? "");
+  const story = STORIES.find((s) => s.id === storyId) ?? STORIES[0]!;
   const voice = profile?.hero === "girl" ? "nova" : "echo";
 
   const [sentenceIdx, setSentenceIdx] = useState(0);

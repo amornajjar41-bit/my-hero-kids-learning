@@ -50,12 +50,13 @@ Expo SDK 54 + expo-router mobile app for ages 3–15: bilingual EN/AR homework h
 - **5B – Trial Limits**: TTS 15min/3days, STT 15min/3days, Photos 1 total. Tracked in users table (trial_tts_used_seconds, trial_stt_used_seconds, trial_photos_used). Trial usage API requires session token header (x-session-token).
 - **5B – Upgrade Screen**: 3 plans — Monthly $24.99 / 6-Month $135.99 (save 10%) / Yearly $236.99 (save 21%). Local currency via exchange rate table (20+ currencies). Never shows USD to non-USD countries.
 - **Trial / Pricing**: Plans shown on done.tsx (onboarding) and parent/upgrade.tsx. Local currency conversion via constants/countries.ts (36 countries) and upgrade.tsx rate table.
-- **Onboarding flow**: welcome → hero → parent (email/password/country) → child (DOB picker) → birthday → done (subscription plans).
+- **Onboarding flow**: welcome → hero → parent (email/password/country) → child (DOB picker + saveProfile) → done (subscription plans). The `birthday.tsx` screen is no longer in the active flow (child.tsx now calls saveProfile directly and navigates to done).
 - **Chat UI**: Emoji opening buttons (🎒📚🎮😊) when no messages. Suggestion chips after each AI reply. High Five sticker animation (slides in, auto-dismisses 3.5s) when highFive=true.
 - **System prompt**: Two separate prompts (SYSTEM_PROMPT_EN / SYSTEM_PROMPT_AR) — fully language-specific with proper vocabulary, forbidden phrases, and tone for each language.
 - **AI Cache**: Supabase ai_cache table with exact hash match + semantic word-overlap (≥80%) matching. 30-day cache TTL.
-- **TTS Voices**: Boy EN: en-US-GuyNeural, Boy AR: ar-SA-HamedNeural, Girl EN: en-US-AnaNeural, Girl AR: ar-SA-ZariyahNeural.
-- **Screens**: onboarding (welcome→hero→parent→child→birthday→done), tabs (home/chat/learn/games), learn/[language], learn/lesson/[id], 6 games, parent (PIN+dashboard+controls+why-adam+upgrade), terms, blocked (4B sleeping screen), birthday-celebration (4D party hat+confetti).
+- **TTS Voices**: Boy EN: en-US-Wavenet-D, Boy AR: ar-XA-Wavenet-B, Girl EN: en-US-Wavenet-F, Girl AR: ar-XA-Wavenet-A. Audio config: speakingRate=0.88, pitch: female=3.0, male=1.0 (warm/friendly, no effectsProfileId). Hero maps to voice: `hero==="girl"` → "nova" → female voices; else → "echo" → male voices.
+- **Screens**: onboarding (welcome→hero→parent→child→done), tabs (home/chat/learn/games), learn/[language], learn/lesson/[id], 6 games, parent (PIN+dashboard+controls+why-adam+upgrade), terms, blocked (4B sleeping screen), birthday-celebration (4D party hat+confetti).
+- **Stories screens**: stories/index.tsx shows ALL 10 stories (5 AR + 5 EN) grouped by language (user's language first). Navigation uses explicit `{ pathname: "/stories/[id]", params: { id } }` format. stories/[id].tsx normalizes id with Array.isArray() guard to prevent STORIES[0] fallback.
 - **DB Tables**: users, children, messages, ai_cache, lesson_progress, safety_alerts, app_settings, curriculum_cache, daily_tips.
 - **New Components**: Tour.tsx (4C), DailyTip.tsx (4D).
 - **New Screens**: parent/pin.tsx (5A), stories/index.tsx + stories/[id].tsx (6B).

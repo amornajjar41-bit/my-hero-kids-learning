@@ -106,9 +106,8 @@ async function synthesizeWavenet(text: string, voice: string): Promise<string> {
         voice: voiceParams,
         audioConfig: {
           audioEncoding: "MP3",
-          speakingRate: 0.92,
-          pitch: voiceParams.ssmlGender === "FEMALE" ? 1.5 : 0.0,
-          effectsProfileId: ["handset-class-device"],
+          speakingRate: 0.88,
+          pitch: voiceParams.ssmlGender === "FEMALE" ? 3.0 : 1.0,
         },
       }),
     }),
