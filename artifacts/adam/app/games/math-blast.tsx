@@ -12,20 +12,8 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
-import {
-  preloadMathAudio,
-  mathNumPath,
-  mathOpPath,
-  mathCorrectPath,
-  playPreloaded,
-  stopPreloaded,
-} from "@/lib/lessonAudio";
 
 type Q = { a: number; b: number; op: string; ans: number };
-
-const OP_KEY: Record<string, "plus" | "minus" | "times" | "div"> = {
-  "+": "plus", "-": "minus", "×": "times", "÷": "div",
-};
 
 function makeQ(levelIdx: number): Q {
   const lvl = mathLevels[levelIdx] ?? mathLevels[0]!;
@@ -64,7 +52,6 @@ export default function MathBlast() {
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
   const [feedback, setFeedback] = useState<"" | "ok" | "no">("");
-  const [correctCount, setCorrectCount] = useState(0);
 
   const currentLevel = mathLevels[levelIdx] ?? mathLevels[0]!;
   const totalQuestions = mathLevels.reduce((s, l) => s + l.questionsPerLevel, 0);
@@ -73,31 +60,15 @@ export default function MathBlast() {
   const q = useMemo(() => makeQ(levelIdx), [levelIdx, questionNo]);
   const opts = useMemo(() => buildOptions(q.ans), [q]);
 
+  useEffect(() => () => { stopAudio(); }, []);
+
+  // Read question aloud — short equation only, with delay so UI renders first
   useEffect(() => {
-    preloadMathAudio(lang);
-  }, [lang]);
-
-  useEffect(() => () => { stopPreloaded(); stopAudio(); }, []);
-
-  // Read the question aloud when it changes
-  useEffect(() => {
-    const readQ = async () => {
-      const aNum = Math.min(q.a, 100);
-      const bNum = Math.min(q.b, 100);
-      const opKey = OP_KEY[q.op] ?? "plus";
-
-      const fallbackText = lang === "ar"
-        ? `${q.a} ${q.op} ${q.b}`
-        : `${q.a} ${q.op} ${q.b}`;
-
-      // Play a then operator then b
-      await playPreloaded(mathNumPath(aNum, lang), () => speak(String(q.a), voice));
-      await new Promise<void>((r) => setTimeout(r, 120));
-      await playPreloaded(mathOpPath(opKey, lang), () => speak(q.op, voice));
-      await new Promise<void>((r) => setTimeout(r, 120));
-      await playPreloaded(mathNumPath(bNum, lang), () => speak(String(q.b), voice));
-    };
-    readQ().catch(() => {});
+    const timer = setTimeout(() => {
+      // e.g. "3 + 4" — concise, no extra words
+      speak(`${q.a} ${q.op} ${q.b}`, voice).catch(() => {});
+    }, 500);
+    return () => clearTimeout(timer);
   }, [levelIdx, questionNo]);
 
   const choose = (n: number) => {
@@ -105,10 +76,7 @@ export default function MathBlast() {
     if (n === q.ans) {
       setScore((s) => s + 1);
       setFeedback("ok");
-      const variant = correctCount % 5;
-      const path = mathCorrectPath(variant, lang);
-      playPreloaded(path, () => speak(lang === "ar" ? "ممتاز!" : "Excellent!", voice)).catch(() => {});
-      setCorrectCount((c) => c + 1);
+      speak(lang === "ar" ? "ممتاز!" : "Correct!", voice).catch(() => {});
       setTimeout(() => {
         setFeedback("");
         const nextQ = questionNo + 1;

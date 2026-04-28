@@ -12,12 +12,6 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang, useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
-import {
-  preloadLetterAudio,
-  letterCelebratePath,
-  playPreloaded,
-  stopPreloaded,
-} from "@/lib/lessonAudio";
 
 export default function LetterMatch() {
   const c = useColors();
@@ -31,8 +25,6 @@ export default function LetterMatch() {
   const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<"" | "ok" | "no">("");
   const [done, setDone] = useState(false);
-  const [flipAnim, setFlipAnim] = useState<string | null>(null);
-  const [celebrationCount, setCelebrationCount] = useState(0);
 
   const pool = letterMatchPairs[lang];
 
@@ -46,29 +38,22 @@ export default function LetterMatch() {
     return { correct, options };
   }, [round, pool]);
 
-  useEffect(() => {
-    preloadLetterAudio(lang);
-  }, [lang]);
+  useEffect(() => () => { stopAudio(); }, []);
 
-  useEffect(() => () => { stopPreloaded(); stopAudio(); }, []);
-
-  // Play pronunciation when card is "flipped" (new round displayed)
+  // Speak just the letter after a short delay so the screen renders first
   useEffect(() => {
-    setFlipAnim(data.correct.letter);
-    // Play the letter pronunciation using regular TTS (pronunciations are stored per lesson word)
-    speak(data.correct.letter, voice).catch(() => {});
+    const timer = setTimeout(() => {
+      speak(data.correct.letter, voice).catch(() => {});
+    }, 400);
+    return () => clearTimeout(timer);
   }, [round]);
 
   const choose = (letter: string) => {
     if (letter === data.correct.letter) {
       setScore((s) => s + 1);
       setFeedback("ok");
-      // Play celebration phrase from pre-generated audio
-      const variant = celebrationCount % 5;
-      const path = letterCelebratePath(variant, lang);
-      const fallback = lang === "ar" ? "ممتاز!" : "Excellent!";
-      playPreloaded(path, () => speak(fallback, voice)).catch(() => {});
-      setCelebrationCount((c) => c + 1);
+      // Short single-word celebration
+      speak(lang === "ar" ? "ممتاز!" : "Great!", voice).catch(() => {});
       setTimeout(() => {
         setFeedback("");
         if (round + 1 >= 6) setDone(true);

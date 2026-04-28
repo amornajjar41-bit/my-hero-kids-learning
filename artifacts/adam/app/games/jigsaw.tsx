@@ -13,12 +13,6 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang, useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
-import {
-  preloadJigsawAudio,
-  jigsawFunFactPath,
-  playPreloaded,
-  stopPreloaded,
-} from "@/lib/lessonAudio";
 
 const PALETTES: [string, string][] = [
   ["#FF8A4C", "#FFD93D"],
@@ -51,16 +45,23 @@ export default function Jigsaw() {
   const item = jigsawImages[round % jigsawImages.length]!;
   const palette = PALETTES[round % PALETTES.length]!;
 
-  useEffect(() => {
-    preloadJigsawAudio(lang);
-  }, [lang]);
-
-  useEffect(() => () => { stopPreloaded(); stopAudio(); }, []);
+  useEffect(() => () => { stopAudio(); }, []);
 
   useEffect(() => {
     setTiles(shuffle([0, 1, 2, 3]));
     setDone(false);
   }, [round]);
+
+  // Speak the puzzle title when a new round starts — short and clear
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const title = lang === "ar" ? item.titleAr : item.titleEn;
+      speak(title, voice).catch(() => {});
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [round]);
+
+  const selectedRef = React.useRef<number | null>(null);
 
   const swap = (i: number) => {
     if (done) return;
@@ -75,11 +76,8 @@ export default function Jigsaw() {
         const isSolved = next.every((v, idx) => v === idx);
         if (isSolved) {
           setDone(true);
-          // Play fun fact audio when puzzle is solved
-          const puzzleId = item.id ?? `puzzle${round}`;
-          const path = jigsawFunFactPath(puzzleId, lang);
-          const fallbackText = lang === "ar" ? item.funAr : item.funEn;
-          playPreloaded(path, () => speak(fallbackText, voice)).catch(() => {});
+          // Short celebration only — fun fact is already shown visually
+          speak(lang === "ar" ? "رائع!" : "Amazing!", voice).catch(() => {});
           setTimeout(() => {
             if (round + 1 >= jigsawImages.length) setSolvedAll(true);
             else setRound((r) => r + 1);
@@ -89,8 +87,6 @@ export default function Jigsaw() {
       });
     }
   };
-
-  const selectedRef = React.useRef<number | null>(null);
 
   useEffect(() => {
     if (solvedAll) {

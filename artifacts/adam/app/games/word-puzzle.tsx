@@ -12,7 +12,6 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang, useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
-import { playPreloaded, stopPreloaded } from "@/lib/lessonAudio";
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -21,17 +20,6 @@ function shuffle<T>(arr: T[]): T[] {
     [a[i], a[j]] = [a[j]!, a[i]!];
   }
   return a;
-}
-
-// Hint texts per word slug (EN words)
-function hintText(word: string, lang: "en" | "ar"): string {
-  if (lang === "ar") return `هل يمكنك تهجئة "${word}"؟ رتّب الأحرف!`;
-  return `Can you spell ${word}? Arrange the letters!`;
-}
-
-function revealText(word: string, lang: "en" | "ar"): string {
-  if (lang === "ar") return `رائع! كلمة "${word}" صحيحة! أحسنت!`;
-  return `Excellent! ${word} is correct! Great job!`;
 }
 
 export default function WordPuzzle() {
@@ -53,22 +41,23 @@ export default function WordPuzzle() {
   const letters = useMemo(() => shuffle(target.split("")), [target, round]);
   const current = picked.map((i) => letters[i]).join("");
 
-  useEffect(() => () => { stopPreloaded(); stopAudio(); }, []);
+  useEffect(() => () => { stopAudio(); }, []);
 
+  // Speak just the word after a short delay so the UI settles first
   useEffect(() => {
     setPicked([]);
-    // Play hint audio when new image is displayed
-    const hintPath = `games/word-puzzle/hint-${lang}-${item.word.toLowerCase().replace(/\s/g, "-")}`;
-    playPreloaded(hintPath, () => speak(hintText(item.word, lang), voice)).catch(() => {});
+    const timer = setTimeout(() => {
+      speak(item.word, voice).catch(() => {});
+    }, 500);
+    return () => clearTimeout(timer);
   }, [round]);
 
   useEffect(() => {
     if (current.length === target.length) {
       if (current === target) {
         setScore((s) => s + 1);
-        // Play reveal audio
-        const revealPath = `games/word-puzzle/reveal-${lang}-${item.word.toLowerCase().replace(/\s/g, "-")}`;
-        playPreloaded(revealPath, () => speak(revealText(item.word, lang), voice)).catch(() => {});
+        // Short celebration — just one word
+        speak(lang === "ar" ? "ممتاز!" : "Correct!", voice).catch(() => {});
         setTimeout(() => {
           if (round + 1 >= 10) setDone(true);
           else setRound((r) => r + 1);
