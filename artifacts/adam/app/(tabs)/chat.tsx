@@ -448,7 +448,6 @@ export default function Chat() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
-  const [showTutorial, setShowTutorial] = useState(false);
   const [tooShort, setTooShort] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -460,7 +459,6 @@ export default function Chat() {
   const [showHighFive, setShowHighFive] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const recStartTime = useRef<number>(0);
-  const recTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pttScale = useRef(new Animated.Value(1)).current;
   const highFiveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -471,8 +469,6 @@ export default function Chat() {
       const saved = await getJSON<ChatMessage[]>(STORAGE_KEYS.chatHistory);
       if (saved && Array.isArray(saved) && saved.length > 0) setMessages(saved);
       setHistoryLoaded(true);
-      const tutDone = await getJSON<boolean>(STORAGE_KEYS.voiceTutorialDone);
-      if (!tutDone) setShowTutorial(true);
       // Load child memory profile
       const mem = await getJSON<ChildMemory>(STORAGE_KEYS.childMemory);
       if (mem) setChildMemory(mem);
@@ -536,7 +532,7 @@ export default function Chat() {
     }, [])
   );
 
-  // Request mic permission on native at startup
+  // Request mic permission on native at startup — eagerly, no tutorial gate
   useEffect(() => {
     if (Platform.OS !== "web") {
       (async () => {
@@ -546,16 +542,29 @@ export default function Chat() {
           await AudioModule.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
         } catch { /* ignore */ }
       })();
+    } else if (typeof window !== "undefined" && navigator?.mediaDevices) {
+      // Web: pre-warm the mic permission so it's ready immediately on first use
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then((stream) => { stream.getTracks().forEach((t) => t.stop()); })
+        .catch(() => { /* user may deny later — handled in startRec */ });
     }
   }, []);
+
+  // ── Live recording timer via useEffect (avoids double-interval bugs) ────────
+  useEffect(() => {
+    if (!isRecording) {
+      setRecSeconds(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setRecSeconds((s) => s + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isRecording]);
 
   const voice = profile?.hero === "girl" ? "nova" : "echo";
   const heroName = profile?.hero === "girl" ? "Sara" : "Adam";
 
-  const dismissTutorial = async () => {
-    setShowTutorial(false);
-    await setJSON(STORAGE_KEYS.voiceTutorialDone, true);
-  };
 
   const send = useCallback(async (text: string, imageBase64?: string) => {
     if (!text.trim() && !imageBase64) return;
@@ -688,7 +697,6 @@ export default function Chat() {
   };
 
   const _clearRecTimers = () => {
-    if (recTimerRef.current) { clearInterval(recTimerRef.current); recTimerRef.current = null; }
     if (autoStopRef.current) { clearTimeout(autoStopRef.current); autoStopRef.current = null; }
   };
 
@@ -710,11 +718,6 @@ export default function Chat() {
         await nativeStartRecording();
       }
       setIsRecording(true);
-
-      // Live timer — update every second
-      recTimerRef.current = setInterval(() => {
-        setRecSeconds((s) => s + 1);
-      }, 1000);
 
       // Auto-stop after 45 seconds to prevent runaway recordings
       autoStopRef.current = setTimeout(() => {
@@ -799,7 +802,6 @@ export default function Chat() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
-      <VoiceTutorial visible={showTutorial} onDismiss={dismissTutorial} lang={lang} heroName={heroName} />
 
       {/* Top bar: name + controls */}
       <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, flexDirection: "row", alignItems: "center", gap: 12 }}>
