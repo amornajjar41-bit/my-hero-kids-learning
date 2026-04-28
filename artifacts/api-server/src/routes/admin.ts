@@ -857,7 +857,7 @@ router.post("/admin/prewarm-chat", async (req, res) => {
   const SYSTEM_EN = `You are a super fun learning hero for children. Your name is Adam. Teaching best friend who explains clearly and makes learning exciting. Simple words, short sentences, emojis. Address boy as 'champ', girl as 'champion'. Always respond in English.`;
   const SYSTEM_AR = `أنت بطل تعلّم خارق ممتع للأطفال. اسمك آدم. صديق معلّم يشرح بوضوح ويجعل التعلم ممتعاً. كلمات بسيطة، جمل قصيرة، إيموجي. خاطب الولد بـ'يا بطل' والبنت بـ'يا بطلة'. تكلّم العربية دائماً.`;
 
-  type PrewarmItem = { question: string; language: "en" | "ar"; ageGroup: string; gender: "boy" | "girl" };
+  type PrewarmItem = { question: string; language: "en"; ageGroup: string; gender: "boy" | "girl" };
 
   // ── MATH ──────────────────────────────────────────────────────────────────
   const EN_MATH = [
@@ -1016,169 +1016,192 @@ router.post("/admin/prewarm-chat", async (req, res) => {
     "what is camouflage in animals",
   ];
 
-  const EN_QUESTIONS = [...EN_MATH, ...EN_SPACE, ...EN_OCEAN, ...EN_PHYSICS, ...EN_SCIENCE];
-
-  // ── ARABIC: MATH ───────────────────────────────────────────────────────────
-  const AR_MATH = [
-    "كم يساوي 2 ضرب 2", "كم يساوي 3 ضرب 4", "كم يساوي 4 ضرب 5",
-    "كم يساوي 6 ضرب 7", "كم يساوي 7 ضرب 8", "كم يساوي 8 ضرب 9",
-    "كم يساوي 9 ضرب 9", "كم يساوي 11 ضرب 11", "كم يساوي 12 ضرب 12",
-    "كم يساوي 6 ضرب 6", "كم يساوي 5 ضرب 8", "كم يساوي 7 ضرب 6",
-    "كم يساوي 15 زائد 28", "كم يساوي 47 زائد 53", "كم يساوي 100 ناقص 47",
-    "كم يساوي 36 قسمة 6", "كم يساوي 48 قسمة 8", "كم يساوي 144 قسمة 12",
-    "ما هي الكسور", "ما هو البسط في الكسر", "ما هو المقام في الكسر",
-    "كم نصف العدد 20", "كم ربع العدد 40",
-    "ما هو 75 بالمئة من 100", "ما هو 50 بالمئة من 80",
-    "ما هو العدد الأولي", "ما هي الأعداد الأولية الأولى",
-    "ما هي الأرقام الزوجية", "ما هي الأرقام الفردية",
-    "ما هو ترتيب العمليات الحسابية",
-    "ما هو الجبر", "ما هو المتغير في الرياضيات",
-    "كيف تحل المعادلة س زائد 5 يساوي 12",
-    "ما هو الجذر التربيعي", "ما هو الجذر التربيعي للعدد 25",
-    "ما هو الجذر التربيعي للعدد 144",
-    "ما هو مربع العدد", "ما هي الأعداد المربعة",
-    "ما هي مساحة المستطيل", "ما هو محيط الشكل",
-    "ما هي مساحة المثلث",
-    "ما هو العدد باي", "ما هي مساحة الدائرة",
-    "ما هو الزاوية القائمة", "ما هو التماثل في الرياضيات",
-    "ما هو الكسر العشري", "كيف تحول الكسر إلى كسر عشري",
-    "ما هو العدد السالب",
-    "ما الفرق بين الوسط والوسيط والمنوال",
-    "كيف تحسب المتوسط الحسابي لمجموعة أرقام",
+  // ── HISTORY & FAMOUS PEOPLE ───────────────────────────────────────────────
+  const EN_HISTORY = [
+    "who was Albert Einstein", "what did Albert Einstein discover",
+    "who was Isaac Newton", "what did Isaac Newton discover",
+    "who was Marie Curie", "what did Marie Curie discover",
+    "who was Thomas Edison", "what did Thomas Edison invent",
+    "who was Abraham Lincoln", "what is the American Civil War",
+    "who was Leonardo da Vinci", "what did Leonardo da Vinci create",
+    "who was Cleopatra", "who were the ancient Egyptians",
+    "what are the pyramids of Egypt", "why did ancient Egyptians build pyramids",
+    "who were the ancient Greeks", "what is ancient Greece famous for",
+    "who was Alexander the Great",
+    "what was the Roman Empire", "who were the Romans",
+    "what caused World War One", "what caused World War Two",
+    "who was Neil Armstrong", "who was the first person in space",
+    "who was Martin Luther King Jr", "what is the civil rights movement",
+    "who was Nelson Mandela",
+    "what was the Renaissance",
+    "who invented the telephone", "who invented the airplane",
+    "what is the Industrial Revolution",
+    "what was the moon landing",
+    "who was Charles Darwin", "what is the theory of evolution",
+    "what is the magna carta",
+    "who was William Shakespeare",
+    "what was ancient China famous for", "what is the Great Wall of China",
+    "what was the Viking age", "who were the Vikings",
+    "what was the Ottoman Empire",
+    "who was Galileo Galilei",
   ];
 
-  // ── ARABIC: SPACE ──────────────────────────────────────────────────────────
-  const AR_SPACE = [
-    "كم عدد الكواكب في المجموعة الشمسية",
-    "ما هو أكبر كوكب في المجموعة الشمسية",
-    "ما هو أصغر كوكب في المجموعة الشمسية",
-    "ما أقرب كوكب من الشمس", "ما أبعد كوكب عن الشمس",
-    "ما الكوكب الذي نعيش عليه",
-    "ما هو كوكب المريخ", "ما هو كوكب الزهرة", "ما هو كوكب زحل",
-    "من ماذا يتكون القمر", "ما المسافة بين القمر والأرض",
-    "لماذا يتغير شكل القمر كل ليلة",
-    "ما هو النجم", "كيف تنتج الشمس الطاقة",
-    "ما حجم الشمس مقارنة بالأرض",
-    "ما هي المجرة", "ما هي مجرة درب التبانة",
-    "ما هو الثقب الأسود",
-    "ما هو الشهاب", "ما هو المذنب", "ما هو الكويكب",
-    "كيف تعمل الصواريخ الفضائية",
-    "من كان أول إنسان يمشي على القمر",
-    "ما هي الجاذبية وكيف تعمل",
-    "لماذا تلمع النجوم في الليل",
-    "ما هو رائد الفضاء",
-    "ما هي محطة الفضاء الدولية",
-    "كيف يأكل رواد الفضاء في الفضاء",
-    "ما هي السنة الضوئية",
-    "ما هو خسوف القمر", "ما هو كسوف الشمس",
-    "ما الفرق بين النجم والكوكب",
-    "هل يوجد حياة على كواكب أخرى",
-    "ما هي السديم وكيف تتكون النجوم",
+  // ── GEOGRAPHY & WORLD ─────────────────────────────────────────────────────
+  const EN_GEOGRAPHY = [
+    "how many continents are there", "what are the seven continents",
+    "what is the largest continent", "what is the smallest continent",
+    "what is the largest country in the world", "what is the smallest country in the world",
+    "what is the longest river in the world", "what is the deepest lake in the world",
+    "what is the highest mountain in the world", "what is Mount Everest",
+    "what is the Sahara Desert", "what is the Amazon rainforest",
+    "what are the North and South Poles",
+    "what is the Arctic", "what is the Antarctic",
+    "what is the equator", "what are the tropics",
+    "what is the capital of France", "what is the capital of the United States",
+    "what is the capital of Australia", "what is the capital of China",
+    "what is the capital of Brazil", "what is the capital of Japan",
+    "what is the capital of the United Kingdom",
+    "what are the Great Barrier Reef", "where is the Amazon river",
+    "what ocean is the largest", "how many oceans are there",
+    "what is the difference between a country and a continent",
+    "what is a desert", "what is a rainforest", "what is a savanna",
+    "what is the tundra", "what is a glacier",
+    "how does a river form", "what causes a waterfall",
+    "what is the difference between a mountain and a hill",
+    "what is a volcano island",
   ];
 
-  // ── ARABIC: OCEAN ──────────────────────────────────────────────────────────
-  const AR_OCEAN = [
-    "ما هو أكبر حيوان في المحيط",
-    "كيف تتنفس الأسماك تحت الماء",
-    "ما هو الشعاب المرجانية ولماذا هي مهمة",
-    "لماذا ماء البحر مالح",
-    "ما هو أعمق جزء في المحيط",
-    "ما هو التسونامي", "كيف تعمل المد والجزر",
-    "ما هو سمك القرش", "هل القرش خطير على الإنسان",
-    "هل الدلافين تنام", "كيف تتواصل الدلافين",
-    "ما هو الحوت", "كم دقيقة يستطيع الحوت البقاء تحت الماء",
-    "ما هو الحوت الأزرق",
-    "ما هو الأخطبوط", "كم ذراعاً للأخطبوط",
-    "كم ذراعاً لنجم البحر",
-    "ما هو العوالق وما أهميتها",
-    "ما الذي يعيش في أعماق البحار",
-    "ما هي قنديل البحر",
-    "كيف تجد السلاحف البحرية طريقها للبيت",
-    "ما هو فرس البحر", "كيف يلد فرس البحر",
-    "لماذا تقفز الحيتان خارج الماء",
-    "ما هو سمك المهرج", "ما هو سمك الشيطان البحري",
-    "ما هو التألق البيولوجي في البحر",
-    "كيف يمشي السرطان", "ما هو الحبار",
-    "كيف تؤثر المحيطات على الطقس",
-    "ما هو التلوث البحري ولماذا هو خطير",
+  // ── ANIMALS & WILDLIFE ────────────────────────────────────────────────────
+  const EN_ANIMALS = [
+    "what is the fastest animal on land",
+    "what is the tallest animal in the world",
+    "what is the heaviest animal on land",
+    "what do tigers eat", "where do tigers live",
+    "what do elephants eat", "how long do elephants live",
+    "how do penguins survive in the cold",
+    "why do giraffes have long necks",
+    "how do chameleons change color",
+    "what do bears eat", "do bears really hibernate",
+    "how do bats see in the dark", "what is echolocation",
+    "why do dogs wag their tails",
+    "how do cats purr", "why do cats sleep so much",
+    "what is the difference between a frog and a toad",
+    "how do snakes move without legs",
+    "what is the largest bird in the world",
+    "why do birds migrate", "how do birds know which way to fly",
+    "what do cheetahs eat", "how fast can a cheetah run",
+    "what is a carnivore", "what is an herbivore", "what is an omnivore",
+    "how do spiders make webs",
+    "what is a predator", "what is prey",
+    "what is an endangered animal", "why do animals go extinct",
+    "how do ants work together", "why do bees make honey",
+    "what is a mammal", "what makes mammals special",
+    "how do kangaroos carry their babies",
+    "what is a marsupial",
   ];
 
-  // ── ARABIC: PHYSICS ────────────────────────────────────────────────────────
-  const AR_PHYSICS = [
-    "ما هو الضوء", "ما هي سرعة الضوء",
-    "ما هو الصوت", "كيف ينتقل الصوت",
-    "لماذا نسمع الصدى", "ما هي سرعة الصوت",
-    "ما هي الكهرباء", "كيف تعمل المصباح الكهربائي",
-    "كيف يعمل المغناطيس", "ما هو المجال المغناطيسي",
-    "ما هي القوة", "ما هو الاحتكاك",
-    "ما هي الجاذبية وكيف تعمل",
-    "ما هي الطاقة", "ما هي الحرارة",
-    "لماذا يذوب الجليد عندما يدفأ",
-    "كيف تعمل المرايا", "ما هو الانعكاس",
-    "ما هو انكسار الضوء",
-    "كيف يتكون قوس قزح",
-    "لماذا نختبر الليل والنهار",
-    "ما هي الطاقة الحركية", "ما هي الطاقة الكامنة",
-    "ما هي قوانين نيوتن الثلاثة",
-    "ما هي القصور الذاتي",
-    "لماذا تسقط الأشياء على الأرض",
-    "ما هو الضغط", "ما هو الطفو",
-    "لماذا تطفو الأشياء على الماء",
-    "ما الفرق بين الحرارة ودرجة الحرارة",
-    "كيف يعمل الترمومتر",
-    "ما هي حالات المادة الثلاث",
-    "ما هو التبخر", "ما هو التكثف",
-    "ما هي الكهرباء الساكنة", "كيف تعمل البطارية",
+  // ── TECHNOLOGY & COMPUTING ────────────────────────────────────────────────
+  const EN_TECHNOLOGY = [
+    "what is a computer", "how does a computer work",
+    "what is the internet", "how does the internet work",
+    "what is a website", "what is an app",
+    "what is artificial intelligence", "what can AI do",
+    "what is coding", "why is coding important",
+    "what is a robot", "how do robots help people",
+    "what is a smartphone", "how does a touchscreen work",
+    "what is electricity used for in everyday life",
+    "how does a television work", "how does a camera work",
+    "what is satellite technology", "how do GPS systems work",
+    "what is social media", "how do search engines work",
+    "what is virtual reality", "what is augmented reality",
+    "how does a microwave oven work",
+    "what is renewable energy technology",
+    "what is a solar panel", "how do wind turbines work",
+    "what is a password and why is it important",
+    "how do planes stay in the air",
+    "how do electric cars work",
+    "what is a 3D printer",
   ];
 
-  // ── ARABIC: GENERAL SCIENCE ────────────────────────────────────────────────
-  const AR_SCIENCE = [
-    "ما هو التمثيل الضوئي", "كيف تصنع النباتات غذاءها",
-    "لماذا تتغير ألوان الأوراق في الخريف",
-    "ما هي الخلية الحية", "ما هو الحمض النووي DNA",
-    "كم عدد العظام في جسم الإنسان",
-    "كيف يعمل القلب", "كيف ينتقل الدم في الجسم",
-    "كيف نتنفس", "ما الذي تفعله رئتانا",
-    "ما الذي يفعله الدماغ", "لماذا نحتاج إلى النوم",
-    "كيف تعمل العضلات", "ما هو الهضم",
-    "كيف ترى العين", "لماذا لدينا أذنان",
-    "ما هو البركان", "كيف ينفجر البركان",
-    "كيف تحدث الزلازل", "ما هو الصدع الجيولوجي",
-    "ما هو الذرة", "ما هي الجزيئات",
-    "ما هي العناصر الكيميائية", "ما هو الجدول الدوري",
-    "من ماذا يتكون الماء",
-    "ما هي دورة الماء",
-    "ما هو السبات الشتوي عند الحيوانات",
-    "كيف تطير الطيور",
-    "ما هو التحول الكامل عند الحشرات",
-    "كيف تتحول اليرقة إلى فراشة",
-    "ما هي السلسلة الغذائية", "ما هو النظام البيئي",
-    "لماذا الغابات المطيرة مهمة",
-    "ما الذي يسبب الرعد والبرق",
-    "كيف تتكون السحب", "ما هو تغير المناخ",
-    "ما هو المنهج العلمي", "ما هي التجربة العلمية",
-    "ما هو الثدييات", "ما هو الزواحف",
-    "ما هو البرمائيات", "ما هي الحشرات",
-    "كيف تصنع النحل العسل",
-    "ما هو أكبر حيوان بري",
-    "لماذا تختلف ألوان الحيوانات",
-    "ما هو التمويه عند الحيوانات",
+  // ── HUMAN BODY & HEALTH ───────────────────────────────────────────────────
+  const EN_HEALTH = [
+    "why do we need to sleep", "how much sleep do kids need",
+    "why do we need to drink water", "how much water should we drink every day",
+    "why is exercise important for kids", "how does exercise help the brain",
+    "what are vitamins and why do we need them",
+    "what does the immune system do", "how do vaccines work",
+    "why do we get sick", "what are germs",
+    "what is a virus", "what is bacteria",
+    "why do we wash our hands", "how does soap kill germs",
+    "what happens when we eat food", "how long does digestion take",
+    "why do we need to eat vegetables", "why is sugar bad in large amounts",
+    "what is the largest organ in the human body",
+    "how do we grow taller", "what makes bones strong",
+    "why do muscles get sore after exercise",
+    "how does the skin protect us",
+    "what are the five senses", "how does the sense of smell work",
+    "why do we sneeze and cough",
+    "what is the difference between arteries and veins",
+    "how many teeth do humans have",
+    "why do we have two eyes instead of one",
+    "what is a calorie",
   ];
 
-  const AR_QUESTIONS = [...AR_MATH, ...AR_SPACE, ...AR_OCEAN, ...AR_PHYSICS, ...AR_SCIENCE];
+  // ── ENGLISH LANGUAGE ──────────────────────────────────────────────────────
+  const EN_LANGUAGE = [
+    "what is a noun", "what is a verb", "what is an adjective",
+    "what is an adverb", "what is a pronoun", "what is a preposition",
+    "what is a sentence", "what makes a complete sentence",
+    "what is a paragraph", "what is punctuation",
+    "what is a comma used for", "when do we use a full stop",
+    "what is a question mark", "what is an exclamation mark",
+    "what is the difference between a simile and a metaphor",
+    "what is alliteration", "what is rhyme",
+    "what is a synonym", "what is an antonym",
+    "what is a homophone", "can you give me examples of homophones",
+    "what is a compound word", "what is a prefix", "what is a suffix",
+    "what is the past tense", "what is the present tense", "what is the future tense",
+    "what is a conjunction", "what is an article in grammar",
+    "what is a capital letter used for",
+    "what is the difference between fiction and non-fiction",
+    "what is a story plot", "what is a story character",
+    "what is poetry", "what makes a good essay introduction",
+  ];
+
+  // ── ENVIRONMENT & PLANET EARTH ────────────────────────────────────────────
+  const EN_ENVIRONMENT = [
+    "what is climate change and how does it happen",
+    "what is global warming", "why is global warming a problem",
+    "what is the greenhouse effect",
+    "why are rainforests important for the planet",
+    "what is deforestation and why is it harmful",
+    "what is recycling", "why should we recycle",
+    "what is pollution", "what are the types of pollution",
+    "what is air pollution and how does it affect us",
+    "what is water pollution", "how does plastic harm the ocean",
+    "what are fossil fuels", "why are fossil fuels a problem",
+    "what is renewable energy", "what is solar energy",
+    "what is wind energy", "what is hydroelectric energy",
+    "what is a carbon footprint", "how can kids help the environment",
+    "what is an endangered species", "why do animals go extinct",
+    "what is a habitat", "what does it mean when a habitat is destroyed",
+    "what is the ozone layer", "why is the ozone layer important",
+    "what is acid rain", "what causes acid rain",
+    "what is sustainable living",
+    "how does planting trees help the environment",
+  ];
+
+  const EN_QUESTIONS = [
+    ...EN_MATH, ...EN_SPACE, ...EN_OCEAN, ...EN_PHYSICS, ...EN_SCIENCE,
+    ...EN_HISTORY, ...EN_GEOGRAPHY, ...EN_ANIMALS, ...EN_TECHNOLOGY,
+    ...EN_HEALTH, ...EN_LANGUAGE, ...EN_ENVIRONMENT,
+  ];
 
   const items: PrewarmItem[] = [];
   for (const q of EN_QUESTIONS) {
-    for (const ageGroup of ["7-9", "10-12"]) {
+    for (const ageGroup of ["5-6", "7-9", "10-12", "13-15"]) {
       for (const gender of ["boy", "girl"] as const) {
         items.push({ question: q, language: "en", ageGroup, gender });
-      }
-    }
-  }
-  for (const q of AR_QUESTIONS) {
-    for (const ageGroup of ["7-9", "10-12"]) {
-      for (const gender of ["boy", "girl"] as const) {
-        items.push({ question: q, language: "ar", ageGroup, gender });
       }
     }
   }
@@ -1204,9 +1227,7 @@ router.post("/admin/prewarm-chat", async (req, res) => {
     }
 
     try {
-      const systemPrompt = item.language === "en"
-        ? `${SYSTEM_EN}\n\nAge group: ${item.ageGroup}. Adapt to this age.`
-        : `${SYSTEM_AR}\n\nالفئة العمرية: ${item.ageGroup}. تكيّف مع هذا العمر.`;
+      const systemPrompt = `${SYSTEM_EN}\n\nAge group: ${item.ageGroup}. Adapt vocabulary and complexity to this age.`;
 
       const completion = await openaiChat.chat.completions.create({
         model: "gpt-4o-mini",
