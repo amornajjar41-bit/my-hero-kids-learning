@@ -64,13 +64,15 @@ router.post("/safety-alert", async (req, res) => {
 
     // Persist in Supabase
     if (childId) {
-      await supabase.from("safety_alerts").insert({
-        child_id: childId,
-        timestamp,
-        category: alertType ?? "unknown",
-        severity,
-        alert_sent: true,
-      }).catch(() => {});
+      try {
+        await supabase.from("safety_alerts").insert({
+          child_id: childId,
+          timestamp,
+          category: alertType ?? "unknown",
+          severity,
+          alert_sent: true,
+        });
+      } catch { /* non-fatal */ }
     }
 
     // Instant email — does NOT include the exact message text for child privacy
