@@ -4,11 +4,16 @@ const supabaseUrl = process.env["SUPABASE_URL"];
 const supabaseServiceKey = process.env["SUPABASE_SERVICE_KEY"];
 
 if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error("SUPABASE_URL and SUPABASE_SERVICE_KEY must be set");
+  console.error(
+    "[supabase] SUPABASE_URL and SUPABASE_SERVICE_KEY must be set — " +
+    "API calls will fail until these are configured in Vercel environment variables.",
+  );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { persistSession: false },
-});
+export const supabase = createClient(
+  supabaseUrl ?? "https://placeholder.supabase.co",
+  supabaseServiceKey ?? "placeholder-key",
+  { auth: { persistSession: false } },
+);
 
 export type Database = typeof supabase;
