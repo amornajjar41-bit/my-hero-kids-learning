@@ -9,7 +9,7 @@ router.get("/healthz", (_req, res) => {
 router.get("/version", (_req, res) => {
   res.json({
     status: "ok",
-    build: "v5-sync-logger-no-pino-http",
+    build: "v6-zero-dep-logger",
     node: process.version,
     env: process.env.NODE_ENV ?? "unknown",
   });
