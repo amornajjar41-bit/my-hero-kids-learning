@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
 import { supabase } from "../lib/supabase";
-import { directDbAvailable, query } from "../lib/db";
 
 const router: IRouter = Router();
 
@@ -134,19 +133,6 @@ async function tryReloadSchema(): Promise<boolean> {
 }
 
 async function tablesExist(): Promise<boolean> {
-  // ── Direct PostgreSQL path ────────────────────────────────────────────────
-  if (directDbAvailable()) {
-    try {
-      await query("SELECT 1 FROM users LIMIT 1");
-      return true;
-    } catch (err: any) {
-      const msg = (err.message ?? "").toLowerCase();
-      // "does not exist" means the table is genuinely missing
-      return !msg.includes("does not exist") && !msg.includes("relation");
-    }
-  }
-
-  // ── Supabase PostgREST fallback ───────────────────────────────────────────
   const { error } = await supabase.from("users").select("id").limit(1);
   if (!error) return true;
   const msg = (error.message ?? "").toLowerCase();
@@ -173,20 +159,6 @@ async function tablesExist(): Promise<boolean> {
  * write to detect missing columns and log a clear message.
  */
 async function runMigrations(): Promise<void> {
-  if (directDbAvailable()) {
-    // ── Direct PostgreSQL migrations ──────────────────────────────────────────
-    try {
-      await query("ALTER TABLE ai_cache ADD COLUMN IF NOT EXISTS gender text");
-      console.log("[setup] ✅ Migration check: ai_cache.gender column ensured");
-    } catch (err: any) {
-      if (!err.message?.includes("already exists")) {
-        console.warn("[setup] migration warning:", err.message);
-      }
-    }
-    return;
-  }
-
-  // ── Supabase PostgREST fallback ───────────────────────────────────────────
   const { error: probeErr } = await supabase.from("ai_cache").select("gender").limit(1);
   if (probeErr && (probeErr.message ?? "").toLowerCase().includes("gender")) {
     const ok = await tryExecSql("ALTER TABLE ai_cache ADD COLUMN IF NOT EXISTS gender text;");

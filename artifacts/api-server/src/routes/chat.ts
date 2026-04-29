@@ -2,7 +2,6 @@ import { Router, type IRouter } from "express";
 import { createHash } from "crypto";
 import { openaiChat } from "../lib/openai-chat";
 import { supabase } from "../lib/supabase";
-import { directDbAvailable, query, queryOne } from "../lib/db";
 
 const router: IRouter = Router();
 
@@ -280,40 +279,6 @@ async function checkCache(
   gender: "boy" | "girl"
 ): Promise<{ response_text: string; audio_url: string | null } | null> {
   try {
-    if (directDbAvailable()) {
-      // ── Direct PostgreSQL path ──────────────────────────────────────────────
-      const exact = await queryOne<{ response_text: string; audio_url: string | null; created_at: string; hit_count: number }>(
-        `SELECT response_text, audio_url, created_at, hit_count
-         FROM ai_cache
-         WHERE input_hash = $1 AND language = $2 AND gender = $3
-         LIMIT 1`,
-        [inputHash, language, gender]
-      );
-      if (exact) {
-        const age = Date.now() - new Date(exact.created_at).getTime();
-        if (age < 30 * 24 * 60 * 60 * 1000) {
-          void query(`UPDATE ai_cache SET hit_count = hit_count + 1 WHERE input_hash = $1 AND language = $2 AND gender = $3`, [inputHash, language, gender]).catch(() => {});
-          return { response_text: exact.response_text, audio_url: exact.audio_url };
-        }
-      }
-      // Semantic match
-      const candidates = await query<{ input_text: string; response_text: string; audio_url: string | null; created_at: string }>(
-        `SELECT input_text, response_text, audio_url, created_at
-         FROM ai_cache
-         WHERE language = $1 AND gender = $2
-           AND created_at > NOW() - INTERVAL '30 days'
-         ORDER BY created_at DESC LIMIT 1000`,
-        [language, gender]
-      );
-      for (const c of candidates) {
-        if (wordOverlap(normalizedInput, normalizeText(c.input_text ?? "")) >= 0.8) {
-          return { response_text: c.response_text, audio_url: c.audio_url };
-        }
-      }
-      return null;
-    }
-
-    // ── Supabase PostgREST fallback ─────────────────────────────────────────
     const { data: exact, error: exactErr } = await supabase
       .from("ai_cache")
       .select("response_text, audio_url, created_at, hit_count")
@@ -381,20 +346,6 @@ async function saveCache(
   gender: "boy" | "girl"
 ): Promise<void> {
   try {
-    if (directDbAvailable()) {
-      await query(
-        `INSERT INTO ai_cache (input_hash, input_text, response_text, language, gender, hit_count, created_at)
-         VALUES ($1, $2, $3, $4, $5, 0, NOW())
-         ON CONFLICT (input_hash, language) DO UPDATE SET
-           response_text = EXCLUDED.response_text,
-           input_text    = EXCLUDED.input_text,
-           gender        = EXCLUDED.gender,
-           created_at    = NOW()`,
-        [inputHash, inputText, responseText, language, gender]
-      );
-      return;
-    }
-    // Supabase PostgREST fallback
     const { error } = await supabase
       .from("ai_cache")
       .upsert(

@@ -9,7 +9,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { createHash } from "crypto";
 import { supabase } from "../lib/supabase";
-import { directDbAvailable, query, queryOne } from "../lib/db";
 import { openaiChat } from "../lib/openai-chat";
 
 const router: IRouter = Router();
@@ -22,7 +21,6 @@ type LangCode = "en" | "ar";
 const LESSON_LANG_EN: LangCode = "en";
 const LESSON_LANG_AR: LangCode = "ar";
 const STORY_LANG_EN: LangCode  = "en";
-const STORY_LANG_AR: LangCode  = "ar";
 
 // Story voice params: Neural2-F for EN (warm, natural) | Wavenet-A for AR (warm, natural Arabic female)
 const STORY_VOICE_EN = { languageCode: "en-US", name: "en-US-Neural2-F", ssmlGender: "FEMALE" as const };
@@ -301,87 +299,7 @@ const LESSON_WORDS: WordItem[] = [
 type StorySentence = { storyId: string; index: number; text: string; lang: LangCode; rate: string; pitch: string };
 
 const STORY_SENTENCES: StorySentence[] = [
-  // Story 1 — Arabic: الولد الذي لم يتوقف
-  ...([
-    "كان ياسر طفلاً في الثامنة من عمره، يعشق اختراع الأشياء من قطع الخشب والأسلاك القديمة.",
-    "حلمه الكبير كان أن يصنع مروحة صغيرة تعمل بدون كهرباء.",
-    "كل يوم بعد المدرسة، جلس في الحديقة أمامه صندوق المواد: قطع خشب، وبكرات خيط، وزجاجات فارغة.",
-    "المحاولة الأولى فشلت. والثانية. والثالثة. والرابعة.",
-    "قال له أصدقاؤه ذات مرة: هذا مستحيل يا ياسر. استسلم!",
-    "لكن ياسر ابتسم وقال: كل مرة أفشل فيها، أتعلم شيئاً جديداً لم أكن أعرفه.",
-    "في المحاولة التاسعة، غيّر شكل الأجنحة وأضاف ثقلاً صغيراً في المركز.",
-    "حين أمسك بها وأطلقها في الهواء، دارت ببطء، ثم بسرعة أكبر، ثم طارت!",
-    "صاح ياسر بفرح حتى سمعه الجيران، وركض أبوه إلى الحديقة ليرى ما حدث.",
-    "قال أبوه بفخر: أنت لم تنجح في المحاولة الأولى، نجحت في التاسعة. هذه هي قيمة الصبر الحقيقية.",
-    "في تلك الليلة، كتب ياسر في دفتره بأكبر خط يستطيع: الصبر يفتح الأبواب المغلقة.",
-    "وعندما كبر، أصبح مهندساً اخترع أشياء ساعدت آلاف الأطفال في بلده.",
-    "وكل اختراع في حياته بدأ بنفس الطريقة: فكرة، وفشل، وعودة من جديد.",
-  ].map((text, index) => ({ storyId: "1", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 2 — Arabic: بذرة الأمل
-  ...([
-    "في يوم حار جداً، وجدت سارة بذرة صغيرة في قلب أرض جافة وقاحلة.",
-    "قالت لها أختها الكبيرة: هذه الأرض ميتة يا سارة، لن ينبت فيها شيء.",
-    "لكن سارة حملت البذرة بعناية، وزرعتها بيديها الصغيرتين في ركن قريب من مجرى ماء قديم.",
-    "كل صباح، قبل المدرسة، جلبت كوباً من الماء وسقت البذرة بهدوء.",
-    "مرت ثلاثة أسابيع كاملة بلا أي علامة على النمو.",
-    "بكت سارة يوماً واحداً فقط، ثم قالت: ربما تحتاج البذرة وقتاً أطول.",
-    "في الأسبوع الرابع، ظهر شيء أخضر صغير يشق التراب برفق.",
-    "كل يوم كان ينمو أكثر، حتى أصبح شجيرة صغيرة تلقي ظلاً لطيفاً على الأرض.",
-    "جاءت الطيور، ثم الفراشات، ثم الأطفال يجلسون في ظلها.",
-    "قالت الأخت الكبيرة بدهشة: كنت مخطئة تماماً يا سارة.",
-    "ابتسمت سارة وقالت: الأرض لم تكن ميتة يا أختي. كانت تنتظر من يصدق بها.",
-    "وعلمت سارة في ذلك اليوم درساً لم تنسه طول حياتها:",
-    "كل شيء عظيم في هذا العالم بدأ بشيء صغير جداً، وبقلب لا يستسلم.",
-  ].map((text, index) => ({ storyId: "2", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 3 — Arabic: النهر والطفل
-  ...([
-    "كان النهر الذي تحبه مريم يوماً مليئاً بالأسماك والأزهار والصوت الجميل.",
-    "لكن في صيف عامها العاشر، لاحظت مريم أن قمامة كثيرة تراكمت على ضفته.",
-    "الأسماك أصبحت قليلة، والطيور توقفت عن المجيء، والماء أصبح معتماً وحزيناً.",
-    "قالت لأمها: النهر مريض يا أمي. ماذا يمكنني أن أفعل؟",
-    "قالت أمها بحنان: أنت صغيرة يا مريم. ما الذي يستطيع طفل أن يفعله؟",
-    "لم تقبل مريم هذه الإجابة.",
-    "في صباح السبت التالي، جاءت بقفازات وأكياس وبدأت تنظف الضفة وحدها.",
-    "بعد ساعة، انضم صديقها كريم. ثم جارتها ليلى. ثم والد كريم. ثم مزيد من الناس.",
-    "بنهاية ذلك اليوم، كان هناك خمسة وعشرون شخصاً يعملون معاً بسعادة.",
-    "في الأسبوع التالي، عادت أولى الطيور. وفي الشهر التالي، عادت الأسماك.",
-    "قال والد كريم لمريم: أنتِ لم تنتظري أحداً يأذن لك بإصلاح ما كان مكسوراً.",
-    "ابتسمت مريم ونظرت إلى النهر وهو يعود ليغني من جديد.",
-    "وأدركت: يكفي أن تبدأ أنت لكي يتحرك العالم من حولك.",
-  ].map((text, index) => ({ storyId: "3", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 4 — Arabic: طريق النجوم
-  ...([
-    "كان تامر طفلاً لا ينام في الليل بسهولة، لأن رأسه كان دائماً مليئاً بالأسئلة.",
-    "في ليلة صافية جميلة، جلس مع أمه على السطح ونظرا معاً إلى السماء.",
-    "سأل تامر: أمي، كم عدد النجوم في السماء؟",
-    "قالت أمه: هذا سؤال عظيم. حتى العلماء لا يعرفون الإجابة الكاملة.",
-    "تعجب تامر: حتى العلماء؟",
-    "قالت أمه: يقدّرون أن في مجرتنا وحدها أكثر من مئتي مليار نجم. والمجرات كثيرة جداً لا تُعد.",
-    "شعر تامر بشيء غريب جميل في صدره، كأن العالم أكبر بكثير مما تخيّل.",
-    "سأل: هل النجوم التي نراها موجودة الآن؟",
-    "قالت أمه: ليس بالضرورة. الضوء يسافر سنوات طويلة ليصلنا. بعض النجوم التي نراها ماتت منذ آلاف السنين. أنت تنظر إلى الماضي.",
-    "صمت تامر طويلاً وهو يفكر، ثم قال: أريد أن أكون عالماً يدرس النجوم.",
-    "قالت أمه بابتسامة: إذن ابدأ الليلة. كل سؤال تسأله هو خطوة نحو ذلك.",
-    "نام تامر تلك الليلة وهو يبتسم، وعيناه ما زالتا تريان النجوم.",
-    "وعلم أن الفضول وحده هو أول خطوة في كل اكتشاف عظيم.",
-  ].map((text, index) => ({ storyId: "4", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 5 — Arabic: الكتاب المفتوح
-  ...([
-    "كان جد نور يجلس كل مساء في كرسيه القديم بجانب النافذة ويقرأ بهدوء.",
-    "سألته نور وهي في السابعة من عمرها: جدي، لماذا تقرأ دائماً؟",
-    "وضع الجد كتابه وابتسم لها.",
-    "قال: لأن كل كتاب باب.",
-    "قالت نور باهتمام: باب إلى أين؟",
-    "قال: إلى أماكن لن تصلي إليها بقدميك. إلى أفكار لن تفكريها وحدك. إلى حكمة ناس عاشوا قبلنا بآلاف السنين وتركوها لنا هدية.",
-    "أمسكت نور بكتاب صغير من الرف وبدأت تقرأ ببطء.",
-    "بعد صفحات قليلة، نسيت الغرفة. نسيت الوقت. رأت الجبال والأنهار والشخصيات كأنها أمامها.",
-    "حين أغلقت الكتاب، سألها جدها: أين كنتِ يا نور؟",
-    "ضحكت وقالت: كنت في الجبال يا جدي!",
-    "قال الجد بهدوء: هذا هو السر. القارئ لا يعيش حياة واحدة، يعيش مئات الحيوات.",
-    "منذ تلك الليلة، أصبحت نور تقرأ كل يوم. في كل كتاب، فتحت باباً جديداً على عالم لم تكن تعرفه.",
-    "وأدركت أن الكلمات التي تقرأها اليوم تصنع الإنسان الذي ستصبحه غداً.",
-  ].map((text, index) => ({ storyId: "5", index, text, lang: STORY_LANG_AR, rate: "-18%", pitch: "-2st" }))),
-  // Story 6 — English: The Girl Who Never Stopped Trying
+  // Story 1 — English: The Girl Who Never Stopped Trying
   ...([
     "Layla was eight years old, and she had one big dream: to make a light bulb glow using only a lemon from her grandmother's garden.",
     "Every afternoon after school, she spread her notebook on the kitchen table, lined up her copper clips and wires, and placed three lemons in a row.",
@@ -397,8 +315,8 @@ const STORY_SENTENCES: StorySentence[] = [
     "That night, Layla wrote on the very last page of her notebook in the biggest letters she could: Every mistake is a step closer to your answer.",
     "She kept learning — about batteries, circuits, and solar energy. She won three science competitions.",
     "Many years later, Layla led a team of engineers who brought electricity to twelve villages in the desert, where children finally did their homework under electric light — and on her desk, she always kept that small lemon notebook to remind herself that great things never come easy, but everything worth doing is worth trying one more time.",
-  ].map((text, index) => ({ storyId: "6", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
-  // Story 7 — English: The Boy Who Talked to Trees
+  ].map((text, index) => ({ storyId: "1", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 2 — English: The Boy Who Talked to Trees
   ...([
     "Idris was ten years old and had a habit that made his classmates laugh: he talked to trees.",
     "Every morning on his way to school, he stopped at the oldest oak in the neighborhood, placed his hand on its bark, and said: Good morning. Are you growing today?",
@@ -413,8 +331,8 @@ const STORY_SENTENCES: StorySentence[] = [
     "Idris's mother asked him: How did you know what to do?",
     "He said: I learned it from the tree. It stood there for sixty years, quietly giving shade and clean air to everyone, without ever asking for anything. I just tried to do the same.",
     "And that day, Idris understood something he would carry his whole life: the earth is always listening — and it is up to us to listen back.",
-  ].map((text, index) => ({ storyId: "7", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
-  // Story 8 — English: Two Seeds in the Same Garden
+  ].map((text, index) => ({ storyId: "2", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 3 — English: Two Seeds in the Same Garden
   ...([
     "Maya and Rowan were neighbors and best friends, but they argued about one thing: whose garden vegetables grew better.",
     "Maya's family planted tomatoes, and Rowan's family planted cucumbers, and every summer both families competed to grow the most beautiful harvest.",
@@ -429,8 +347,8 @@ const STORY_SENTENCES: StorySentence[] = [
     "By the end of summer, both gardens were the most productive they had ever been.",
     "Their parents stood looking at the harvest in amazement. Maya's mother said quietly: They did better together than we ever did apart.",
     "Maya and Rowan smiled at each other across the fence and understood what the garden had been showing them all along: when you help someone else grow, you always grow too.",
-  ].map((text, index) => ({ storyId: "8", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
-  // Story 9 — English: The Star Keeper's Question
+  ].map((text, index) => ({ storyId: "3", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 4 — English: The Star Keeper's Question
   ...([
     "Nora could not sleep. Every night she lay in bed staring at the ceiling, full of questions she could not stop thinking about.",
     "One night her father found her at the window with her face pressed against the glass, looking up at the sky.",
@@ -445,8 +363,8 @@ const STORY_SENTENCES: StorySentence[] = [
     "That night, Nora started a notebook. On the first page she wrote: Things I want to understand. And she filled the first page completely before she fell asleep.",
     "She grew up to become a scientist who studied distant galaxies. On her first published paper, she wrote in the dedication: To every child who ever stared at the sky and wondered.",
     "And every single night before sleep, she still asked one more question — because she knew that was exactly where everything important begins.",
-  ].map((text, index) => ({ storyId: "9", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
-  // Story 10 — English: The Last Bee
+  ].map((text, index) => ({ storyId: "4", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 5 — English: The Last Bee
   ...([
     "One warm spring morning, Amira noticed that the apple tree in her grandfather's orchard had not bloomed for two years in a row.",
     "Her grandfather said with a sad voice: There are no more bees here, Amira. Without bees, the flowers cannot become fruit.",
@@ -461,6 +379,90 @@ const STORY_SENTENCES: StorySentence[] = [
     "The following spring, for the first time in two years, the apple tree burst into white blossoms, beautiful and full.",
     "Her grandfather stood under the blossoming tree with tears in his eyes. You brought it back, he said softly.",
     "Amira watched the bees moving busily from flower to flower and understood something she would never forget: every living creature holds the world together — and every single one deserves a place to belong.",
+  ].map((text, index) => ({ storyId: "5", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 6 — English: The Boy Who Never Stopped
+  ...([
+    "Yusuf was eight years old and loved inventing things from old wood and broken wires.",
+    "His biggest dream was to build a small fan that worked without electricity.",
+    "Every day after school, he sat in the garden with a box of materials: wood pieces, spools of thread, and empty bottles.",
+    "The first attempt failed. So did the second. And the third. And the fourth.",
+    "His friends told him once: This is impossible, Yusuf. Just give up!",
+    "But Yusuf smiled and said: Every time I fail, I learn something new that I did not know before.",
+    "On his ninth attempt, he changed the shape of the blades and added a small weight in the center.",
+    "When he held it up and released it into the air, it spun slowly — then faster — then flew!",
+    "Yusuf shouted with joy so loudly that the neighbors heard, and his father ran into the garden to see what had happened.",
+    "His father said proudly: You did not succeed on the first try. You succeeded on the ninth. That is the real value of patience.",
+    "That night, Yusuf wrote in his notebook in the biggest letters he could: Patience opens every locked door.",
+    "When he grew up, he became an engineer who invented things that helped thousands of children in his country.",
+    "And every invention in his life started the same way: an idea, a failure, and a return to try again.",
+  ].map((text, index) => ({ storyId: "6", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 7 — English: The Seed of Hope
+  ...([
+    "On a very hot day, Sara found a tiny seed in the heart of a dry and barren patch of land.",
+    "Her older sister said: This ground is dead, Sara. Nothing will grow here.",
+    "But Sara carefully carried the seed and planted it with her small hands near an old stream.",
+    "Every morning, before school, she brought a cup of water and quietly gave the seed a drink.",
+    "Three full weeks passed with no sign of growth.",
+    "Sara cried for just one day — then said: Maybe the seed just needs more time.",
+    "In the fourth week, something small and green pushed gently through the soil.",
+    "Each day it grew more, until it became a small bush casting a gentle shadow over the ground.",
+    "The birds came first. Then the butterflies. Then the children, sitting in its shade.",
+    "Her older sister said in amazement: I was completely wrong, Sara.",
+    "Sara smiled and said: The ground was not dead. It was just waiting for someone who believed in it.",
+    "And Sara learned that day a lesson she never forgot:",
+    "Every great thing in this world began as something very small — and a heart that refuses to give up.",
+  ].map((text, index) => ({ storyId: "7", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 8 — English: The Village Without Rain
+  ...([
+    "For three summers in a row, no rain fell on the small mountain village of Briar.",
+    "The well ran dry. The gardens turned to dust. And the people grew worried and quiet.",
+    "A young girl named Elara decided she would not wait for rain. She would find water.",
+    "She climbed the rocky hills every day for a week, following the path of dry river beds and cracked earth.",
+    "High up in the hills, behind a wall of stone, she discovered a hidden spring — cold, clear, and full.",
+    "But the spring was too far for the villagers to carry water every day.",
+    "Elara thought carefully. She built a small channel from stones and clay — just a tiny one, barely as wide as her hand.",
+    "She worked every morning for two weeks, adding stones, sealing gaps, guiding the water down the hillside.",
+    "The first trickle reached the village on a Tuesday afternoon.",
+    "By the end of the week, a steady stream flowed into the dry well, and it began slowly to fill.",
+    "The villagers gathered around in silence — and then erupted in cheering so loud the birds flew from the trees.",
+    "The elder held Elara's hands and asked: How did you do this?",
+    "She said simply: I did not do it alone. The hill had the spring. The stones made the path. I just believed the water wanted to reach us.",
+    "And that year, the gardens of Briar bloomed more beautifully than anyone could remember.",
+  ].map((text, index) => ({ storyId: "8", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 9 — English: The Library That No One Used
+  ...([
+    "At the end of a small street stood a library that no one visited anymore.",
+    "The shelves were full of books. The lights still worked. But the chairs were always empty.",
+    "A boy named Finn walked past it every day and always looked away — books seemed boring and old.",
+    "One rainy afternoon, with nowhere else to go, he pushed open the heavy door and stepped inside.",
+    "The librarian looked up from behind a tall stack of books and said: Welcome. What do you love?",
+    "Finn shrugged. Nothing, he said.",
+    "The librarian was quiet for a moment. Then she walked across the room and placed a single book in his hands.",
+    "This one, she said. Just read the first page.",
+    "Finn read the first page. Then the second. Then he sat down without noticing he was sitting.",
+    "Two hours later, he was still reading — in a story about a boy who discovered a secret island full of animals that could speak.",
+    "When he finally looked up, the rain had stopped, the sun was low, and the library was about to close.",
+    "He borrowed the book and came back the next day — and the day after that.",
+    "By the end of the year, Finn had read thirty-one books. He started a reading club at his school.",
+    "Twelve children joined. Then twenty-five. The library chairs were never empty again.",
+    "Finn learned that a reader lives a hundred lives — and a person who never reads lives only one.",
+  ].map((text, index) => ({ storyId: "9", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
+  // Story 10 — English: The Youngest Inventor
+  ...([
+    "At just nine years old, Zara decided she was going to invent something that would help people.",
+    "She did not know what yet. She just knew she had to try.",
+    "She started carrying a notebook everywhere — to school, to the park, to the dinner table.",
+    "Whenever she saw a problem, she wrote it down. A broken streetlight. A slippery ramp at the library. A garden hose that kept kinking.",
+    "Her list grew to fifty-three problems before she found the one that felt right.",
+    "The problem: her grandmother's arthritis made it painful to open medicine bottles every morning.",
+    "Zara spent four months designing a simple handle that could be attached to any bottle cap, making it easier to grip and turn.",
+    "She used cardboard, then rubber, then a combination of both — testing and failing and adjusting every week.",
+    "She entered her invention in the school science fair — the youngest participant by three years.",
+    "The judges asked her: How did a nine-year-old come up with this?",
+    "She said: My grandmother needed it. That was enough reason.",
+    "Zara did not win first place. She won second. But she was already working on version two of her design before she got home.",
+    "Her grandmother wore the handle every morning and said: You solved the hardest part of my day.",
+    "And Zara understood at last what she had suspected all along: age is never a reason not to try.",
   ].map((text, index) => ({ storyId: "10", index, text, lang: STORY_LANG_EN, rate: "-18%", pitch: "-1st" }))),
 ];
 
@@ -696,11 +698,6 @@ function sseWrite(res: Response, data: object) {
 // ── Routes ────────────────────────────────────────────────────────────────────
 router.get("/admin/status", async (_req, res) => {
   try {
-    if (directDbAvailable()) {
-      const la = await queryOne<{ value: string }>("SELECT value FROM app_settings WHERE key = 'lessons_audio_generated'");
-      const sg = await queryOne<{ value: string }>("SELECT value FROM app_settings WHERE key = 'stories_generated'");
-      return res.json({ lessonsAudioGenerated: la?.value === "true", storiesGenerated: sg?.value === "true" });
-    }
     const { data } = await supabase.from("app_settings").select("value").eq("key", "lessons_audio_generated").maybeSingle();
     const { data: sd } = await supabase.from("app_settings").select("value").eq("key", "stories_generated").maybeSingle();
     return res.json({ lessonsAudioGenerated: data?.value === "true", storiesGenerated: sd?.value === "true" });
@@ -732,11 +729,7 @@ router.post("/admin/generate-lesson-audio", async (req, res) => {
   });
 
   try {
-    if (directDbAvailable()) {
-      await query("INSERT INTO app_settings(key,value) VALUES('lessons_audio_generated','true') ON CONFLICT(key) DO UPDATE SET value='true'");
-    } else {
-      await supabase.from("app_settings").upsert({ key: "lessons_audio_generated", value: "true" }, { onConflict: "key" });
-    }
+    await supabase.from("app_settings").upsert({ key: "lessons_audio_generated", value: "true" }, { onConflict: "key" });
   } catch { /* best effort */ }
 
   sseWrite(res, { progress: total, total, done: true, message: "All lesson and game audio generated!" });
@@ -768,43 +761,18 @@ router.post("/admin/reload-schema", async (_req, res) => {
 // GET /api/admin/db-test
 router.get("/admin/db-test", async (_req, res) => {
   const results: Record<string, { read: boolean; write: boolean; error?: string }> = {};
-  const mode = directDbAvailable() ? "direct-pg" : "supabase-rest";
 
-  if (directDbAvailable()) {
-    // ── Direct PostgreSQL path ─────────────────────────────────────────────
-    for (const table of ["ai_cache", "curriculum_cache", "app_settings", "users"] as const) {
-      try {
-        await query(`SELECT 1 FROM ${table} LIMIT 1`);
-        // Test write on ai_cache only
-        if (table === "ai_cache") {
-          await query(
-            `INSERT INTO ai_cache(input_hash,input_text,response_text,language,gender,hit_count)
-             VALUES('_probe_','t','t','en','boy',0)
-             ON CONFLICT(input_hash,language) DO UPDATE SET response_text='t'`
-          );
-          await query(`DELETE FROM ai_cache WHERE input_hash='_probe_'`);
-          results[table] = { read: true, write: true };
-        } else {
-          results[table] = { read: true, write: true };
-        }
-      } catch (e: any) {
-        results[table] = { read: false, write: false, error: e.message };
-      }
-    }
-  } else {
-    // ── Supabase PostgREST path ────────────────────────────────────────────
-    for (const table of ["ai_cache", "curriculum_cache", "app_settings", "users"] as const) {
-      try {
-        const { error } = await supabase.from(table).select("*").limit(1);
-        results[table] = { read: !error, write: false, error: error?.message };
-      } catch (e: any) {
-        results[table] = { read: false, write: false, error: e.message };
-      }
+  for (const table of ["ai_cache", "curriculum_cache", "app_settings", "users"] as const) {
+    try {
+      const { error } = await supabase.from(table).select("*").limit(1);
+      results[table] = { read: !error, write: false, error: error?.message };
+    } catch (e: any) {
+      results[table] = { read: false, write: false, error: e.message };
     }
   }
 
-  const allOk = Object.values(results).every(r => r.read && r.write);
-  res.json({ ok: allOk, mode, tables: results });
+  const allOk = Object.values(results).every(r => r.read);
+  res.json({ ok: allOk, mode: "supabase-rest", tables: results });
 });
 
 router.post("/admin/generate-stories", async (req, res) => {
@@ -826,11 +794,7 @@ router.post("/admin/generate-stories", async (req, res) => {
   });
 
   try {
-    if (directDbAvailable()) {
-      await query("INSERT INTO app_settings(key,value) VALUES('stories_generated','true') ON CONFLICT(key) DO UPDATE SET value='true'");
-    } else {
-      await supabase.from("app_settings").upsert({ key: "stories_generated", value: "true" }, { onConflict: "key" });
-    }
+    await supabase.from("app_settings").upsert({ key: "stories_generated", value: "true" }, { onConflict: "key" });
   } catch { /* best effort */ }
 
   sseWrite(res, { progress: total, total, done: true, message: "All story audio generated!" });
@@ -1218,13 +1182,9 @@ router.post("/admin/prewarm-chat", async (req, res) => {
     const hash = makeHash(norm, item.language, item.ageGroup, item.gender);
 
     // Skip if already cached
-    if (directDbAvailable()) {
-      const existing = await queryOne<{ id: number }>(
-        "SELECT id FROM ai_cache WHERE input_hash = $1 AND language = $2 AND gender = $3 LIMIT 1",
-        [hash, item.language, item.gender]
-      ).catch(() => null);
-      if (existing) { done++; skipped++; return; }
-    }
+    const { data: existing } = await supabase.from("ai_cache")
+      .select("id").eq("input_hash", hash).eq("language", item.language).eq("gender", item.gender).maybeSingle();
+    if (existing) { done++; skipped++; return; }
 
     try {
       const systemPrompt = `${SYSTEM_EN}\n\nAge group: ${item.ageGroup}. Adapt vocabulary and complexity to this age.`;
@@ -1241,19 +1201,10 @@ router.post("/admin/prewarm-chat", async (req, res) => {
       const reply = completion.choices[0]?.message?.content?.trim() ?? "";
       if (!reply) { done++; return; }
 
-      if (directDbAvailable()) {
-        await query(
-          `INSERT INTO ai_cache(input_hash,input_text,response_text,language,gender,hit_count)
-           VALUES($1,$2,$3,$4,$5,0)
-           ON CONFLICT(input_hash,language) DO NOTHING`,
-          [hash, item.question, reply, item.language, item.gender]
-        ).catch(() => {});
-      } else {
-        await supabase.from("ai_cache").upsert(
-          { input_hash: hash, input_text: item.question, response_text: reply, language: item.language, gender: item.gender, hit_count: 0 },
-          { onConflict: "input_hash,language" }
-        );
-      }
+      await supabase.from("ai_cache").upsert(
+        { input_hash: hash, input_text: item.question, response_text: reply, language: item.language, gender: item.gender, hit_count: 0 },
+        { onConflict: "input_hash,language" }
+      );
       saved++;
     } catch { /* skip on API error */ }
 

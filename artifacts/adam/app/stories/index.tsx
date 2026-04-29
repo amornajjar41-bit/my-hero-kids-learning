@@ -6,17 +6,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { SoftCard } from "@/components/SoftCard";
 import { useColors } from "@/hooks/useColors";
-import { useLang } from "@/hooks/useT";
 import { STORIES, type Story } from "@/constants/stories";
 import { setCurrentStoryId } from "@/lib/storyStore";
 
-type StoryCardProps = {
-  story: Story;
-  lang: "en" | "ar";
-  onPress: () => void;
-};
-
-function StoryCard({ story, lang, onPress }: StoryCardProps) {
+function StoryCard({ story, onPress }: { story: Story; onPress: () => void }) {
   const c = useColors();
   return (
     <Pressable
@@ -28,16 +21,16 @@ function StoryCard({ story, lang, onPress }: StoryCardProps) {
           <Text style={{ fontSize: 44 }}>{story.emoji}</Text>
           <View style={{ flex: 1 }}>
             <Text style={{ fontWeight: "800", fontSize: 16, color: c.text }}>
-              {lang === "ar" ? story.titleAr : story.titleEn}
+              {story.titleEn}
             </Text>
             <Text
               style={{ color: c.mutedForeground, fontSize: 12, marginTop: 2 }}
               numberOfLines={2}
             >
-              {lang === "ar" ? story.moral.ar : story.moral.en}
+              {story.moral}
             </Text>
             <Text style={{ color: c.mutedForeground, fontSize: 11, marginTop: 4 }}>
-              🎵 {story.sentences.length} {lang === "ar" ? "مقاطع" : "parts"}
+              🎵 {story.sentences.length} parts
             </Text>
           </View>
           <Ionicons name="play-circle" size={32} color={c.primary} />
@@ -50,16 +43,6 @@ function StoryCard({ story, lang, onPress }: StoryCardProps) {
 export default function StoriesIndex() {
   const c = useColors();
   const router = useRouter();
-  const lang = useLang();
-
-  const userLangStories = STORIES.filter((s) => s.lang === lang);
-  const otherLangStories = STORIES.filter((s) => s.lang !== lang);
-  const otherLang = lang === "ar" ? "en" : "ar";
-
-  const groupLabel = (l: "en" | "ar") =>
-    l === "ar"
-      ? (lang === "ar" ? "قصص عربية 🌙" : "Arabic Stories 🌙")
-      : (lang === "ar" ? "قصص إنجليزية ⭐" : "English Stories ⭐");
 
   function handleStoryPress(story: Story) {
     setCurrentStoryId(story.id);
@@ -80,43 +63,21 @@ export default function StoriesIndex() {
           <Ionicons name="arrow-back" size={20} color={c.text} />
         </Pressable>
         <Text style={{ fontWeight: "800", fontSize: 22, color: c.text, flex: 1 }}>
-          🌙 {lang === "ar" ? "قصص ما قبل النوم" : "Bedtime Stories"}
+          🌙 Bedtime Stories
         </Text>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 18, gap: 12 }}>
-        <Text style={{
-          fontWeight: "800", fontSize: 14, color: c.primary,
-          textAlign: lang === "ar" ? "right" : "left",
-          marginBottom: 4,
-        }}>
-          {groupLabel(lang as "en" | "ar")}
+        <Text style={{ fontWeight: "800", fontSize: 14, color: c.primary, marginBottom: 4 }}>
+          English Stories ⭐
         </Text>
-        {userLangStories.map((s) => (
+        {STORIES.map((s) => (
           <StoryCard
             key={s.id}
             story={s}
-            lang={lang as "en" | "ar"}
             onPress={() => handleStoryPress(s)}
           />
         ))}
-
-        <Text style={{
-          fontWeight: "800", fontSize: 14, color: c.mutedForeground,
-          textAlign: lang === "ar" ? "right" : "left",
-          marginTop: 8, marginBottom: 4,
-        }}>
-          {groupLabel(otherLang)}
-        </Text>
-        {otherLangStories.map((s) => (
-          <StoryCard
-            key={s.id}
-            story={s}
-            lang={lang as "en" | "ar"}
-            onPress={() => handleStoryPress(s)}
-          />
-        ))}
-
         <View style={{ height: 20 }} />
       </ScrollView>
     </SafeAreaView>
