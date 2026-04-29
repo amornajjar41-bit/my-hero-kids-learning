@@ -213,8 +213,8 @@ export const t = {
   // Voice tutorial
   voiceTutorialTitle: { en: "Your voice is my superpower! 🎤", ar: "صوتك قوتي الخارقة! 🎤" },
   voiceTutorialBody: {
-    en: "See the big orange button? Hold it and ask me ANYTHING — math, English, Arabic, anything! I'm all ears! 🦸",
-    ar: "شايف الزر البرتقالي الكبير؟ اضغط عليه وسألني أي شي — رياضيات، إنجليزي، عربي، أي شي! أنا كلي آذان! 🦸",
+    en: "See the big orange button? Hold it and ask me ANYTHING — maths, science, English, anything! I'm all ears! 🦸",
+    ar: "شايف الزر البرتقالي الكبير؟ اضغط عليه وسألني أي شي — رياضيات، علوم، إنجليزي، أي شي! أنا كلي آذان! 🦸",
   },
   voiceTutorialGo: { en: "Got it! Let's go! 🚀", ar: "فهمت! يلا نبدأ! 🚀" },
   holdToTalk: { en: "Hold to talk 🎤", ar: "اضغط وحكي 🎤" },
