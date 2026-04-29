@@ -756,10 +756,9 @@ export default function Chat() {
         // Try device STT first — free (Apple on iOS, Google on Android)
         const available = ExpoSpeechRecognitionModule.isRecognitionAvailable();
         if (available) {
-          const bcp47 = lang === "ar" ? "ar-SA" : "en-US";
           await ExpoSpeechRecognitionModule.requestPermissionsAsync();
           deviceSttActive.current = true;
-          ExpoSpeechRecognitionModule.start({ lang: bcp47, interimResults: false, continuous: false });
+          ExpoSpeechRecognitionModule.start({ lang: "en-US", interimResults: false, continuous: false });
         } else {
           // Fallback: record audio and send to Whisper on server
           await nativeStartRecording();

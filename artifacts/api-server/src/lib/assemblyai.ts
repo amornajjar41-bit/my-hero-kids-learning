@@ -42,11 +42,11 @@ export async function transcribeAudio(
 
   const { upload_url } = (await uploadRes.json()) as { upload_url: string };
 
-  // 2. Submit transcription — universal-3-pro for best accuracy
+  // 2. Submit transcription — universal-3-pro, English only
   const body: Record<string, unknown> = {
     audio_url: upload_url,
     speech_models: ["universal-3-pro"],
-    language_code: language === "ar" ? "ar" : "en",
+    language_code: "en",
     punctuate: true,
     format_text: true,
     disfluencies: false,
