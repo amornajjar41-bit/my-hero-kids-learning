@@ -32,4 +32,16 @@ app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
 app.use("/api", router);
 
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  const msg = err instanceof Error ? err.message : String(err);
+  logger.error({ err: msg }, "unhandled error");
+  if (!res.headersSent) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default app;
