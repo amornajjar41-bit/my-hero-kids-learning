@@ -7,7 +7,6 @@
  *  3. Fallback             — empty string (relative URLs, dev/web)
  */
 
-import { setBaseUrl } from "@workspace/api-client-react";
 import { getSessionToken } from "@/lib/auth";
 
 /** Production API base — always https://myheroapp.org for store builds */
@@ -18,8 +17,7 @@ let initialized = false;
 export function ensureApiBaseUrl() {
   if (initialized) return;
   initialized = true;
-  const base = resolveApiBase();
-  if (base) setBaseUrl(base);
+  // Base URL is resolved per-call in resolveApiBase() — nothing extra needed here.
 }
 
 function resolveApiBase(): string {
