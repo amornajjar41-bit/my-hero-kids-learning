@@ -64,7 +64,7 @@ export default function StoryReader() {
     await playPreloaded(path, () => speakEdgeStory(story.sentences[idx] ?? "", "en"));
     setIsPlaying(false);
     if (autoPlayRef.current) {
-      await new Promise<void>((r) => setTimeout(r, 600));
+      await new Promise<void>((r) => setTimeout(r, 250));
       if (autoPlayRef.current) playSentence(idx + 1);
     }
   };

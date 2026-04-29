@@ -527,7 +527,7 @@ router.post("/chat", async (req, res) => {
       model: "gpt-4o-mini",
       messages: chatMessages as any,
       max_tokens: 300,
-      temperature: 0.7,
+      temperature: 0, // 0 = deterministic — kids expect the same answer to the same question every time
     });
 
     const reply = completion.choices[0]?.message?.content ?? "";
