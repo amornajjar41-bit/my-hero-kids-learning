@@ -35,6 +35,7 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useT, useLang } from "@/hooks/useT";
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import { chatSend, transcribe, type ChatMessage, type ChatSuggestion } from "@/lib/api";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
 import { getJSON, setJSON, STORAGE_KEYS, type SafetyAlert, type ChildMemory, defaultChildMemory } from "@/lib/storage";
@@ -462,6 +463,9 @@ export default function Chat() {
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pttScale = useRef(new Animated.Value(1)).current;
   const highFiveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Device STT (Apple/Google on-device, free) — native only
+  const deviceSttActive = useRef(false);
+  const sendRef = useRef<((text: string) => Promise<void>) | null>(null);
 
 
   useEffect(() => {
@@ -667,6 +671,40 @@ export default function Chat() {
     }
   }, [messages, lang, profile, saveProgress, voice, heroName]);
 
+  // Keep sendRef current so device STT event handlers can call send()
+  useEffect(() => { sendRef.current = send; }, [send]);
+
+  // ── Device STT event handlers (native only, Apple/Google on-device — free) ──
+  useSpeechRecognitionEvent("result", (event) => {
+    if (!deviceSttActive.current) return;
+    const transcript = event.results[0]?.transcript ?? "";
+    if (event.isFinal && transcript.trim()) {
+      deviceSttActive.current = false;
+      setTranscribing(false);
+      setIsRecording(false);
+      sendRef.current?.(transcript.trim());
+    }
+  });
+  useSpeechRecognitionEvent("error", () => {
+    if (!deviceSttActive.current) return;
+    deviceSttActive.current = false;
+    setTranscribing(false);
+    setIsRecording(false);
+    setAdamPose("normal");
+    setMicError("⚠️ Couldn't understand, try again");
+    setTimeout(() => setMicError(null), 3000);
+  });
+  useSpeechRecognitionEvent("end", () => {
+    if (!deviceSttActive.current) return;
+    // No result came back before recognition ended
+    deviceSttActive.current = false;
+    setTranscribing(false);
+    setIsRecording(false);
+    setAdamPose("normal");
+    setTooShort(true);
+    setTimeout(() => setTooShort(false), 2500);
+  });
+
   const pickImage = async (fromCamera: boolean) => {
     const perm = fromCamera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
@@ -715,17 +753,27 @@ export default function Chat() {
       if (Platform.OS === "web") {
         await webStartRecording();
       } else {
-        await nativeStartRecording();
+        // Try device STT first — free (Apple on iOS, Google on Android)
+        const available = ExpoSpeechRecognitionModule.isRecognitionAvailable();
+        if (available) {
+          const bcp47 = lang === "ar" ? "ar-SA" : "en-US";
+          await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+          deviceSttActive.current = true;
+          ExpoSpeechRecognitionModule.start({ lang: bcp47, interimResults: false, continuous: false });
+        } else {
+          // Fallback: record audio and send to Whisper on server
+          await nativeStartRecording();
+        }
       }
       setIsRecording(true);
 
-      // Auto-stop after 45 seconds to prevent runaway recordings
+      // Auto-stop after 20 seconds (kids ask short questions)
       autoStopRef.current = setTimeout(() => {
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
         }
         stopRec();
-      }, 45000);
+      }, 20000);
 
     } catch (e: any) {
       _clearRecTimers();
@@ -742,13 +790,22 @@ export default function Chat() {
     _clearRecTimers();
     Animated.spring(pttScale, { toValue: 1, useNativeDriver: false, tension: 200 }).start();
     const duration = Date.now() - recStartTime.current;
-    setIsRecording(false);
     setRecSeconds(0);
 
-    // Release haptic so the user feels the button was registered
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
+
+    // Device STT path — stop and wait for result/end events
+    if (deviceSttActive.current) {
+      setIsRecording(false);
+      setTranscribing(true);
+      setAdamPose("thinking");
+      ExpoSpeechRecognitionModule.stop();
+      return;
+    }
+
+    setIsRecording(false);
 
     // Need at least 1.2 seconds of audio for reliable transcription
     if (duration < 1200) {

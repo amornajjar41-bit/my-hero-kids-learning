@@ -6,10 +6,10 @@ const router: IRouter = Router();
 
 // ── Short-lived dedup cache (prevents double-charging for the same audio) ─────
 // Key: MD5 of first 2KB of base64 audio  |  Value: { text, expiresAt }
-// TTL: 60 seconds — covers accidental double-taps and retries
+// TTL: 5 minutes — a child pressing the same recording again within a session = free
 const _sttCache = new Map<string, { text: string; expiresAt: number }>();
-const STT_CACHE_TTL_MS = 60_000;
-const STT_CACHE_MAX = 50;
+const STT_CACHE_TTL_MS = 5 * 60_000;
+const STT_CACHE_MAX = 200;
 
 function sttCacheKey(audioBase64: string): string {
   // Hash only the first 2KB — fast and uniquely identifies the recording
