@@ -187,6 +187,22 @@ function detectSafety(text: string): string | null {
   return null;
 }
 
+// ─── L0 in-memory AI response cache ─────────────────────────────────────────
+// Survives the PostgREST schema-cache issue. Key = inputHash (already encodes
+// question + language + ageGroup + gender), Value = AI response text.
+const aiMemCache = new Map<string, string>();
+const AI_MEM_CACHE_MAX = 1000;
+
+function aiMemGet(hash: string): string | null {
+  return aiMemCache.get(hash) ?? null;
+}
+function aiMemSet(hash: string, response: string): void {
+  if (aiMemCache.size >= AI_MEM_CACHE_MAX) {
+    aiMemCache.delete(aiMemCache.keys().next().value!);
+  }
+  aiMemCache.set(hash, response);
+}
+
 // ─── Batch buffer (server-side, per session) ─────────────────────────────────
 const batchBuffers = new Map<
   string,
@@ -288,6 +304,10 @@ async function checkCache(
   language: "en" | "ar",
   gender: "boy" | "girl"
 ): Promise<{ response_text: string; audio_url: string | null } | null> {
+  // L0: in-memory — instant, survives PostgREST schema-cache outages
+  const memHit = aiMemGet(inputHash);
+  if (memHit) return { response_text: memHit, audio_url: null };
+
   try {
     const { data: exact, error: exactErr } = await supabase
       .from("ai_cache")
@@ -362,6 +382,9 @@ async function saveCache(
   language: "en" | "ar",
   gender: "boy" | "girl"
 ): Promise<void> {
+  // L0: always store in memory so the next identical question is free
+  aiMemSet(inputHash, responseText);
+
   try {
     const { error } = await supabase
       .from("ai_cache")
