@@ -7,6 +7,13 @@ const SUPPORT_EMAIL = process.env["SUPPORT_EMAIL"] ?? "support@myheroapp.org";
 const RESEND_KEY = process.env["RESEND_API_KEY"];
 const FROM = `My Hero App <${SUPPORT_EMAIL}>`;
 
+// Explicit fetch response shape — avoids express.Response vs globalThis.Response conflict
+interface FetchResponse {
+  readonly ok: boolean;
+  readonly status: number;
+  text(): Promise<string>;
+}
+
 interface EmailOpts {
   to: string | string[];
   subject: string;
@@ -30,7 +37,7 @@ export async function sendEmail(opts: EmailOpts): Promise<boolean> {
         html: opts.html,
         ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
       }),
-    });
+    }) as unknown as FetchResponse;
     if (!res.ok) {
       console.error("[email] Resend error:", res.status, await res.text());
       return false;
