@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "installCommand": "pnpm install --frozen-lockfile --ignore-scripts",
+  "installCommand": "pnpm install --ignore-scripts",
   "builds": [
     {
       "src": "src/vercel.ts",
