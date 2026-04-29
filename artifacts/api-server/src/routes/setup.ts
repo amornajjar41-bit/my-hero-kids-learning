@@ -103,6 +103,12 @@ const STATEMENTS = [
     time_of_day text,
     created_at timestamptz DEFAULT now()
   )`,
+  `CREATE TABLE IF NOT EXISTS push_tokens (
+    token text PRIMARY KEY,
+    user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    platform text NOT NULL DEFAULT 'unknown',
+    updated_at timestamptz DEFAULT now()
+  )`,
 ];
 
 let setupDone = false;

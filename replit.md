@@ -56,8 +56,8 @@ Expo SDK 54 + expo-router mobile app for ages 3–15: bilingual EN/AR homework h
 - **AI Cache**: Supabase ai_cache table with exact hash match + semantic word-overlap (≥80%) matching. 30-day cache TTL.
 - **TTS Voices**: Boy EN: en-US-Wavenet-D, Boy AR: ar-XA-Wavenet-B, Girl EN: en-US-Wavenet-F, Girl AR: ar-XA-Wavenet-A. Audio config: speakingRate=0.88, pitch: female=3.0, male=1.0 (warm/friendly, no effectsProfileId). Hero maps to voice: `hero==="girl"` → "nova" → female voices; else → "echo" → male voices.
 - **Screens**: onboarding (welcome→hero→parent→child→done), tabs (home/chat/learn/games), learn/[language], learn/lesson/[id], 6 games, parent (PIN+dashboard+controls+why-adam+upgrade), terms, blocked (4B sleeping screen), birthday-celebration (4D party hat+confetti).
-- **Stories screens**: stories/index.tsx shows ALL 10 stories (5 AR + 5 EN) grouped by language (user's language first). Navigation uses explicit `{ pathname: "/stories/[id]", params: { id } }` format. stories/[id].tsx normalizes id with Array.isArray() guard to prevent STORIES[0] fallback.
-- **DB Tables**: users, children, messages, ai_cache, lesson_progress, safety_alerts, app_settings, curriculum_cache, daily_tips.
+- **Stories screens**: stories/index.tsx shows ALL stories grouped by language (user's language first). stories/[id].tsx normalizes id with Array.isArray() guard to prevent STORIES[0] fallback.
+- **DB Tables**: users, children, messages, ai_cache, lesson_progress, safety_alerts, app_settings, curriculum_cache, daily_tips, push_tokens.
 - **New Components**: Tour.tsx (4C), DailyTip.tsx (4D).
 - **New Screens**: parent/pin.tsx (5A), stories/index.tsx + stories/[id].tsx (6B).
 - **Sound effects**: chime.ts synthesizes all sounds client-side via Web Audio API. Tour/birthday audio via expo-speech (device TTS, zero API calls).
@@ -86,6 +86,17 @@ Expo SDK 54 + expo-router mobile app for ages 3–15: bilingual EN/AR homework h
   - `app/rewards/index.tsx` — Full Rewards Room screen with Badges tab (15 animated badge cards) and Shop tab (6 purchasable items with alert confirmation). Shows today's points pill and streak bonus banners.
   - `components/BadgeShelf.tsx` — Trophy Room section on home tab now shows ⭐ total points + today's earned. Tapping opens /rewards. "View Rewards & Shop" CTA at bottom.
   - All activity completions award points: chat (+10), lesson (+25, first time only), games (+15), stories (+20), streak 3-day (+50), streak 7-day (+150).
+- **Change 9 – Push Notifications + Content Expansion**:
+  - `lib/notifications.ts` — Expo Notifications wrapper: `registerForPushNotifications()` requests permission and returns Expo push token; `scheduleDailyReminder()` schedules two local notifications daily (17:00 learning reminder + 20:00 bedtime story reminder) with 10 rotating warm friendly messages; `cancelAllReminders()` for parental control; `savePushToken()` sends token to API.
+  - `app/_layout.tsx` — On first mount: requests notification permission, saves token to server, schedules daily reminders. Non-blocking, never throws.
+  - `app.json` — Added `expo-notifications` plugin with iOS foreground display + brand color.
+  - API `POST /api/notifications/register` — upserts Expo push token to `push_tokens` Supabase table.
+  - API `POST /api/notifications/send-all` — broadcasts to all registered tokens via Expo Push API (chunked 100/call).
+  - API `POST /api/notifications/send-test` — sends test notification to a single token.
+  - `push_tokens` table added to Supabase setup (token PK, user_id FK, platform, updated_at).
+  - `constants/stories.ts` — Expanded from 10 to **20 stories** (all English). Stories 11–20: The Robot Who Learned to Cry, The Compass That Never Lied, The Dragon Who Was Afraid of the Dark, The Boy Who Asked a Million Questions, The Painter Who Mixed Colors, The Smallest Library, One Step at a Time, The Echo in the Valley, The Scientist Who Failed for Forty Years, The Child Who Fixed the Clock.
+  - `constants/curriculum.ts` — Added **2 new English units = 10 new lessons**: Unit 4 "Science & Nature" (Space, Ocean Life, Plants & Nature, Inside My Body, Seasons) + Unit 5 "My World" (Transportation, Jobs & Careers, Technology, Sports & Hobbies, Healthy Habits). Lessons en-u4-l13 through en-u5-l22.
+  - `routes/admin.ts` — LESSON_WORDS + STORY_SENTENCES updated with all new content (80 new lesson words + 120 new story sentences).
 - **Change 8 – Bug Fixes, PWA, Welcome Updates**:
   - Bottom nav label font reduced from 12→10px to prevent label cutoff on small screens.
   - `resetAll()` now also clears `onboardingDone` — logout properly returns to welcome screen and blocks back-navigation (router.replace).

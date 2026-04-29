@@ -18,6 +18,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppProvider } from "@/contexts/AppContext";
 import { ensureApiBaseUrl } from "@/lib/api";
+import { registerForPushNotifications, scheduleDailyReminder, savePushToken } from "@/lib/notifications";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -76,6 +77,19 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    // Register for push notifications and schedule daily reminders
+    // Runs once on first mount — non-blocking, never throws
+    registerForPushNotifications()
+      .then((token) => {
+        if (token) {
+          savePushToken(token).catch(() => {});
+          scheduleDailyReminder().catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   if (!fontsLoaded && !fontError) return null;
 

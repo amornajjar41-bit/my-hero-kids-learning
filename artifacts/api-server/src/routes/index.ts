@@ -11,6 +11,7 @@ import trialRouter from "./trial.js";
 import adminRouter from "./admin.js";
 import audioRouter from "./audio.js";
 import contactRouter from "./contact.js";
+import notificationsRouter from "./notifications.js";
 
 const router: IRouter = Router();
 
@@ -26,6 +27,7 @@ router.use(trialRouter);
 router.use(adminRouter);
 router.use(audioRouter);
 router.use(contactRouter);
+router.use(notificationsRouter);
 
 // Run DB setup on startup (non-blocking)
 runSetup().catch(console.error);
