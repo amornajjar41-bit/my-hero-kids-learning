@@ -1,24 +1,38 @@
 /**
  * Tiny wrapper around the api-server endpoints we use in Adam.
+ *
+ * URL resolution priority:
+ *  1. EXPO_PUBLIC_API_URL  — set in eas.json for production builds → https://myheroapp.org
+ *  2. EXPO_PUBLIC_DOMAIN   — set by Replit dev workflow → https://<replit-domain>
+ *  3. Fallback             — empty string (relative URLs, dev/web)
  */
 
 import { setBaseUrl } from "@workspace/api-client-react";
 import { getSessionToken } from "@/lib/auth";
+
+/** Production API base — always https://myheroapp.org for store builds */
+const PRODUCTION_API = "https://myheroapp.org";
 
 let initialized = false;
 
 export function ensureApiBaseUrl() {
   if (initialized) return;
   initialized = true;
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) {
-    setBaseUrl(`https://${domain}`);
-  }
+  const base = resolveApiBase();
+  if (base) setBaseUrl(base);
+}
+
+function resolveApiBase(): string {
+  // EAS production/preview builds set this explicitly
+  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+  // Replit dev environment
+  if (process.env.EXPO_PUBLIC_DOMAIN) return `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+  // If neither is set (e.g. local bare RN) use production
+  return PRODUCTION_API;
 }
 
 async function getBaseUrl(): Promise<string> {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  return domain ? `https://${domain}` : "";
+  return resolveApiBase();
 }
 
 async function postJSON<T>(path: string, body: unknown, withSession = false): Promise<T> {

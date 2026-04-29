@@ -25,8 +25,9 @@ import { useApp } from "@/contexts/AppContext";
 const SUPPORT_EMAIL = "support@myheroapp.org";
 
 function getApiBase(): string {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  return domain ? `https://${domain}` : "";
+  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+  if (process.env.EXPO_PUBLIC_DOMAIN) return `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+  return "https://myheroapp.org";
 }
 
 const SUBJECTS_EN = ["Suggestion", "Complaint", "Technical Issue", "Billing", "Other"] as const;

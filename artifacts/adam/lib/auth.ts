@@ -25,10 +25,12 @@ export async function clearSessionToken(): Promise<void> {
   }
 }
 
-const API_BASE =
-  typeof process !== "undefined" && process.env?.EXPO_PUBLIC_DOMAIN
-    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-    : "";
+const API_BASE = (() => {
+  if (typeof process === "undefined") return "";
+  if (process.env?.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+  if (process.env?.EXPO_PUBLIC_DOMAIN) return `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+  return "https://myheroapp.org";
+})();
 
 export async function validateSession(token: string): Promise<{
   valid: boolean;

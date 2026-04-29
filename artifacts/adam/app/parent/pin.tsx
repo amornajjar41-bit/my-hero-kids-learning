@@ -97,8 +97,7 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
     if (mode === "verify-temp") {
       const email = profile?.parentEmail ?? "";
       try {
-        const domain = process.env.EXPO_PUBLIC_DOMAIN;
-        const base = domain ? `https://${domain}` : "";
+        const base = process.env.EXPO_PUBLIC_API_URL ?? (process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "https://myheroapp.org");
         const res = await fetch(`${base}/api/auth/verify-temp-pin`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -150,8 +149,7 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
             }
             setForgotSending(true);
             try {
-              const domain = process.env.EXPO_PUBLIC_DOMAIN;
-              const base = domain ? `https://${domain}` : "";
+              const base = process.env.EXPO_PUBLIC_API_URL ?? (process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "https://myheroapp.org");
               await fetch(`${base}/api/auth/reset-pin`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

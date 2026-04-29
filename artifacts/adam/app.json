@@ -3,6 +3,9 @@
     "name": "My Hero",
     "slug": "adam",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myhero",
@@ -15,16 +18,40 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.myhero.kids"
+      "bundleIdentifier": "com.myheroapp.kids",
+      "buildNumber": "1",
+      "minimumOsVersion": "14.0",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "My Hero needs microphone access so your child can ask questions by voice.",
+        "NSCameraUsageDescription": "My Hero needs camera access to photograph homework for help.",
+        "NSPhotoLibraryUsageDescription": "My Hero needs photo library access to select homework photos.",
+        "NSPhotoLibraryAddUsageDescription": "My Hero may save images to your photo library."
+      }
     },
     "android": {
-      "package": "com.myhero.kids"
+      "package": "com.myheroapp.kids",
+      "versionCode": 1,
+      "compileSdkVersion": 34,
+      "targetSdkVersion": 34,
+      "minSdkVersion": 24,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#FF7A45"
+      },
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png",
       "name": "My Hero – Kids Learning",
       "shortName": "My Hero",
-      "description": "AI-powered bilingual learning companion for kids aged 3–15. English & Arabic, homework help, stories & games.",
+      "description": "AI-powered learning companion for kids aged 4–14. Homework help, stories & games.",
       "themeColor": "#FF7A45",
       "backgroundColor": "#1e0a4a",
       "display": "standalone",
@@ -47,6 +74,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "my-hero-kids-learning"
+      }
     }
   }
 }

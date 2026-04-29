@@ -20,8 +20,9 @@ const dayLabelsEn = ["S", "M", "T", "W", "T", "F", "S"];
 const dayLabelsAr = ["ح", "ن", "ث", "ر", "خ", "ج", "س"];
 
 function getApiBase(): string {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  return domain ? `https://${domain}` : "";
+  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+  if (process.env.EXPO_PUBLIC_DOMAIN) return `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+  return "https://myheroapp.org";
 }
 
 type GenerationState = {
@@ -587,9 +588,7 @@ export default function ParentDashboard() {
             🧠 {"Pre-warm Chat Cache"}
           </Text>
           <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
-            {lang === "ar"
-              ? "يولّد إجابات لأكثر من 1800 سؤال شامل في الرياضيات والجبر والفيزياء والفضاء والمحيطات والعلوم ويحفظها — بعد ذلك تظهر الإجابات فوراً بدون الاتصال بـ OpenAI."
-              : "Generates answers for 1,800+ questions covering math, algebra, physics, space, ocean life, and science for kids under 14 — answers appear instantly after this, no OpenAI call needed."}
+            Generates answers for 1,800+ questions covering math, algebra, physics, space, ocean life, and science for kids under 14 — answers appear instantly after this, no OpenAI call needed.
           </Text>
 
           {chatPrewarm.running && (

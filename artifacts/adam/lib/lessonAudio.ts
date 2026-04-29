@@ -12,9 +12,11 @@ import { createAudioPlayer, AudioModule } from "expo-audio";
 import * as FileSystem from "expo-file-system";
 
 // ── API base URL helper ───────────────────────────────────────────────────────
+// Priority: EXPO_PUBLIC_API_URL (EAS builds) → EXPO_PUBLIC_DOMAIN (Replit dev) → https://myheroapp.org
 function getBaseUrl(): string {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  return domain ? `https://${domain}` : "";
+  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+  if (process.env.EXPO_PUBLIC_DOMAIN) return `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+  return "https://myheroapp.org";
 }
 
 // ── In-memory audio cache ─────────────────────────────────────────────────────
