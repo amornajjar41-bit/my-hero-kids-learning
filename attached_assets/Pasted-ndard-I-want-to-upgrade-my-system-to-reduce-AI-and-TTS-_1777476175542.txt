@@ -1,0 +1,179 @@
+ndard"}
+I want to upgrade my system to reduce AI and TTS costs WITHOUT reducing quality and WITHOUT introducing incorrect answers.
+
+My stack:
+- Supabase already connected
+- Deployment: Replit → GitHub → Vercel
+- App language: English only
+
+---
+
+## 1) Persistent TTS Cache (REQUIRED)
+
+Replace in-memory cache with Supabase Storage.
+
+Flow:
+
+1. Normalize text:
+   - trim spaces
+   - lowercase
+   - remove duplicate spaces
+
+2. Generate SHA256 hash:
+   - filename: tts/{hash}.mp3
+
+3. Before calling TTS:
+   - check if file exists in Supabase
+   - if YES:
+     - return stored audio (cache hit)
+     - DO NOT call TTS
+   - if NO:
+     - call TTS (no quality change)
+     - upload MP3 to Supabase
+     - return URL
+
+---
+
+## 2) Math Exact Matching (SAFE)
+
+Detect math expressions:
+
+- extract numbers and operator (+, -, *, /)
+
+Create key:
+math:{operator}:{numbers}
+
+Example:
+2+2 → math:+:2,2
+
+Logic:
+
+- if key exists:
+  → return cached answer + audio
+  → skip AI + TTS
+- if not:
+  → call AI
+  → generate answer
+  → store result
+
+STRICT:
+- only match identical numbers and operator
+
+---
+
+## 3) Intent + Topic Controlled Cache (NEW)
+
+We want safe reuse for non-math questions.
+
+---
+
+### Step A: Detect INTENT
+
+Rules:
+
+- COUNT:
+  keywords: "how many", "number of"
+
+- LIST:
+  keywords: "list", "name", "enumerate"
+
+- EXPLAIN:
+  keywords: "explain", "why", "how"
+
+---
+
+### Step B: Detect TOPIC
+
+Extract main noun from question:
+
+Examples:
+- planets
+- galaxy
+- animals
+- numbers
+
+Use simple keyword matching or NLP noun extraction.
+
+---
+
+### Step C: Cache key
+
+intent:{intent}|topic:{topic}
+
+Example:
+"how many planets" → intent:count|topic:planets
+
+---
+
+### Step D: Matching logic
+
+Before calling AI:
+
+- if same intent AND same topic exists:
+  → return stored answer + audio
+  → DO NOT call AI
+  → DO NOT call TTS
+  → log "intent cache hit"
+
+- otherwise:
+  → call AI normally
+  → generate answer
+  → send to TTS (with persistent cache)
+  → store:
+     - question
+     - intent
+     - topic
+     - answer
+     - audio
+
+---
+
+## 4) Confusion Handling (IMPORTANT)
+
+If user says:
+- "I don't understand"
+- "wrong"
+- "explain again"
+
+Then:
+- IGNORE all cache
+- force new AI response
+- generate new TTS
+- store as new variation
+
+---
+
+## 5) Quality Rules
+
+- DO NOT shorten responses
+- DO NOT simplify content
+- DO NOT reuse across different intents
+- accuracy must remain 100%
+
+---
+
+## 6) Performance (Vercel safe)
+
+- no memory-only cache
+- use Supabase storage (CDN)
+- cached audio must return instantly
+
+---
+
+## 7) Logging
+
+Track:
+- TTS cache hits
+- Math cache hits
+- Intent cache hits
+- AI calls avoided
+- estimated cost saved
+
+---
+
+## Goal
+
+- reduce TTS cost by 50–70%
+- reduce AI calls safely
+- zero incorrect reuse
+- maintain full
