@@ -109,6 +109,16 @@ function wordOverlap(a: string, b: string): number {
   return intersection.length / Math.max(wordsA.size, wordsB.size);
 }
 
+/**
+ * Returns true if the text contains any digit — math questions must
+ * NEVER be fuzzy-matched because the filter(w.length > 2) strips out
+ * all 1-2 digit numbers (0-99), making "2+2" and "3+3" identical.
+ * Only an exact hash match is safe for math.
+ */
+function isMathQuestion(text: string): boolean {
+  return /\d/.test(text);
+}
+
 function detectTopic(text: string): "math" | "english" | "arabic" | "general" {
   const t = text.toLowerCase();
   if (/math|number|add|subtract|multiply|divide|fraction|equation|رياضيات|جمع|طرح|ضرب|قسمة/.test(t)) return "math";
@@ -307,6 +317,13 @@ async function checkCache(
         })();
         return { response_text: exact.response_text, audio_url: exact.audio_url };
       }
+    }
+
+    // Math questions contain digits — fuzzy matching is unsafe because
+    // single/double-digit numbers (0-99) are stripped by the length > 2 filter,
+    // making "2+2" and "3+3" indistinguishable. Exact hash only for math.
+    if (isMathQuestion(normalizedInput)) {
+      return null;
     }
 
     const { data: candidates, error: candErr } = await supabase
