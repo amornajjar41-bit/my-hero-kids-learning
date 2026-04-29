@@ -4,9 +4,15 @@
   "buildCommand": "pnpm run build",
   "functions": {
     "dist/vercel.mjs": {
-      "maxDuration": 30
+      "maxDuration": 60
     }
   },
+  "crons": [
+    {
+      "path": "/api/admin/weekly-report",
+      "schedule": "0 9 * * 0"
+    }
+  ],
   "routes": [
     {
       "src": "/(.*)",

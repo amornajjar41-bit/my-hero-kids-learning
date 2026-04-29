@@ -32,9 +32,10 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
   const lang = profile?.language ?? "en";
   const hero = profile?.hero ?? "boy";
 
-  const [mode, setMode] = useState<"loading" | "setup" | "setup2" | "verify">("loading");
+  const [mode, setMode] = useState<"loading" | "setup" | "setup2" | "verify" | "verify-temp">("loading");
   const [pin, setPin] = useState("");
   const [firstPin, setFirstPin] = useState("");
+  const [forgotSending, setForgotSending] = useState(false);
   const [shake] = useState(new Animated.Value(0));
 
   useEffect(() => {
@@ -92,6 +93,34 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
       return;
     }
 
+    // verify-temp mode — check against server-side temp PIN
+    if (mode === "verify-temp") {
+      const email = profile?.parentEmail ?? "";
+      try {
+        const domain = process.env.EXPO_PUBLIC_DOMAIN;
+        const base = domain ? `https://${domain}` : "";
+        const res = await fetch(`${base}/api/auth/verify-temp-pin`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, pin: next }),
+        });
+        const { valid } = await res.json() as { valid: boolean };
+        if (valid) {
+          // Clear the stored PIN and let user create a new one
+          await setJSON(STORAGE_KEYS.parentPin, null);
+          setPin("");
+          setMode("setup");
+        } else {
+          doShake();
+          setPin("");
+        }
+      } catch {
+        doShake();
+        setPin("");
+      }
+      return;
+    }
+
     // verify mode
     const stored = await getJSON<string>(STORAGE_KEYS.parentPin);
     if (next === stored) {
@@ -104,23 +133,35 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
   };
 
   const handleForgot = () => {
+    const email = profile?.parentEmail ?? "";
     Alert.alert(
       lang === "ar" ? "نسيت الرقم السري?" : "Forgot PIN?",
       lang === "ar"
-        ? `سيُرسَل رابط إعادة تعيين إلى: ${profile?.parentEmail ?? ""}`
-        : `A reset link will be sent to: ${profile?.parentEmail ?? ""}`,
+        ? `سنرسل رقم PIN مؤقت إلى: ${email}`
+        : `We'll email a temporary 4-digit PIN to:\n${email}`,
       [
         { text: lang === "ar" ? "إلغاء" : "Cancel", style: "cancel" },
         {
           text: lang === "ar" ? "أرسل" : "Send",
-          onPress: () => {
-            // In production: call API to send reset email
-            Alert.alert(
-              lang === "ar" ? "تم الإرسال" : "Sent!",
-              lang === "ar"
-                ? "تحقق من بريدك الإلكتروني"
-                : "Check your email for reset instructions",
-            );
+          onPress: async () => {
+            if (!email) {
+              Alert.alert(lang === "ar" ? "لا يوجد بريد" : "No email on file");
+              return;
+            }
+            setForgotSending(true);
+            try {
+              const domain = process.env.EXPO_PUBLIC_DOMAIN;
+              const base = domain ? `https://${domain}` : "";
+              await fetch(`${base}/api/auth/reset-pin`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email }),
+              });
+            } catch { /* ignore, always proceed */ } finally {
+              setForgotSending(false);
+            }
+            setPin("");
+            setMode("verify-temp");
           },
         },
       ],
@@ -153,12 +194,14 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
     setup: lang === "ar" ? "أنشئ رقمك السري" : "Create your PIN",
     setup2: lang === "ar" ? "أكّد الرقم السري" : "Confirm your PIN",
     verify: lang === "ar" ? "أدخل الرقم السري" : "Enter parent PIN",
+    "verify-temp": lang === "ar" ? "أدخل الرقم المؤقت" : "Enter temporary PIN",
   }[mode];
 
   const subtitle = {
     setup: lang === "ar" ? "4 أرقام لحماية لوحة التحكم" : "4 digits to protect the parent dashboard",
     setup2: lang === "ar" ? "أدخل الرقم مجدداً للتأكيد" : "Enter the PIN again to confirm",
     verify: lang === "ar" ? "للوصول إلى إعدادات الوالدين" : "To access parent settings",
+    "verify-temp": lang === "ar" ? "تحقق من بريدك الإلكتروني للرقم المؤقت" : "Check your email for the 4-digit code",
   }[mode];
 
   return (

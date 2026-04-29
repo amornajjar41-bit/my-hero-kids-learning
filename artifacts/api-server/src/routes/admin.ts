@@ -11,6 +11,7 @@ import { createHash } from "crypto";
 import { supabase } from "../lib/supabase.js";
 import { openaiChat } from "../lib/openai-chat.js";
 import { clearCacheByPrefix } from "./audio.js";
+import { sendEmail, weeklyReportHtml } from "../lib/email.js";
 
 const router: IRouter = Router();
 
@@ -1228,6 +1229,86 @@ router.post("/admin/prewarm-chat", async (req, res) => {
 
   sseWrite(res, { progress: total, total, done: true, saved, skipped, message: `Done! ${saved} new responses cached, ${skipped} already existed.` });
   res.end();
+});
+
+// ─── Weekly Report Cron ────────────────────────────────────────────────────────
+// Called by Vercel Cron every Sunday at 09:00 UTC.
+// Sends a personalised progress email to every registered parent.
+
+router.post("/admin/weekly-report", async (req, res) => {
+  try {
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, email, parent_name, language");
+
+    if (!users || users.length === 0) {
+      return res.json({ sent: 0, message: "No users found" });
+    }
+
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    let sent = 0;
+
+    for (const user of users) {
+      if (!user.email) continue;
+
+      const { data: child } = await supabase
+        .from("children")
+        .select("id, child_name, streak_days, total_points")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!child) continue;
+
+      const [{ data: lessons }, { data: msgs }, { data: alerts }] = await Promise.all([
+        supabase.from("lesson_progress").select("id, lesson_id")
+          .eq("child_id", child.id).eq("completed", true).gte("completed_at", weekAgo),
+        supabase.from("messages").select("content_text")
+          .eq("child_id", child.id).eq("role", "user").gte("created_at", weekAgo).limit(200),
+        supabase.from("safety_alerts").select("id, category")
+          .eq("child_id", child.id).gte("timestamp", weekAgo),
+      ]);
+
+      // Derive top topics from message content
+      const topicCounts: Record<string, number> = {};
+      for (const m of (msgs ?? [])) {
+        const text = (m.content_text ?? "").toLowerCase();
+        for (const topic of ["math", "science", "reading", "writing", "history", "geography", "animals", "space", "coding", "music"]) {
+          if (text.includes(topic)) topicCounts[topic] = (topicCounts[topic] ?? 0) + 1;
+        }
+      }
+      const topTopics = Object.entries(topicCounts)
+        .sort((a, b) => b[1] - a[1]).slice(0, 3)
+        .map(([t]) => t.charAt(0).toUpperCase() + t.slice(1));
+
+      const safetyOk = (alerts?.length ?? 0) === 0;
+      const html = weeklyReportHtml({
+        childName: child.child_name ?? "your child",
+        parentName: user.parent_name ?? "",
+        streak: child.streak_days ?? 0,
+        wordsLearned: (lessons?.length ?? 0) * 5,
+        lessonsCompleted: lessons?.length ?? 0,
+        storiesListened: 0,
+        topTopics: topTopics.length > 0 ? topTopics : ["Learning", "Discovery"],
+        homeworkSolved: msgs?.length ?? 0,
+        badgesEarned: 0,
+        safetyOk,
+        safetyNote: !safetyOk ? `${alerts!.length} safety alert${alerts!.length !== 1 ? "s" : ""} flagged` : undefined,
+      });
+
+      const ok = await sendEmail({
+        to: user.email,
+        subject: `🦸 ${child.child_name}'s Weekly Learning Report`,
+        html,
+      });
+      if (ok) sent++;
+    }
+
+    req.log.info({ sent, total: users.length }, "Weekly reports sent");
+    return res.json({ sent, total: users.length });
+  } catch (err) {
+    req.log.error({ err }, "weekly-report error");
+    return res.status(500).json({ error: "failed" });
+  }
 });
 
 export default router;

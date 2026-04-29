@@ -193,7 +193,11 @@ export default function ChildInfo() {
   const effectiveDay = selectedDay && selectedDay > maxDays ? maxDays : selectedDay;
 
   const hasFullDate = effectiveDay !== null && selectedMonth !== null && selectedYear !== null;
-  const canContinue = name.trim().length > 0 && hasFullDate;
+  const actualAge = hasFullDate
+    ? Math.floor((Date.now() - new Date(selectedYear!, selectedMonth!, effectiveDay!).getTime()) / (365.25 * 24 * 3600 * 1000))
+    : null;
+  const ageInRange = actualAge !== null && actualAge >= 4 && actualAge <= 14;
+  const canContinue = name.trim().length >= 2 && hasFullDate && ageInRange;
 
   const ageGroup = hasFullDate
     ? calcAgeGroup(selectedYear!, selectedMonth!, effectiveDay!)
@@ -314,13 +318,19 @@ export default function ChildInfo() {
 
             {/* Age feedback */}
             <View style={{ marginTop: 10, minHeight: 20 }}>
-              {hasFullDate ? (
-                <Text style={{ color: "#22C55E", fontSize: 13, fontWeight: "700", textAlign: isAr ? "right" : "left" }}>
-                  ✓ {isAr ? `الفئة العمرية: ${ageGroup} سنوات` : `Age group: ${ageGroup} years`}
-                </Text>
-              ) : (
+              {!hasFullDate ? (
                 <Text style={{ color: c.mutedForeground, fontSize: 13, textAlign: isAr ? "right" : "left" }}>
                   {isAr ? "اختر يوم، شهر، وسنة الميلاد" : "Tap each box to pick day, month, and year"}
+                </Text>
+              ) : !ageInRange ? (
+                <Text style={{ color: "#EF4444", fontSize: 13, fontWeight: "700", textAlign: isAr ? "right" : "left" }}>
+                  ⚠️ {isAr
+                    ? `عمر الطفل يجب أن يكون بين 4 و14 سنة (العمر المحسوب: ${actualAge} سنة)`
+                    : `Child must be 4–14 years old (calculated age: ${actualAge})`}
+                </Text>
+              ) : (
+                <Text style={{ color: "#22C55E", fontSize: 13, fontWeight: "700", textAlign: isAr ? "right" : "left" }}>
+                  ✓ {isAr ? `الفئة العمرية: ${ageGroup} سنوات` : `Age group: ${ageGroup} years`}
                 </Text>
               )}
             </View>

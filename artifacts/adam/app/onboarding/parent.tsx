@@ -36,7 +36,7 @@ export default function ParentInfo() {
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parentEmail);
-  const validPassword = password.length >= 6;
+  const validPassword = password.length >= 8 && /\d/.test(password);
   const canContinue = validEmail && validPassword && termsAccepted;
 
   const filteredCountries = useMemo(() => {
@@ -130,7 +130,7 @@ export default function ParentInfo() {
               <TextInput
                 value={password}
                 onChangeText={setPassword}
-                placeholder={isAr ? "٦ أحرف على الأقل" : "At least 6 characters"}
+                placeholder={isAr ? "٦ أحرف على الأقل" : "8+ chars with a number"}
                 placeholderTextColor={c.mutedForeground}
                 secureTextEntry={!showPassword}
                 style={[inputStyle, { paddingRight: 48 }]}
@@ -142,9 +142,9 @@ export default function ParentInfo() {
                 <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color={c.mutedForeground} />
               </Pressable>
             </View>
-            {password.length > 0 && password.length < 6 && (
+            {password.length > 0 && !validPassword && (
               <Text style={{ color: "#EF4444", fontSize: 12, marginTop: 4 }}>
-                {isAr ? "* كلمة المرور قصيرة جداً" : "* Password too short"}
+                {isAr ? "* كلمة المرور قصيرة جداً" : "* Needs 8+ chars and 1 number"}
               </Text>
             )}
           </SoftCard>

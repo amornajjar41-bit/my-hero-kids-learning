@@ -442,6 +442,21 @@ export default function ParentDashboard() {
           onPress={sendReport}
         />
 
+        {/* Contact Us */}
+        <Pressable
+          onPress={() => router.push("/parent/contact" as never)}
+          style={({ pressed }) => ({
+            flexDirection: "row", alignItems: "center", justifyContent: "center",
+            gap: 8, paddingVertical: 14, borderRadius: 16,
+            borderWidth: 1.5, borderColor: "#7C3AED", opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <Ionicons name="mail-outline" size={20} color="#7C3AED" />
+          <Text style={{ color: "#7C3AED", fontWeight: "700", fontSize: 15 }}>
+            {lang === "ar" ? "تواصل مع الدعم 💙" : "Contact Support 💙"}
+          </Text>
+        </Pressable>
+
         {/* Switch / Logout */}
         <Pressable
           onPress={() => {

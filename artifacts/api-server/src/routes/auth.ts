@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 import { supabase } from "../lib/supabase.js";
+import { sendEmail, pinResetHtml } from "../lib/email.js";
 
 const router: IRouter = Router();
 
@@ -254,6 +255,80 @@ router.post("/auth/validate", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "validate error");
     return res.status(500).json({ error: "validation_failed" });
+  }
+});
+
+// ─── Forgot / Reset PIN ──────────────────────────────────────────────────────
+// Generates a random 4-digit temp PIN, stores its hash in app_settings with 30-min TTL,
+// and emails it to the parent. The Adam app then calls /verify-temp-pin to check it.
+
+router.post("/auth/reset-pin", async (req, res) => {
+  try {
+    const { email } = req.body as { email?: string };
+    if (!email) return res.status(400).json({ error: "email required" });
+
+    const { data: user } = await supabase
+      .from("users")
+      .select("id, parent_name")
+      .eq("email", email.toLowerCase().trim())
+      .maybeSingle();
+
+    // Always respond ok to avoid email enumeration
+    if (!user) return res.json({ ok: true });
+
+    const pin = String(Math.floor(1000 + Math.random() * 9000));
+    const hash = await bcrypt.hash(pin, 8);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+    await supabase.from("app_settings").upsert(
+      { key: `pin_reset:${email.toLowerCase().trim()}`, value: JSON.stringify({ hash, expiresAt }) },
+      { onConflict: "key" }
+    );
+
+    await sendEmail({
+      to: email.trim(),
+      subject: "🔐 Your My Hero Parent PIN Reset",
+      html: pinResetHtml({ parentName: user.parent_name ?? undefined, newPin: pin }),
+    });
+
+    req.log.info({ userId: user.id }, "PIN reset sent");
+    return res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "reset-pin error");
+    return res.status(500).json({ error: "failed" });
+  }
+});
+
+router.post("/auth/verify-temp-pin", async (req, res) => {
+  try {
+    const { email, pin } = req.body as { email?: string; pin?: string };
+    if (!email || !pin) return res.status(400).json({ error: "email and pin required" });
+
+    const key = `pin_reset:${email.toLowerCase().trim()}`;
+    const { data: setting } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", key)
+      .maybeSingle();
+
+    if (!setting) return res.json({ valid: false });
+
+    const { hash, expiresAt } = JSON.parse(setting.value) as { hash: string; expiresAt: string };
+
+    if (new Date(expiresAt) < new Date()) {
+      await supabase.from("app_settings").delete().eq("key", key);
+      return res.json({ valid: false, reason: "expired" });
+    }
+
+    const valid = await bcrypt.compare(pin, hash);
+    if (valid) {
+      // Consume the token
+      await supabase.from("app_settings").delete().eq("key", key);
+    }
+    return res.json({ valid });
+  } catch (err) {
+    req.log.error({ err }, "verify-temp-pin error");
+    return res.status(500).json({ error: "failed" });
   }
 });
 
