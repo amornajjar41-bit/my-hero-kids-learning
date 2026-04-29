@@ -23,12 +23,15 @@ export default function StoryReader() {
   const params = useLocalSearchParams<{ id: string }>();
   const { saveProgress, addPoints } = useApp();
 
-  // Primary: module store set just before navigation (100% reliable on all platforms).
-  // Fallback: URL params (reliable on web but occasionally delayed on native).
-  const storeId = getCurrentStoryId();
+  // Resolve story ID once on mount so it never flickers on re-renders.
+  // URL params are the primary source of truth (always correct on web and native).
+  // The module store is a safety net for the very first native render before params arrive.
   const rawParam = Array.isArray(params.id) ? params.id[0] : params.id;
-  const storyId = storeId || rawParam || "";
-  const story = (storyId ? STORIES.find((s) => s.id === storyId) : null) ?? STORIES[0]!;
+  const [storyId] = useState<string>(() => {
+    if (rawParam && rawParam !== "") return rawParam;
+    return getCurrentStoryId() || "1";
+  });
+  const story = STORIES.find((s) => s.id === storyId) ?? STORIES[0]!;
 
   const [sentenceIdx, setSentenceIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);

@@ -24,6 +24,13 @@ function getBucket(path: string): string {
 const _cache = new Map<string, string>();
 const MAX_CACHE = 2000;
 
+/** Clear all cached entries whose path starts with the given prefix */
+export function clearCacheByPrefix(prefix: string): void {
+  for (const key of Array.from(_cache.keys())) {
+    if (key.startsWith(prefix)) _cache.delete(key);
+  }
+}
+
 async function fetchAudioBase64(path: string): Promise<string | null> {
   const cacheKey = path;
   if (_cache.has(cacheKey)) return _cache.get(cacheKey)!;

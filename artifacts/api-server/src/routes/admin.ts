@@ -10,6 +10,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { createHash } from "crypto";
 import { supabase } from "../lib/supabase";
 import { openaiChat } from "../lib/openai-chat";
+import { clearCacheByPrefix } from "./audio";
 
 const router: IRouter = Router();
 
@@ -780,6 +781,9 @@ router.post("/admin/generate-stories", async (req, res) => {
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
+
+  // Clear server-side audio cache for all story paths so fresh audio is served
+  clearCacheByPrefix("story-");
 
   const total = STORY_SENTENCES.length;
   let progress = 0;

@@ -219,9 +219,10 @@ export async function playPreloaded(
             }
           });
           player.play();
-          // Safety timeout: 120ms per char, min 8s, max 60s
-          const charCount = 100;
-          setTimeout(() => resolve(), Math.min(60000, Math.max(8000, charCount * 120)));
+          // Safety timeout: estimate from base64 length (~0.1ms per base64 char = ~7.5ms/byte at 128kbps)
+          // min 10s, max 120s — covers short game clips through long story sentences
+          const safeMs = Math.min(120000, Math.max(10000, base64.length * 0.1));
+          setTimeout(() => resolve(), safeMs);
         }).catch(() => resolve());
       }
     } catch {
