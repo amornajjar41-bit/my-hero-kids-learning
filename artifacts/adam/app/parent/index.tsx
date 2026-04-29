@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/components/PrimaryButton";
@@ -43,6 +43,8 @@ export default function ParentDashboard() {
   const { profile, progress, resetAll, patchProfile } = useApp();
 
   const [pinVerified, setPinVerified] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [sentMsg, setSentMsg] = useState<string>("");
   const [sending, setSending] = useState(false);
   const [safetyAlerts, setSafetyAlerts] = useState<SafetyAlert[]>([]);
@@ -454,24 +456,7 @@ export default function ParentDashboard() {
 
         {/* Switch / Logout */}
         <Pressable
-          onPress={() => {
-            Alert.alert(
-              "Log Out",
-              "This will clear all data and return you to the login screen.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Log Out",
-                  style: "destructive",
-                  onPress: async () => {
-                    await clearSessionToken();
-                    await resetAll();
-                    router.replace("/onboarding/welcome" as never);
-                  },
-                },
-              ],
-            );
-          }}
+          onPress={() => setShowLogoutModal(true)}
           style={({ pressed }) => ({
             flexDirection: "row", alignItems: "center", justifyContent: "center",
             gap: 8, paddingVertical: 14, borderRadius: 16,
@@ -483,6 +468,79 @@ export default function ParentDashboard() {
             Log Out
           </Text>
         </Pressable>
+
+        {/* ── Logout Confirmation Modal ───────────────────────────────── */}
+        <Modal
+          visible={showLogoutModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowLogoutModal(false)}
+        >
+          <View style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.55)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 32,
+          }}>
+            <View style={{
+              backgroundColor: c.card,
+              borderRadius: 24,
+              padding: 28,
+              width: "100%",
+              maxWidth: 340,
+              gap: 16,
+              shadowColor: "#000",
+              shadowOpacity: 0.25,
+              shadowRadius: 20,
+              elevation: 10,
+            }}>
+              <Text style={{ fontSize: 40, textAlign: "center" }}>🚪</Text>
+              <Text style={{ fontWeight: "900", fontSize: 20, color: c.text, textAlign: "center" }}>
+                Log Out?
+              </Text>
+              <Text style={{ fontSize: 14, color: c.mutedForeground, textAlign: "center", lineHeight: 20 }}>
+                This will sign you out and return to the welcome screen. You can sign back in any time.
+              </Text>
+              <Pressable
+                disabled={loggingOut}
+                onPress={async () => {
+                  setLoggingOut(true);
+                  await clearSessionToken();
+                  await resetAll();
+                  setShowLogoutModal(false);
+                  setLoggingOut(false);
+                  router.replace("/onboarding/welcome" as never);
+                }}
+                style={({ pressed }) => ({
+                  backgroundColor: "#EF4444",
+                  borderRadius: 14,
+                  paddingVertical: 14,
+                  alignItems: "center",
+                  opacity: pressed || loggingOut ? 0.8 : 1,
+                })}
+              >
+                <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 16 }}>
+                  {loggingOut ? "Logging out…" : "Yes, Log Out"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setShowLogoutModal(false)}
+                style={({ pressed }) => ({
+                  borderRadius: 14,
+                  paddingVertical: 13,
+                  alignItems: "center",
+                  backgroundColor: c.muted,
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Text style={{ color: c.mutedForeground, fontWeight: "700", fontSize: 15 }}>
+                  Cancel
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
 
         {/* ── Admin: Audio Generation (admin-only) ──────────────────────────── */}
         {(__DEV__ || profile?.parentEmail === "amornajjar41@gmail.com") && (<>
