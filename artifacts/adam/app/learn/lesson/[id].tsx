@@ -14,7 +14,7 @@ import { curriculum, lessonTitle } from "@/constants/curriculum";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang, useT } from "@/hooks/useT";
-import { speak, stopAll } from "@/lib/audio";
+import { speak, stop, stopAll } from "@/lib/audio";
 import {
   preloadLesson,
   wordPath,
@@ -75,29 +75,38 @@ export default function LessonPlayer() {
     };
   }, [lesson.id, lesson.words.length, lessonLang]);
 
-  // Auto-play pronunciation when entering an "introduce" step
+  // Stop both audio players then auto-play the new step's audio.
+  // A single effect (not two) guarantees only one audio call fires per step change.
   const step = steps[stepIdx];
   useEffect(() => {
-    if (step?.type === "introduce" && step.data) {
-      const wordIdx = lesson.words.findIndex((w) => w.en === step.data.en || w.ar === step.data.ar);
-      const realIdx = wordIdx >= 0 ? wordIdx : 0;
-      const path = wordPath(lesson.id, realIdx, "pronunciation", lessonLang);
-      const fallbackText = isArabicLesson ? step.data.ar : step.data.en;
-      playPreloaded(path, () => speak(fallbackText, voice));
-    }
-  }, [stepIdx]);
+    // Kill any audio still playing from the previous step — both players
+    stopPreloaded();
+    stop();
 
-  // Auto-play hint when entering a "challenge" step
-  useEffect(() => {
-    if (step?.type === "challenge" && step.data) {
-      const wordIdx = lesson.words.findIndex((w) => w.en === step.data.correct.en);
-      const realIdx = wordIdx >= 0 ? wordIdx : 0;
-      const path = wordPath(lesson.id, realIdx, "hint", lessonLang);
-      const fallbackText = lang === "ar"
-        ? `هل يمكنك إيجاد ${step.data.correct.ar}؟`
-        : `Can you find ${step.data.correct.en}?`;
-      playPreloaded(path, () => speak(fallbackText, voice));
-    }
+    if (!step) return;
+
+    // Small hardware-flush delay so the stop fully takes effect before the next play
+    const tid = setTimeout(() => {
+      if (step.type === "introduce" && step.data) {
+        const wordIdx = lesson.words.findIndex((w) => w.en === step.data.en || w.ar === step.data.ar);
+        const realIdx = wordIdx >= 0 ? wordIdx : 0;
+        const path = wordPath(lesson.id, realIdx, "pronunciation", lessonLang);
+        const fallbackText = isArabicLesson ? step.data.ar : step.data.en;
+        playPreloaded(path, () => speak(fallbackText, voice));
+      }
+
+      if (step.type === "challenge" && step.data) {
+        const wordIdx = lesson.words.findIndex((w) => w.en === step.data.correct.en);
+        const realIdx = wordIdx >= 0 ? wordIdx : 0;
+        const path = wordPath(lesson.id, realIdx, "hint", lessonLang);
+        const fallbackText = lang === "ar"
+          ? `هل يمكنك إيجاد ${step.data.correct.ar}؟`
+          : `Can you find ${step.data.correct.en}?`;
+        playPreloaded(path, () => speak(fallbackText, voice));
+      }
+    }, 150);
+
+    return () => clearTimeout(tid);
   }, [stepIdx]);
 
   const step2 = steps[stepIdx];

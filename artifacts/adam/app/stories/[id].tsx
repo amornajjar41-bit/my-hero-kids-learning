@@ -16,6 +16,7 @@ import { useApp } from "@/contexts/AppContext";
 import { STORIES } from "@/constants/stories";
 import { preloadStory, storyPath, playPreloaded, stopPreloaded } from "@/lib/lessonAudio";
 import { speakEdgeStory, stopAll } from "@/lib/audio";
+import { startBgMusic, stopBgMusic } from "@/lib/bgMusic";
 
 export default function StoryReader() {
   const c = useColors();
@@ -43,10 +44,13 @@ export default function StoryReader() {
 
   useEffect(() => {
     preloadStory(story.id, totalSentences).then(() => setLoaded(true));
+    // Start calm looping background music (low volume — voice-over plays on top)
+    startBgMusic();
     return () => {
       autoPlayRef.current = false;
       stopPreloaded();
       stopAll();
+      stopBgMusic();
     };
   }, [story.id, totalSentences]);
 
@@ -64,7 +68,7 @@ export default function StoryReader() {
     await playPreloaded(path, () => speakEdgeStory(story.sentences[idx] ?? "", "en"));
     setIsPlaying(false);
     if (autoPlayRef.current) {
-      await new Promise<void>((r) => setTimeout(r, 200));
+      await new Promise<void>((r) => setTimeout(r, 50));
       if (autoPlayRef.current) playSentence(idx + 1);
     }
   };
