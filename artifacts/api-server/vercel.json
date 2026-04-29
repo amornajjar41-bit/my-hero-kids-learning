@@ -4,7 +4,6 @@
   "buildCommand": "pnpm run build",
   "functions": {
     "dist/vercel.mjs": {
-      "memory": 512,
       "maxDuration": 30
     }
   },
