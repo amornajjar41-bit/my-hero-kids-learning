@@ -18,6 +18,15 @@ import { createHash } from "crypto";
 
 const router: IRouter = Router();
 
+// Explicit fetch response shape — avoids express.Response vs globalThis.Response
+// ambiguity when @vercel/node compiles TypeScript outside the full tsconfig context.
+interface HttpResponse {
+  readonly ok: boolean;
+  readonly status: number;
+  text(): Promise<string>;
+  json(): Promise<unknown>;
+}
+
 const GOOGLE_TTS_URL = "https://texttospeech.googleapis.com/v1/text:synthesize";
 
 // ── In-memory LRU cache ───────────────────────────────────────────────────────
@@ -110,7 +119,7 @@ async function synthesizeWavenet(text: string, voice: string, speakingRate = 0.9
           pitch: voiceParams.ssmlGender === "FEMALE" ? 3.0 : 1.0,
         },
       }),
-    }),
+    }) as Promise<unknown> as Promise<HttpResponse>,
     12000,
   );
 
@@ -204,7 +213,7 @@ router.post("/tts/edge-story", async (req, res) => {
         voice: voiceParams,
         audioConfig: { audioEncoding: "MP3", speakingRate, pitch },
       }),
-    });
+    }) as unknown as HttpResponse;
     if (!resp.ok) throw new Error(`Google TTS ${resp.status}`);
     const data = await resp.json() as { audioContent?: string };
     if (!data.audioContent) throw new Error("no audioContent");
