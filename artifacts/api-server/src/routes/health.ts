@@ -9,7 +9,7 @@ router.get("/healthz", (_req, res) => {
 router.get("/version", (_req, res) => {
   res.json({
     status: "ok",
-    build: "v8-explicit-js-imports",
+    build: "v9-landing-page",
     node: process.version,
     env: process.env.NODE_ENV ?? "unknown",
   });
