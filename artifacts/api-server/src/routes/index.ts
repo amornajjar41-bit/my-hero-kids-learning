@@ -1,15 +1,15 @@
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
-import chatRouter from "./chat";
-import ttsRouter from "./tts";
-import transcribeRouter from "./transcribe";
-import parentRouter from "./parent";
-import safetyRouter from "./safety";
-import authRouter from "./auth";
-import setupRouter, { runSetup } from "./setup";
-import trialRouter from "./trial";
-import adminRouter from "./admin";
-import audioRouter from "./audio";
+import healthRouter from "./health.js";
+import chatRouter from "./chat.js";
+import ttsRouter from "./tts.js";
+import transcribeRouter from "./transcribe.js";
+import parentRouter from "./parent.js";
+import safetyRouter from "./safety.js";
+import authRouter from "./auth.js";
+import setupRouter, { runSetup } from "./setup.js";
+import trialRouter from "./trial.js";
+import adminRouter from "./admin.js";
+import audioRouter from "./audio.js";
 
 const router: IRouter = Router();
 

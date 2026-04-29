@@ -9,7 +9,7 @@ router.get("/healthz", (_req, res) => {
 router.get("/version", (_req, res) => {
   res.json({
     status: "ok",
-    build: "v7-supabase-url-guard",
+    build: "v8-explicit-js-imports",
     node: process.version,
     env: process.env.NODE_ENV ?? "unknown",
   });

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase.js";
 
 const router: IRouter = Router();
 

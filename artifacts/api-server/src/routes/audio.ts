@@ -12,7 +12,7 @@
  *   story-1/sentence-0                           → stories-audio bucket
  */
 import { Router, type IRouter } from "express";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase.js";
 
 const router: IRouter = Router();
 

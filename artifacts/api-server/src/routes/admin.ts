@@ -8,9 +8,9 @@
  */
 import { Router, type IRouter, type Request, type Response } from "express";
 import { createHash } from "crypto";
-import { supabase } from "../lib/supabase";
-import { openaiChat } from "../lib/openai-chat";
-import { clearCacheByPrefix } from "./audio";
+import { supabase } from "../lib/supabase.js";
+import { openaiChat } from "../lib/openai-chat.js";
+import { clearCacheByPrefix } from "./audio.js";
 
 const router: IRouter = Router();
 

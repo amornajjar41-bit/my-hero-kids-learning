@@ -4,7 +4,7 @@
  * Limits: TTS 900s (15min), STT 900s (15min), Photos 1 total.
  */
 import { Router, type IRouter } from "express";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase.js";
 
 const router: IRouter = Router();
 

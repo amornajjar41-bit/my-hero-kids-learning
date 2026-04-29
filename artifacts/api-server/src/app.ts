@@ -1,7 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
-import router from "./routes";
-import { logger, type AppLogger } from "./lib/logger";
+import router from "./routes/index.js";
+import { logger, type AppLogger } from "./lib/logger.js";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace

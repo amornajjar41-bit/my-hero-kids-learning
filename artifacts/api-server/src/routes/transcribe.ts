@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { createHash } from "crypto";
-import { transcribeAudio } from "../lib/assemblyai";
+import { transcribeAudio } from "../lib/assemblyai.js";
 
 const router: IRouter = Router();
 

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { createHash } from "crypto";
-import { openaiChat } from "../lib/openai-chat";
-import { supabase } from "../lib/supabase";
+import { openaiChat } from "../lib/openai-chat.js";
+import { supabase } from "../lib/supabase.js";
 
 const router: IRouter = Router();
 
