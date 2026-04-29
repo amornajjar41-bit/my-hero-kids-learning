@@ -4,6 +4,9 @@
       "eas": {
         "projectId": "72ec5ecf-1230-42e6-b56d-2cb52f5fec9f"
       }
+    },
+    "android": {
+      "package": "com.myheroapp.kids"
     }
   }
 }
