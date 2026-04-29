@@ -167,9 +167,11 @@ export async function speak(
 
   if (Platform.OS !== "web") {
     try {
+      // interruptionModeIOS: 0 = MixWithOthers — lets story bg music keep playing
       await AudioModule.setAudioModeAsync({
         playsInSilentMode: true,
         shouldPlayInBackground: true,
+        interruptionModeIOS: 0,
       });
     } catch { /* ignore */ }
   }
@@ -211,6 +213,7 @@ export async function speakEdgeStory(
       await AudioModule.setAudioModeAsync({
         playsInSilentMode: true,
         shouldPlayInBackground: true,
+        interruptionModeIOS: 0,
       });
     } catch { /* ignore */ }
   }

@@ -1,27 +1,28 @@
 /**
  * Background music player — calm looping ambient for the Stories screen.
  *
- * Uses a completely separate audio player so it doesn't interfere with
- * the voice-over player in lessonAudio.ts or audio.ts.
+ * Runs in a completely separate player from the voice-over so both can
+ * play simultaneously. iOS mixing is enabled via interruptionModeIOS: 0
+ * (MixWithOthers) — set here AND in audio.ts / lessonAudio.ts so no call
+ * to setAudioModeAsync ever resets it to DoNotMix.
  *
- * Volume is kept low (0.18) so the voice-over is always clearly heard.
+ * Volume 0.18 — quiet enough that the narrator voice is always clear.
  */
 import { Platform } from "react-native";
 import { createAudioPlayer, AudioModule } from "expo-audio";
 
-// Calm, royalty-free lullaby/ambient piano (public domain – Erik Satie, Gymnopedie No. 1)
+// BenSound "Relaxing" — royalty-free, calm piano, stable CDN
 const BG_MUSIC_URL =
-  "https://archive.org/download/02GymnopedinNo._1_satie_/02_Gymnopedie_No._1_satie_.mp3";
+  "https://www.bensound.com/bensound-music/bensound-relaxing.mp3";
 
 const VOLUME = 0.18;
 
-// ── Native player ─────────────────────────────────────────────────────────────
 let _bgPlayer: ReturnType<typeof createAudioPlayer> | null = null;
-
-// ── Web element ───────────────────────────────────────────────────────────────
 let _bgWebEl: HTMLAudioElement | null = null;
+let _active = false;
 
 export function stopBgMusic(): void {
+  _active = false;
   if (_bgPlayer) {
     try { _bgPlayer.pause(); } catch { /* ignore */ }
     try { _bgPlayer.remove(); } catch { /* ignore */ }
@@ -34,7 +35,8 @@ export function stopBgMusic(): void {
 }
 
 export async function startBgMusic(): Promise<void> {
-  stopBgMusic(); // ensure clean state
+  stopBgMusic();
+  _active = true;
 
   try {
     if (Platform.OS === "web") {
@@ -44,22 +46,37 @@ export async function startBgMusic(): Promise<void> {
       el.loop = true;
       el.preload = "auto";
       _bgWebEl = el;
-      el.play().catch(() => {
-        // Browsers may block autoplay — silently ignore
-      });
-    } else {
-      await AudioModule.setAudioModeAsync({
-        playsInSilentMode: true,
-        shouldPlayInBackground: false,
-      }).catch(() => {});
-
-      const player = createAudioPlayer({ uri: BG_MUSIC_URL });
-      player.volume = VOLUME;
-      player.loop = true;
-      _bgPlayer = player;
-      player.play();
+      el.play().catch(() => { /* autoplay blocked — silently skip */ });
+      return;
     }
+
+    // Native — set MixWithOthers FIRST so this player never interrupts voice-over
+    await AudioModule.setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: false,
+      interruptionModeIOS: 0,       // 0 = MixWithOthers
+      interruptionModeAndroid: 2,   // 2 = DuckOthers (lower bg volume when others speak)
+      shouldDuckAndroid: true,
+    }).catch(() => {});
+
+    const player = createAudioPlayer({ uri: BG_MUSIC_URL });
+    _bgPlayer = player;
+
+    try { player.volume = VOLUME; } catch { /* property may not exist on all versions */ }
+    try { player.loop = true; } catch { /* same */ }
+
+    // Explicit loop fallback via event — seekTo(0) and replay when track ends
+    player.addListener("playbackStatusUpdate", (status: any) => {
+      if (status.didJustFinish && _active && _bgPlayer === player) {
+        try {
+          player.seekTo(0);
+          player.play();
+        } catch { /* ignore */ }
+      }
+    });
+
+    player.play();
   } catch {
-    // Music is optional — never break the story reader
+    // Music is completely optional — never crash the story screen
   }
 }

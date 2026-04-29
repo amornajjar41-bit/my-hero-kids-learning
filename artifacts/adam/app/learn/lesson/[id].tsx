@@ -116,18 +116,22 @@ export default function LessonPlayer() {
     if (chosenIdx === correctIdx) {
       setFeedback("ok");
       setStars((s) => s + 1);
-      // Play reveal audio for the correct word
+      // Play reveal audio then advance AFTER it finishes — prevents overlap with next step
       if (step2?.type === "challenge" && step2.data) {
         const wordIdx = lesson.words.findIndex((w) => w.en === step2.data.correct.en);
         const realIdx = wordIdx >= 0 ? wordIdx : 0;
         const path = wordPath(lesson.id, realIdx, "reveal", lessonLang);
         const fallbackText = lang === "ar" ? "رائع! أحسنت!" : "Excellent! Great job!";
-        playPreloaded(path, () => speak(fallbackText, voice));
+        playPreloaded(path, () => speak(fallbackText, voice)).then(() => {
+          setFeedback("");
+          setStepIdx((i) => i + 1);
+        });
+      } else {
+        setTimeout(() => {
+          setFeedback("");
+          setStepIdx((i) => i + 1);
+        }, 800);
       }
-      setTimeout(() => {
-        setFeedback("");
-        setStepIdx((i) => i + 1);
-      }, 1100);
     } else {
       setFeedback("no");
       setTimeout(() => setFeedback(""), 900);

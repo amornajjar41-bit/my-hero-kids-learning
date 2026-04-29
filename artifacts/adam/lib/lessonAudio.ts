@@ -205,7 +205,8 @@ export async function playPreloaded(
         el.onerror = () => resolve();
         el.play().catch(() => resolve());
       } else {
-        AudioModule.setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false }).catch(() => {});
+        // interruptionModeIOS: 0 = MixWithOthers — lets bg music keep playing alongside voice-over
+        AudioModule.setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false, interruptionModeIOS: 0 }).catch(() => {});
         const tmpUri = (FileSystem.cacheDirectory ?? "") + `pre_${Date.now()}.mp3`;
         FileSystem.writeAsStringAsync(tmpUri, base64, {
           encoding: FileSystem.EncodingType.Base64,
