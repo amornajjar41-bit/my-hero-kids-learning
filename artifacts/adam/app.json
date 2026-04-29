@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "My Hero",
-    "slug": "adam",
+    "slug": "myhero",
     "version": "1.0.0",
     "runtimeVersion": {
       "policy": "appVersion"
@@ -23,7 +23,7 @@
       "minimumOsVersion": "14.0",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "My Hero needs microphone access so your child can ask questions by voice.",
-        "NSSpeechRecognitionUsageDescription": "My Hero uses on-device speech recognition so your child can speak questions for free — no audio is sent to a server.",
+        "NSSpeechRecognitionUsageDescription": "My Hero uses on-device speech recognition so your child can speak questions for free.",
         "NSCameraUsageDescription": "My Hero needs camera access to photograph homework for help.",
         "NSPhotoLibraryUsageDescription": "My Hero needs photo library access to select homework photos.",
         "NSPhotoLibraryAddUsageDescription": "My Hero may save images to your photo library."
@@ -95,6 +95,7 @@
       "eas": {
         "projectId": "2b979dd6-ede3-427d-86fc-c9bd8fad49e5"
       }
-    }
+    },
+    "owner": "myheroapp"
   }
 }
