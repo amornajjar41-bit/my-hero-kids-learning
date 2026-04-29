@@ -67,7 +67,7 @@ function resolveVoice(text: string, voice: string): VoiceParams {
   }
   return {
     languageCode: "en-US",
-    name: female ? "en-US-Wavenet-F" : "en-US-Wavenet-D",
+    name: female ? "en-US-Neural2-F" : "en-US-Neural2-D",
     ssmlGender: female ? "FEMALE" : "MALE",
   };
 }

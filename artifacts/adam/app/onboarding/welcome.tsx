@@ -140,7 +140,7 @@ export default function Welcome() {
             </View>
 
             {/* ── CTA ─────────────────────────────────────────────────── */}
-            <View style={{ paddingHorizontal: 24 }}>
+            <View style={{ paddingHorizontal: 24, gap: 12 }}>
               <Pressable
                 onPress={() => router.push({ pathname: "/onboarding/hero", params: { lang: "en" } })}
                 style={({ pressed }) => ({
@@ -152,6 +152,20 @@ export default function Welcome() {
               >
                 <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 18 }}>
                   🚀 Start the Adventure!
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => router.push("/onboarding/signin" as never)}
+                style={({ pressed }) => ({
+                  borderRadius: 20, paddingVertical: 14,
+                  alignItems: "center", opacity: pressed ? 0.7 : 1,
+                  borderWidth: 1.5, borderColor: "rgba(255,255,255,0.35)",
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                })}
+              >
+                <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 15 }}>
+                  Already have an account? Sign In
                 </Text>
               </Pressable>
             </View>

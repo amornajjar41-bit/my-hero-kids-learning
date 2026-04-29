@@ -172,7 +172,7 @@ function VoiceTutorial({ visible, onDismiss, lang, heroName }: { visible: boolea
             <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 15, textAlign: "center", marginTop: 10, lineHeight: 22 }}>
               {lang === "ar"
                 ? "شايف الزر البرتقالي الكبير؟ اضغط عليه وسألني أي شي — رياضيات، إنجليزي، عربي، أي شي! 🎤"
-                : "See the big orange button? Hold it and ask me ANYTHING — math, English, Arabic, anything! I'm all ears! 🦸🎤"}
+                : "See the big orange button? Hold it and ask me ANYTHING — math, science, English, anything! I'm all ears! 🦸🎤"}
             </Text>
             <Pressable onPress={onDismiss} style={({ pressed }) => ({ marginTop: 20, backgroundColor: "#FFF", paddingVertical: 14, paddingHorizontal: 32, borderRadius: 30, opacity: pressed ? 0.85 : 1 })}>
               <Text style={{ color: "#FF6B35", fontWeight: "800", fontSize: 16 }}>

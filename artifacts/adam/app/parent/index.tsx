@@ -10,6 +10,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useT } from "@/hooks/useT";
 import { sendWeeklyReport } from "@/lib/api";
+import { clearSessionToken } from "@/lib/auth";
 import { getJSON, STORAGE_KEYS, type SafetyAlert } from "@/lib/storage";
 import { trialDaysLeft } from "@/lib/utils";
 import ParentPin from "./pin";
@@ -463,6 +464,7 @@ export default function ParentDashboard() {
                   text: "Log Out",
                   style: "destructive",
                   onPress: async () => {
+                    await clearSessionToken();
                     await resetAll();
                     router.replace("/onboarding/welcome" as never);
                   },
