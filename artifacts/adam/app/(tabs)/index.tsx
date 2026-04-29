@@ -9,6 +9,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BadgeShelf } from "@/components/BadgeShelf";
 import { DailyTip } from "@/components/DailyTip";
 import { Greeting } from "@/components/Greeting";
+import { HeroLogo } from "@/components/HeroLogo";
 import { SoftCard } from "@/components/SoftCard";
 import { SoundToggle } from "@/components/SoundToggle";
 import { StreakCard } from "@/components/StreakCard";
@@ -102,11 +103,8 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
       >
         {/* Logo row */}
-        <View style={{ alignItems: "center", paddingVertical: 4 }}>
-          <Text style={{ fontSize: 26, fontWeight: "900", color: "#1e3a8a", letterSpacing: 1 }}>
-            ⭐ My Hero
-          </Text>
-          <Text style={{ fontSize: 12, fontWeight: "700", color: "#f97316", marginTop: 2 }}>Smart Learning</Text>
+        <View style={{ alignItems: "center", paddingVertical: 6 }}>
+          <HeroLogo size="md" layout="column" />
         </View>
 
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
