@@ -2,6 +2,14 @@ const ASSEMBLYAI_KEY = process.env["ASSEMBLYAI_API_KEY"] ?? "";
 
 const BASE = "https://api.assemblyai.com/v2";
 
+// Explicit fetch response shape — avoids express.Response vs globalThis.Response ambiguity
+interface HttpResponse {
+  readonly ok: boolean;
+  readonly status: number;
+  text(): Promise<string>;
+  json(): Promise<unknown>;
+}
+
 export async function transcribeAudio(
   audioBase64: string,
   _language: "en" | "ar" = "en",
@@ -21,7 +29,7 @@ export async function transcribeAudio(
       "content-type": "application/octet-stream",
     },
     body: audioBuffer,
-  });
+  }) as unknown as HttpResponse;
 
   if (!uploadRes.ok) {
     const t = await uploadRes.text();
@@ -48,7 +56,7 @@ export async function transcribeAudio(
       "content-type": "application/json",
     },
     body: JSON.stringify(body),
-  });
+  }) as unknown as HttpResponse;
 
   if (!transcriptRes.ok) {
     const t = await transcriptRes.text();
@@ -62,7 +70,7 @@ export async function transcribeAudio(
     await new Promise((r) => setTimeout(r, 400));
     const pollRes = await fetch(`${BASE}/transcript/${id}`, {
       headers: { authorization: ASSEMBLYAI_KEY },
-    });
+    }) as unknown as HttpResponse;
     const data = (await pollRes.json()) as {
       status: string;
       text?: string;
