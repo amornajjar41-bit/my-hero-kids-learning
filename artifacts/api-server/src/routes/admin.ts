@@ -14,6 +14,14 @@ import { clearCacheByPrefix } from "./audio";
 
 const router: IRouter = Router();
 
+// Explicit fetch response shape — avoids express.Response vs globalThis.Response ambiguity
+interface HttpResponse {
+  readonly ok: boolean;
+  readonly status: number;
+  text(): Promise<string>;
+  json(): Promise<unknown>;
+}
+
 const GOOGLE_TTS_URL = "https://texttospeech.googleapis.com/v1/text:synthesize";
 
 // ── Voices ────────────────────────────────────────────────────────────────────
@@ -76,7 +84,7 @@ async function synthesizeWavenet(
         },
       }),
       signal: ctrl.signal,
-    });
+    }) as unknown as HttpResponse;
     if (!response.ok) {
       const err = await response.text().catch(() => "");
       throw new Error(`WaveNet ${response.status}: ${err}`);
@@ -552,7 +560,7 @@ async function synthesizeStoryGoogle(
         audioConfig: { audioEncoding: "MP3", speakingRate, pitch },
       }),
       signal: ctrl.signal,
-    });
+    }) as unknown as HttpResponse;
     if (!response.ok) {
       const err = await response.text().catch(() => "");
       throw new Error(`Story TTS ${response.status}: ${err}`);

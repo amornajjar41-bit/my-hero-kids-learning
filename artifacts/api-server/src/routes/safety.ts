@@ -7,6 +7,14 @@ import { supabase } from "../lib/supabase";
 
 const router: IRouter = Router();
 
+// Explicit fetch response shape — avoids express.Response vs globalThis.Response ambiguity
+interface HttpResponse {
+  readonly ok: boolean;
+  readonly status: number;
+  text(): Promise<string>;
+  json(): Promise<unknown>;
+}
+
 // Comprehensive safety keywords
 const SAFETY_KEYWORDS_EN = [
   "sex", "sexual", "naked", "nude", "porn", "rape", "molest", "abuse",
@@ -94,7 +102,7 @@ async function sendSafetyEmail(opts: {
             </div>
           </div>`,
       }),
-    });
+    }) as unknown as HttpResponse;
     if (!resp.ok) console.error("[safety] Resend error:", await resp.text());
   } catch (err) {
     console.error("[safety] Email send failed:", err);
