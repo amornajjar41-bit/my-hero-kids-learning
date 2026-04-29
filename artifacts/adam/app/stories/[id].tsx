@@ -11,18 +11,20 @@ import { Confetti } from "@/components/Confetti";
 import { SoftCard } from "@/components/SoftCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useColors } from "@/hooks/useColors";
-
 import { useApp } from "@/contexts/AppContext";
+import { useLang } from "@/hooks/useT";
+
 import { STORIES } from "@/constants/stories";
 import { preloadStory, storyPath, playPreloaded, stopPreloaded } from "@/lib/lessonAudio";
-import { speakEdgeStory, stopAll } from "@/lib/audio";
+import { speak, stopAll } from "@/lib/audio";
 import { startBgMusic, stopBgMusic } from "@/lib/bgMusic";
 
 export default function StoryReader() {
   const c = useColors();
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
-  const { saveProgress, addPoints } = useApp();
+  const lang = useLang();
+  const { profile, saveProgress, addPoints } = useApp();
 
   // Resolve story ID once on mount so it never flickers on re-renders.
   // URL params are the primary source of truth (always correct on web and native).
@@ -41,6 +43,7 @@ export default function StoryReader() {
   const autoPlayRef = useRef(false);
 
   const totalSentences = story.sentences.length;
+  const voice = profile?.hero === "girl" ? "nova" : "echo";
 
   useEffect(() => {
     preloadStory(story.id, totalSentences).then(() => setLoaded(true));
@@ -65,7 +68,7 @@ export default function StoryReader() {
     setSentenceIdx(idx);
     setIsPlaying(true);
     const path = storyPath(story.id, idx);
-    await playPreloaded(path, () => speakEdgeStory(story.sentences[idx] ?? "", "en"));
+    await playPreloaded(path, () => speak(story.sentences[idx] ?? "", voice, 1.0, undefined, profile?.ageGroup));
     setIsPlaying(false);
     if (autoPlayRef.current) {
       await new Promise<void>((r) => setTimeout(r, 50));
@@ -85,7 +88,7 @@ export default function StoryReader() {
     setIsPlaying(false);
   };
 
-  const isArabic = false;
+  const isArabic = lang === "ar";
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
