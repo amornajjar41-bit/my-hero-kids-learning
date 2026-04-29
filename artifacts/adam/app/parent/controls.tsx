@@ -89,7 +89,7 @@ export default function Controls() {
                     fontSize: 15,
                   }}
                 >
-                  {lang === "ar" ? l.ar : l.en}
+                  {l.en}
                 </Text>
               </Pressable>
             );
@@ -124,50 +124,11 @@ export default function Controls() {
                 color: profile.soundOn ? "#FFF" : c.text,
               }}
             >
-              {profile.soundOn
-                ? lang === "ar"
-                  ? "الصوت مفعّل"
-                  : "Sound is ON"
-                : lang === "ar"
-                  ? "الصوت مكتوم"
-                  : "Sound is OFF"}
+              {profile.soundOn ? "Sound is ON" : "Sound is OFF"}
             </Text>
           </Pressable>
         </SoftCard>
 
-        <SoftCard>
-          <Text style={{ fontWeight: "800", color: c.text }}>
-            🌍 {t("language")}
-          </Text>
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-            {(["en", "ar"] as const).map((l) => {
-              const sel = profile.language === l;
-              return (
-                <Pressable
-                  key={l}
-                  onPress={() => patchProfile({ language: l })}
-                  style={({ pressed }) => ({
-                    flex: 1,
-                    paddingVertical: 14,
-                    borderRadius: 12,
-                    backgroundColor: sel ? c.primary : c.muted,
-                    alignItems: "center",
-                    opacity: pressed ? 0.85 : 1,
-                  })}
-                >
-                  <Text
-                    style={{
-                      color: sel ? "#FFF" : c.text,
-                      fontWeight: "800",
-                    }}
-                  >
-                    {l === "en" ? "🇬🇧 English" : "🇸🇦 العربية"}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </SoftCard>
       </ScrollView>
     </SafeAreaView>
   );

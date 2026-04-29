@@ -22,7 +22,7 @@ type StoryNode = {
 
 const STORY_NODES: Record<string, StoryNode> = {
   start: {
-    en: { text: "🚀 You and your hero Adam are walking in the park when you spot a tiny glowing rock near the pond. It seems to come from space! What do you do?" },
+    en: { text: "🚀 You and your hero are walking in the park when you spot a tiny glowing rock near the pond. It seems to come from space! What do you do?" },
     ar: { text: "🚀 أنت وبطلك آدم تتمشيان في الحديقة عندما ترون حجرة صغيرة تتوهج قرب البركة. تبدو قادمة من الفضاء! ماذا تفعلان؟" },
     choices: [
       { en: "Pick it up immediately!", ar: "خذها بسرعة!", next: "grabbed" },

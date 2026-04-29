@@ -65,7 +65,7 @@ export default function ParentDashboard() {
 
   if (!profile) return null;
   const lang = profile.language;
-  const dayLabels = lang === "ar" ? dayLabelsAr : dayLabelsEn;
+  const dayLabels = dayLabelsEn;
 
   const trialDays = trialDaysLeft(profile.trialStartedAt);
   const max = Math.max(1, ...progress.weekly);
@@ -73,8 +73,8 @@ export default function ParentDashboard() {
   const usedMinutes = progress.dailyUsageDate === new Date().toISOString().slice(0, 10)
     ? Math.round(progress.dailyUsageMinutes) : 0;
   const limitLabel = profile.screenLimitHours === 0
-    ? (lang === "ar" ? "غير محدود" : "Unlimited")
-    : `${profile.screenLimitHours}h / ${lang === "ar" ? "يوم" : "day"}`;
+    ? ("Unlimited")
+    : `${profile.screenLimitHours}h / ${"day"}`;
 
   const sendReport = async () => {
     setSending(true);
@@ -87,8 +87,7 @@ export default function ParentDashboard() {
           questionsAsked: progress.chatSessions,
           lessonsCompleted: progress.lessonsCompleted.length,
           activeDays: progress.monthlyActiveDays.length,
-          strengths: progress.englishLessons > progress.arabicLessons
-            ? ["English vocabulary", "Reading"] : ["Arabic letters", "Pronunciation"],
+          strengths: ["English vocabulary", "Reading"],
           difficulties: ["Multiplication"],
         },
       });
@@ -111,7 +110,7 @@ export default function ParentDashboard() {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
 
-    setState({ running: true, percent: 0, message: lang === "ar" ? "جاري التحضير…" : "Preparing…", done: false, error: "" });
+    setState({ running: true, percent: 0, message: "Preparing…", done: false, error: "" });
 
     try {
       const res = await fetch(`${getApiBase()}${endpoint}`, {
@@ -197,7 +196,7 @@ export default function ParentDashboard() {
               onPress={() => router.push("/parent/upgrade")}
               style={({ pressed }) => ({ marginTop: 10, backgroundColor: "#FFF", paddingVertical: 10, borderRadius: 12, alignItems: "center", opacity: pressed ? 0.85 : 1 })}
             >
-              <Text style={{ fontWeight: "800", color: c.text }}>✨ {lang === "ar" ? "عرض الباقات" : "See plans"}</Text>
+              <Text style={{ fontWeight: "800", color: c.text }}>✨ {"See plans"}</Text>
             </Pressable>
           </SoftCard>
         )}
@@ -209,12 +208,10 @@ export default function ParentDashboard() {
               <Text style={{ fontSize: 24 }}>🚨</Text>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontWeight: "800", color: "#991B1B", fontSize: 15 }}>
-                  {lang === "ar" ? "تنبيه أمان" : "Safety Alert"}
+                  {"Safety Alert"}
                 </Text>
                 <Text style={{ color: "#7F1D1D", fontSize: 12 }}>
-                  {lang === "ar"
-                    ? `تم اكتشاف ${safetyAlerts.length} رسالة تحتاج مراجعة`
-                    : `${safetyAlerts.length} message${safetyAlerts.length > 1 ? "s" : ""} flagged for review`}
+                  {`${safetyAlerts.length} message${safetyAlerts.length > 1 ? "s" : ""} flagged for review`}
                 </Text>
               </View>
             </View>
@@ -232,7 +229,7 @@ export default function ParentDashboard() {
             <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
               <Text style={{ fontSize: 20 }}>✅</Text>
               <Text style={{ color: "#065F46", fontWeight: "700", fontSize: 14 }}>
-                {lang === "ar" ? "لا تنبيهات أمان — كل شي ممتاز!" : "No safety alerts — all clear!"}
+                {"No safety alerts — all clear!"}
               </Text>
             </View>
           </SoftCard>
@@ -259,12 +256,12 @@ export default function ParentDashboard() {
 
         {/* Screen time today */}
         <SoftCard>
-          <Text style={{ fontWeight: "800", color: c.text }}>⏱️ {lang === "ar" ? "وقت الشاشة اليوم" : "Screen Time Today"}</Text>
+          <Text style={{ fontWeight: "800", color: c.text }}>⏱️ {"Screen Time Today"}</Text>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
             <View>
               <Text style={{ fontSize: 28, fontWeight: "900", color: c.primary }}>{usedMinutes}m</Text>
               <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
-                {lang === "ar" ? `الحد: ${limitLabel}` : `Limit: ${limitLabel}`}
+                {`Limit: ${limitLabel}`}
               </Text>
             </View>
             {profile.screenLimitHours > 0 && (
@@ -300,11 +297,9 @@ export default function ParentDashboard() {
 
         {/* Stories listened */}
         <SoftCard>
-          <Text style={{ fontWeight: "800", color: c.text }}>🌙 {lang === "ar" ? "القصص المسموعة" : "Stories listened"}</Text>
+          <Text style={{ fontWeight: "800", color: c.text }}>🌙 {"Stories listened"}</Text>
           <Text style={{ color: c.mutedForeground, fontSize: 14, marginTop: 6 }}>
-            {lang === "ar"
-              ? `استمع الطفل لـ ${progress.storiesListened ?? 0} قصة هذا الأسبوع`
-              : `${progress.storiesListened ?? 0} stories listened this week`}
+            {`${progress.storiesListened ?? 0} stories listened this week`}
           </Text>
         </SoftCard>
 
@@ -326,9 +321,9 @@ export default function ParentDashboard() {
           <SoftCard style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             <Text style={{ fontSize: 30 }}>💡</Text>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: "800", color: c.text, fontSize: 16 }}>{lang === "ar" ? "لماذا My Hero؟" : "Why My Hero?"}</Text>
+              <Text style={{ fontWeight: "800", color: c.text, fontSize: 16 }}>{"Why My Hero?"}</Text>
               <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
-                {lang === "ar" ? "١٠ أسباب لاختياره" : "10 reasons to choose it"}
+                {"10 reasons to choose it"}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={c.mutedForeground} />
@@ -340,12 +335,12 @@ export default function ParentDashboard() {
             <Text style={{ fontSize: 30 }}>💳</Text>
             <View style={{ flex: 1 }}>
               <Text style={{ fontWeight: "800", color: c.text, fontSize: 16 }}>
-                {lang === "ar" ? "باقات الاشتراك" : "Subscription Plans"}
+                {"Subscription Plans"}
               </Text>
               <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
                 {profile.isPaid
-                  ? (lang === "ar" ? "مشترك ✅" : "Subscribed ✅")
-                  : (lang === "ar" ? "شهري / ٦ أشهر / سنوي" : "Monthly / 6-Month / Yearly")}
+                  ? "Subscribed ✅"
+                  : "Monthly / 6-Month / Yearly"}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={c.mutedForeground} />
@@ -357,10 +352,10 @@ export default function ParentDashboard() {
             <Text style={{ fontSize: 30 }}>📋</Text>
             <View style={{ flex: 1 }}>
               <Text style={{ fontWeight: "800", color: c.text, fontSize: 16 }}>
-                {lang === "ar" ? "الشروط والأحكام" : "Terms & Conditions"}
+                {"Terms & Conditions"}
               </Text>
               <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
-                {lang === "ar" ? "الخصوصية، الاشتراك، حقوق الأطفال" : "Privacy, subscription & children's rights"}
+                {"Privacy, subscription & children's rights"}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={c.mutedForeground} />
@@ -372,10 +367,10 @@ export default function ParentDashboard() {
             <Text style={{ fontSize: 30 }}>🔒</Text>
             <View style={{ flex: 1 }}>
               <Text style={{ fontWeight: "800", color: c.text, fontSize: 16 }}>
-                {lang === "ar" ? "سياسة الخصوصية" : "Privacy Policy"}
+                {"Privacy Policy"}
               </Text>
               <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
-                {lang === "ar" ? "كيف نحمي بيانات طفلك" : "How we protect your child's data"}
+                {"How we protect your child's data"}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={c.mutedForeground} />
@@ -384,15 +379,13 @@ export default function ParentDashboard() {
 
         {/* ── Change Hero ───────────────────────────────────────────────────── */}
         <SoftCard style={{ gap: 12 }}>
-          <Text style={{ fontWeight: "800", fontSize: 15, color: c.text, textAlign: lang === "ar" ? "right" : "left" }}>
-            🦸 {lang === "ar" ? "تغيير البطل" : "Change Hero"}
+          <Text style={{ fontWeight: "800", fontSize: 15, color: c.text, textAlign: "left" }}>
+            🦸 {"Change Hero"}
           </Text>
-          <Text style={{ color: c.mutedForeground, fontSize: 12, textAlign: lang === "ar" ? "right" : "left" }}>
-            {lang === "ar"
-              ? `البطل الحالي: ${profile?.hero === "girl" ? "لولو 👧" : "آدم 👦"}`
-              : `Current hero: ${profile?.hero === "girl" ? "Sara 👧" : "Adam 👦"}`}
+          <Text style={{ color: c.mutedForeground, fontSize: 12, textAlign: "left" }}>
+            {`Current hero: ${profile?.hero === "girl" ? "Sara 👧" : "Adam 👦"}`}
           </Text>
-          <View style={{ flexDirection: lang === "ar" ? "row-reverse" : "row", gap: 10 }}>
+          <View style={{ flexDirection: "row", gap: 10 }}>
             {([
               { val: "boy" as const, emoji: "👦", enLabel: "Adam", arLabel: "آدم", color: "#3B82F6" },
               { val: "girl" as const, emoji: "👧", enLabel: "Sara", arLabel: "Sara", color: "#EC4899" },
@@ -404,8 +397,8 @@ export default function ParentDashboard() {
                   onPress={async () => {
                     if (sel) return;
                     await patchProfile({ hero: val });
-                    const name = lang === "ar" ? arLabel : enLabel;
-                    setHeroSwitchMsg(lang === "ar" ? `تم التغيير إلى ${name} ✓` : `Switched to ${name} ✓`);
+                    const name = enLabel;
+                    setHeroSwitchMsg(`Switched to ${name} ✓`);
                     setTimeout(() => setHeroSwitchMsg(""), 2500);
                   }}
                   style={({ pressed }) => ({
@@ -418,7 +411,7 @@ export default function ParentDashboard() {
                 >
                   <Text style={{ fontSize: 28 }}>{emoji}</Text>
                   <Text style={{ fontWeight: "800", color: sel ? "#FFF" : c.text, fontSize: 14 }}>
-                    {lang === "ar" ? arLabel : enLabel}
+                    {enLabel}
                   </Text>
                   {sel && (
                     <Text style={{ color: "#FFF", fontSize: 11, fontWeight: "700" }}>✓</Text>
@@ -453,7 +446,7 @@ export default function ParentDashboard() {
         >
           <Ionicons name="mail-outline" size={20} color="#7C3AED" />
           <Text style={{ color: "#7C3AED", fontWeight: "700", fontSize: 15 }}>
-            {lang === "ar" ? "تواصل مع الدعم 💙" : "Contact Support 💙"}
+            {"Contact Support 💙"}
           </Text>
         </Pressable>
 
@@ -461,14 +454,12 @@ export default function ParentDashboard() {
         <Pressable
           onPress={() => {
             Alert.alert(
-              lang === "ar" ? "تسجيل الخروج" : "Switch Profile",
-              lang === "ar"
-                ? "هل تريد مسح البيانات والبدء من جديد؟"
-                : "This will clear all data and return to the welcome screen.",
+              "Log Out",
+              "This will clear all data and return you to the login screen.",
               [
-                { text: lang === "ar" ? "إلغاء" : "Cancel", style: "cancel" },
+                { text: "Cancel", style: "cancel" },
                 {
-                  text: lang === "ar" ? "نعم، اخرج" : "Yes, reset",
+                  text: "Log Out",
                   style: "destructive",
                   onPress: async () => {
                     await resetAll();
@@ -486,7 +477,7 @@ export default function ParentDashboard() {
         >
           <Ionicons name="log-out-outline" size={20} color="#EF4444" />
           <Text style={{ color: "#EF4444", fontWeight: "700", fontSize: 15 }}>
-            {lang === "ar" ? "تغيير الشخصية / تسجيل خروج" : "Switch Character / Log Out"}
+            Log Out
           </Text>
         </Pressable>
 
@@ -495,18 +486,16 @@ export default function ParentDashboard() {
         <View style={{ height: 1, backgroundColor: c.border, marginVertical: 8 }} />
 
         <Text style={{ fontWeight: "700", fontSize: 12, color: c.mutedForeground, letterSpacing: 1, textTransform: "uppercase" }}>
-          {lang === "ar" ? "أدوات المطور" : "Developer Tools"}
+          {"Developer Tools"}
         </Text>
 
         {/* Generate Lesson + Game Audio */}
         <SoftCard style={{ gap: 10 }}>
           <Text style={{ fontWeight: "800", color: c.text, fontSize: 15 }}>
-            🎙️ {lang === "ar" ? "توليد صوت الدروس والألعاب" : "Generate Lesson & Game Audio"}
+            🎙️ {"Generate Lesson & Game Audio"}
           </Text>
           <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
-            {lang === "ar"
-              ? "ينشئ كل الملفات الصوتية للدروس والألعاب الأربعة بصوت Google WaveNet ويرفعها لـ Supabase."
-              : "Pre-generates all lesson and game audio using Google WaveNet and uploads to Supabase Storage."}
+            {"Pre-generates all lesson and game audio using Google WaveNet and uploads to Supabase Storage."}
           </Text>
 
           {lessonGen.running && (
@@ -522,7 +511,7 @@ export default function ParentDashboard() {
 
           {lessonGen.done && !lessonGen.running && (
             <Text style={{ color: "#065F46", fontWeight: "700", fontSize: 13 }}>
-              ✅ {lang === "ar" ? "اكتمل!" : "Done!"}
+              ✅ {"Done!"}
             </Text>
           )}
           {lessonGen.error !== "" && (
@@ -540,8 +529,8 @@ export default function ParentDashboard() {
           >
             <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14 }}>
               {lessonGen.running
-                ? (lang === "ar" ? "جاري التوليد…" : "Generating…")
-                : (lang === "ar" ? "ابدأ التوليد" : "Start Generation")}
+                ? ("Generating…")
+                : "Start Generation"}
             </Text>
           </Pressable>
         </SoftCard>
@@ -549,12 +538,10 @@ export default function ParentDashboard() {
         {/* Generate Story Audio */}
         <SoftCard style={{ gap: 10 }}>
           <Text style={{ fontWeight: "800", color: c.text, fontSize: 15 }}>
-            🌙 {lang === "ar" ? "توليد صوت القصص" : "Generate Story Audio"}
+            🌙 {"Generate Story Audio"}
           </Text>
           <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
-            {lang === "ar"
-              ? "ينشئ الملفات الصوتية لجميع جمل القصص العشر."
-              : "Pre-generates audio for all 10 story sentence segments."}
+            {"Pre-generates audio for all 10 story sentence segments."}
           </Text>
 
           {storyGen.running && (
@@ -570,7 +557,7 @@ export default function ParentDashboard() {
 
           {storyGen.done && !storyGen.running && (
             <Text style={{ color: "#065F46", fontWeight: "700", fontSize: 13 }}>
-              ✅ {lang === "ar" ? "اكتمل!" : "Done!"}
+              ✅ {"Done!"}
             </Text>
           )}
           {storyGen.error !== "" && (
@@ -588,8 +575,8 @@ export default function ParentDashboard() {
           >
             <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14 }}>
               {storyGen.running
-                ? (lang === "ar" ? "جاري التوليد…" : "Generating…")
-                : (lang === "ar" ? "ابدأ التوليد" : "Start Generation")}
+                ? ("Generating…")
+                : "Start Generation"}
             </Text>
           </Pressable>
         </SoftCard>
@@ -597,7 +584,7 @@ export default function ParentDashboard() {
         {/* Pre-warm Chat Cache */}
         <SoftCard style={{ gap: 10, borderColor: "#059669", borderWidth: 1.5 }}>
           <Text style={{ fontWeight: "800", color: c.text, fontSize: 15 }}>
-            🧠 {lang === "ar" ? "تسخين ذاكرة التخزين المؤقت" : "Pre-warm Chat Cache"}
+            🧠 {"Pre-warm Chat Cache"}
           </Text>
           <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
             {lang === "ar"
@@ -618,7 +605,7 @@ export default function ParentDashboard() {
 
           {chatPrewarm.done && !chatPrewarm.running && (
             <Text style={{ color: "#065F46", fontWeight: "700", fontSize: 13 }}>
-              ✅ {lang === "ar" ? "اكتمل!" : "Done!"}
+              ✅ {"Done!"}
             </Text>
           )}
           {chatPrewarm.error !== "" && (
@@ -636,8 +623,8 @@ export default function ParentDashboard() {
           >
             <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14 }}>
               {chatPrewarm.running
-                ? (lang === "ar" ? "جاري التوليد…" : "Generating…")
-                : (lang === "ar" ? "ابدأ التسخين" : "Start Pre-warming")}
+                ? ("Generating…")
+                : ("Start Pre-warming")}
             </Text>
           </Pressable>
         </SoftCard>

@@ -9,7 +9,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BadgeShelf } from "@/components/BadgeShelf";
 import { DailyTip } from "@/components/DailyTip";
 import { Greeting } from "@/components/Greeting";
-import { HeroLogo } from "@/components/HeroLogo";
 import { SoftCard } from "@/components/SoftCard";
 import { SoundToggle } from "@/components/SoundToggle";
 import { StreakCard } from "@/components/StreakCard";
@@ -104,7 +103,10 @@ export default function Home() {
       >
         {/* Logo row */}
         <View style={{ alignItems: "center", paddingVertical: 4 }}>
-          <HeroLogo size="md" />
+          <Text style={{ fontSize: 26, fontWeight: "900", color: "#1e3a8a", letterSpacing: 1 }}>
+            ⭐ My Hero
+          </Text>
+          <Text style={{ fontSize: 12, fontWeight: "700", color: "#f97316", marginTop: 2 }}>Smart Learning</Text>
         </View>
 
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
@@ -198,18 +200,14 @@ export default function Home() {
           <LinearGradient colors={["#7c3aed", "#4f46e5", "#2563eb"]} style={{ padding: 20 }}>
             <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.15, backgroundColor: "#000" }} />
             <View style={{ position: "absolute", top: 14, right: 14, backgroundColor: "#F59E0B", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 }}>
-              <Text style={{ color: "#000", fontWeight: "900", fontSize: 11 }}>
-                {lang === "ar" ? "قريباً 🚀" : "COMING SOON 🚀"}
-              </Text>
+              <Text style={{ color: "#000", fontWeight: "900", fontSize: 11 }}>COMING SOON 🚀</Text>
             </View>
             <Text style={{ fontSize: 36, marginBottom: 10 }}>🏅</Text>
             <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 20, marginBottom: 6 }}>
-              {lang === "ar" ? "منافسات التعلم" : "Learning Competitions"}
+              Learning Competitions
             </Text>
             <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, lineHeight: 19, marginBottom: 16 }}>
-              {lang === "ar"
-                ? "تحدَّ أصدقاءك في مسابقات تعليمية ممتعة! 🥇"
-                : "Challenge friends in fun learning contests! 🥇"}
+              Challenge friends in fun learning contests! 🥇
             </Text>
             <View style={{ flexDirection: "row", gap: 10 }}>
               {["🧮", "📖", "🔤", "🌍"].map((e, i) => (
@@ -221,7 +219,7 @@ export default function Home() {
             <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: 24, backgroundColor: "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center" }}>
               <Text style={{ fontSize: 44 }}>🔒</Text>
               <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14, marginTop: 6 }}>
-                {lang === "ar" ? "يتم التطوير..." : "In development..."}
+                In development...
               </Text>
             </View>
           </LinearGradient>
@@ -242,7 +240,7 @@ export default function Home() {
             })}
           >
             <Text style={{ fontWeight: "800", color: c.text }}>
-              📖 {lang === "ar" ? "افتح القاموس" : "Open dictionary"}
+              📖 Open dictionary
             </Text>
           </Pressable>
         </SoftCard>

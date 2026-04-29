@@ -15,7 +15,7 @@ const BENEFITS_EN = [
   "Unlimited homework help 📚",
   "Voice chat with your hero 🎤",
   "Photo homework upload 📷",
-  "Full English & Arabic curriculum 🌍",
+  "Full English curriculum with all subjects 🌍",
   "All 4 educational games 🎮",
   "Parent-controlled screen time & reports ⏱️",
 ];

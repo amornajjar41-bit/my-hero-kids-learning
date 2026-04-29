@@ -28,7 +28,7 @@ const WHY_HERO_POINTS = [
   {
     emoji: "🧠",
     text: "AI-powered learning",
-    desc: "Adam & Sara adapt to your child's level and pace — no two sessions are the same.",
+    desc: "Your heroes adapt to your child's level and pace — no two sessions are the same.",
   },
   {
     emoji: "📚",

@@ -14,7 +14,7 @@ const SECTIONS_EN = [
   },
   {
     title: "2. Account and Subscription",
-    body: `Parents or legal guardians must create and manage the My Hero account. Children must not create accounts independently.\n\n• Monthly plan: $19.99/month\n• Annual plan: $189/year (save ~21%)\n• Free trial: 7 days — no credit card required\n• Subscriptions can be cancelled at any time through your device's App Store or Play Store settings\n• After cancellation, you will continue to have access until the end of your billing period\n• No refunds are issued for partial subscription periods, except where required by law`,
+    body: `Parents or legal guardians must create and manage the My Hero account. Children must not create accounts independently.\n\n• Monthly plan: $24.99/month\n• 6-Month plan: $135.99 (save ~10%)\n• Annual plan: $236.99/year (save ~21%)\n• Free trial: 3 days — no credit card required\n• Subscriptions can be cancelled at any time through your device's App Store or Play Store settings\n• After cancellation, you will continue to have access until the end of your billing period\n• No refunds are issued for partial subscription periods, except where required by law`,
   },
   {
     title: "3. Children's Privacy",
@@ -53,7 +53,7 @@ const SECTIONS_AR = [
   },
   {
     title: "٢. الحساب والاشتراك",
-    body: `يجب على الوالدين أو الأوصياء القانونيين إنشاء وإدارة حساب My Hero. لا يجوز للأطفال إنشاء حسابات بشكل مستقل.\n\n• الخطة الشهرية: 19.99$ شهرياً\n• الخطة السنوية: 189$ سنوياً (وفّر 21%)\n• التجربة المجانية: 7 أيام — لا بطاقة بنكية مطلوبة\n• يمكن إلغاء الاشتراك في أي وقت من خلال إعدادات App Store أو Play Store\n• بعد الإلغاء، ستحتفظ بالوصول حتى نهاية فترة الفوترة\n• لا تُقدَّم استردادات للفترات الجزئية إلا حيثما يقتضي القانون`,
+    body: `يجب على الوالدين أو الأوصياء القانونيين إنشاء وإدارة حساب My Hero. لا يجوز للأطفال إنشاء حسابات بشكل مستقل.\n\n• الخطة الشهرية: 24.99$ شهرياً\n• خطة 6 أشهر: 135.99$ (وفّر 10%)\n• الخطة السنوية: 236.99$ سنوياً (وفّر 21%)\n• التجربة المجانية: 3 أيام — لا بطاقة بنكية مطلوبة\n• يمكن إلغاء الاشتراك في أي وقت من خلال إعدادات App Store أو Play Store\n• بعد الإلغاء، ستحتفظ بالوصول حتى نهاية فترة الفوترة\n• لا تُقدَّم استردادات للفترات الجزئية إلا حيثما يقتضي القانون`,
   },
   {
     title: "٣. خصوصية الأطفال",

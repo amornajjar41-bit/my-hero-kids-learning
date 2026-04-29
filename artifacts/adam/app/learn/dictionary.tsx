@@ -9,21 +9,20 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { curriculum } from "@/constants/curriculum";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
-import { useLang, useT } from "@/hooks/useT";
+import { useT } from "@/hooks/useT";
 
 export default function Dictionary() {
   const c = useColors();
   const router = useRouter();
   const t = useT();
-  const lang = useLang();
   const { profile } = useApp();
   const [q, setQ] = useState("");
   const voice = profile?.hero === "girl" ? "nova" : "echo";
 
   const all = useMemo(() => {
     const set = new Map<string, { emoji: string; en: string; ar: string }>();
-    [...curriculum.english, ...curriculum.arabic].forEach((l) => {
-      l.words.forEach((w) => set.set(w.en + w.ar, w));
+    curriculum.english.forEach((l) => {
+      l.words.forEach((w) => set.set(w.en, w));
     });
     return Array.from(set.values()).sort((a, b) => a.en.localeCompare(b.en));
   }, []);
@@ -31,9 +30,7 @@ export default function Dictionary() {
   const filtered = useMemo(() => {
     if (!q.trim()) return all;
     const lo = q.toLowerCase();
-    return all.filter(
-      (w) => w.en.toLowerCase().includes(lo) || w.ar.includes(q),
-    );
+    return all.filter((w) => w.en.toLowerCase().includes(lo));
   }, [q, all]);
 
   return (
@@ -68,7 +65,7 @@ export default function Dictionary() {
         <TextInput
           value={q}
           onChangeText={setQ}
-          placeholder={lang === "ar" ? "ابحث…" : "Search…"}
+          placeholder="Search…"
           placeholderTextColor={c.mutedForeground}
           style={{
             backgroundColor: c.card,
@@ -82,7 +79,7 @@ export default function Dictionary() {
       <ScrollView contentContainerStyle={{ padding: 14, gap: 10 }}>
         {filtered.map((w) => (
           <SoftCard
-            key={w.en + w.ar}
+            key={w.en}
             style={{ flexDirection: "row", alignItems: "center", gap: 14 }}
           >
             <Text style={{ fontSize: 40 }}>{w.emoji}</Text>
@@ -90,14 +87,8 @@ export default function Dictionary() {
               <Text style={{ fontWeight: "800", color: c.text, fontSize: 18 }}>
                 {w.en}
               </Text>
-              <Text style={{ color: c.mutedForeground, fontSize: 16 }}>
-                {w.ar}
-              </Text>
             </View>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <SpeakButton text={w.en} voice={voice} />
-              <SpeakButton text={w.ar} voice={voice} />
-            </View>
+            <SpeakButton text={w.en} voice={voice} />
           </SoftCard>
         ))}
       </ScrollView>

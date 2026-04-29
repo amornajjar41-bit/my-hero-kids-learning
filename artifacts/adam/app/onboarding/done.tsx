@@ -22,7 +22,7 @@ type PlanKey = "free" | "monthly" | "biannual" | "yearly";
 const BENEFITS_EN = [
   "Homework help in Math, English, Science and more",
   "Learns at your child's pace — adapts from age 4 to 14",
-  "AI voice chat — your child speaks, Adam listens and teaches",
+  "AI voice chat — your child speaks, their hero listens and teaches",
   "You control screen time and monitor progress",
   "Safe, ad-free, and built for children",
   "Costs less than one private tutoring session",

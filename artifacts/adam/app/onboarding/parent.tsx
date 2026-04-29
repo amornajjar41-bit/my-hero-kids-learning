@@ -94,7 +94,7 @@ export default function ParentInfo() {
             {isAr ? "بيانات ولي الأمر" : "Parent details"}
           </Text>
           <Text style={{ fontSize: 14, color: c.mutedForeground, textAlign: "center" }}>
-            {isAr ? "آدم يرسل تقرير تقدّم أسبوعي مجاني 📬" : "Adam sends a free weekly progress report 📬"}
+            My Hero sends a free weekly progress report 📬
           </Text>
 
           {/* Parent Name */}
