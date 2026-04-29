@@ -490,7 +490,8 @@ export default function ParentDashboard() {
           </Text>
         </Pressable>
 
-        {/* ── Admin: Audio Generation ───────────────────────────────────────── */}
+        {/* ── Admin: Audio Generation (admin-only) ──────────────────────────── */}
+        {(__DEV__ || profile?.parentEmail === "amornajjar41@gmail.com") && (<>
         <View style={{ height: 1, backgroundColor: c.border, marginVertical: 8 }} />
 
         <Text style={{ fontWeight: "700", fontSize: 12, color: c.mutedForeground, letterSpacing: 1, textTransform: "uppercase" }}>
@@ -640,6 +641,7 @@ export default function ParentDashboard() {
             </Text>
           </Pressable>
         </SoftCard>
+        </>)}
 
       </ScrollView>
     </SafeAreaView>
