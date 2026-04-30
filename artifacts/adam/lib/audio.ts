@@ -1,18 +1,21 @@
 /**
- * AudioManager — TTS player for chat (WaveNet) and stories (Edge TTS).
+ * AudioManager — TTS player for chat, lessons, stories, games.
  *
  * Public API:
- *   speak(text, voice, speed?)      → WaveNet (chat / lessons)
- *   speakEdgeStory(text, lang)      → Edge TTS Ana/Zariyah (stories only)
+ *   speak(text, voice, speed?)      → WaveNet (chat / lessons / stories / games)
+ *   speakEdgeStory(text, lang)      → kept for backward compat — redirects to speak()
  *   stopAll()                       → async stop with 50ms hardware cooldown
  *   stop()                          → sync stop (for useEffect cleanup returns)
  *   setSoundEnabled(on)             → global mute
  *   isSpeaking()                    → playback state
+ *
+ * expo-audio 1.1.x uses playbackState === 'ended' to detect completion.
+ * The old 'didJustFinish' field from expo-av / expo-audio 0.x no longer exists.
  */
 import { Platform } from "react-native";
 import { createAudioPlayer, AudioModule } from "expo-audio";
-import * as FileSystem from "expo-file-system";
-import { ttsSpeak, ttsEdgeStory } from "./api";
+import * as FileSystem from "expo-file-system/legacy";
+import { ttsSpeak } from "./api";
 
 // ── Singleton web <audio> element ─────────────────────────────────────────────
 let _webEl: HTMLAudioElement | null = null;
@@ -89,8 +92,7 @@ function ttsCacheSet(k: string, base64: string): void {
   _ttsCache.set(k, base64);
 }
 
-// ── Shared playback helper ────────────────────────────────────────────────────
-// Both speak() and speakEdgeStory() funnel through this after fetching audio.
+// ── Shared playback helper ─────────────────────────────────────────────────────
 function _doPlay(base64: string, textForTimeout: string, myGen: number): Promise<void> {
   return new Promise<void>((resolve) => {
     if (myGen !== _generation) { resolve(); return; }
@@ -112,36 +114,51 @@ function _doPlay(base64: string, textForTimeout: string, myGen: number): Promise
         el.play().catch(() => { cleanup(); resolve(); });
 
       } else {
-        const tmpUri = (FileSystem.cacheDirectory ?? "") + `tts_${Date.now()}_${Math.random().toString(36).slice(2)}.mp3`;
+        // Write base64 → temp MP3 → play with expo-audio
+        const tmpUri =
+          (FileSystem.cacheDirectory ?? "") +
+          `tts_${Date.now()}_${Math.random().toString(36).slice(2)}.mp3`;
+
         FileSystem.writeAsStringAsync(tmpUri, base64, {
           encoding: FileSystem.EncodingType.Base64,
-        }).then(() => {
-          if (myGen !== _generation) { resolve(); return; }
+        })
+          .then(() => {
+            if (myGen !== _generation) { resolve(); return; }
 
-          const player = createAudioPlayer({ uri: tmpUri });
-          _nativePlayer = player;
+            const player = createAudioPlayer({ uri: tmpUri });
+            _nativePlayer = player;
 
-          player.addListener("playbackStatusUpdate", (status: any) => {
-            if (status.didJustFinish) {
+            let resolved = false;
+            function done() {
+              if (resolved) return;
+              resolved = true;
               if (_nativePlayer === player) _nativePlayer = null;
               FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
               resolve();
             }
-          });
 
-          player.play();
+            // expo-audio 1.1.x: completion is signalled by playbackState === 'ended'
+            // expo-audio 0.x / expo-av: used didJustFinish — kept as fallback
+            player.addListener("playbackStatusUpdate", (status: any) => {
+              if (
+                status?.didJustFinish === true ||
+                status?.playbackState === "ended" ||
+                status?.playbackState === "stopped"
+              ) {
+                done();
+              }
+            });
 
-          // Safety timeout: 120ms/char, min 8s, max 90s
-          const safetyMs = Math.min(Math.max(textForTimeout.length * 120, 8000), 90000);
-          setTimeout(() => {
-            if (_nativePlayer === player) {
-              _nativePlayer = null;
-              FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
-            }
-            resolve();
-          }, safetyMs);
+            player.play();
 
-        }).catch(() => resolve());
+            // Safety timeout: 120 ms/char, min 6 s, max 90 s
+            const safetyMs = Math.min(
+              Math.max(textForTimeout.length * 120, 6000),
+              90000,
+            );
+            setTimeout(done, safetyMs);
+          })
+          .catch(() => resolve());
       }
     } catch {
       resolve();
@@ -149,7 +166,7 @@ function _doPlay(base64: string, textForTimeout: string, myGen: number): Promise
   });
 }
 
-// ── speak() — WaveNet (chat, lessons) ────────────────────────────────────────
+// ── speak() — Google WaveNet Neural2 (chat, lessons, stories, games) ──────────
 export async function speak(
   text: string,
   voice: "echo" | "nova" = "echo",
@@ -167,11 +184,10 @@ export async function speak(
 
   if (Platform.OS !== "web") {
     try {
-      // interruptionModeIOS: 0 = MixWithOthers — lets story bg music keep playing
       await AudioModule.setAudioModeAsync({
         playsInSilentMode: true,
         shouldPlayInBackground: true,
-        interruptionModeIOS: 0,
+        interruptionMode: 'mixWithOthers',
       });
     } catch { /* ignore */ }
   }
@@ -195,39 +211,11 @@ export async function speak(
   return _doPlay(base64, text, myGen);
 }
 
-// ── speakEdgeStory() — Edge TTS Ana/Zariyah (stories only) ───────────────────
+// ── speakEdgeStory() — kept for backward compat, routes to speak() ────────────
 export async function speakEdgeStory(
   text: string,
-  lang: "en" | "ar",
+  _lang: "en" | "ar",
+  voice: "echo" | "nova" = "echo",
 ): Promise<void> {
-  if (!_soundEnabled || !text?.trim()) return;
-
-  stop();
-  const myGen = _generation;
-
-  await new Promise<void>((r) => setTimeout(r, 50));
-  if (myGen !== _generation) return;
-
-  if (Platform.OS !== "web") {
-    try {
-      await AudioModule.setAudioModeAsync({
-        playsInSilentMode: true,
-        shouldPlayInBackground: true,
-        interruptionModeIOS: 0,
-      });
-    } catch { /* ignore */ }
-  }
-
-  const ck = ttsCacheKey(text, `edge-story::${lang}`);
-  let base64 = ttsCacheGet(ck);
-
-  if (!base64) {
-    const result = await ttsEdgeStory({ text, lang });
-    if (!result?.base64) return;
-    base64 = result.base64;
-    ttsCacheSet(ck, base64);
-  }
-
-  if (myGen !== _generation) return;
-  return _doPlay(base64, text, myGen);
+  return speak(text, voice);
 }

@@ -9,7 +9,7 @@
  */
 import { Platform } from "react-native";
 import { createAudioPlayer, AudioModule } from "expo-audio";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 
 // ── API base URL helper ───────────────────────────────────────────────────────
 // Priority: EXPO_PUBLIC_API_URL (EAS builds) → EXPO_PUBLIC_DOMAIN (Replit dev) → https://myheroapp.org
@@ -206,7 +206,7 @@ export async function playPreloaded(
         el.play().catch(() => resolve());
       } else {
         // interruptionModeIOS: 0 = MixWithOthers — lets bg music keep playing alongside voice-over
-        AudioModule.setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false, interruptionModeIOS: 0 }).catch(() => {});
+        AudioModule.setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false, interruptionMode: 'mixWithOthers' }).catch(() => {});
         const tmpUri = (FileSystem.cacheDirectory ?? "") + `pre_${Date.now()}.mp3`;
         FileSystem.writeAsStringAsync(tmpUri, base64, {
           encoding: FileSystem.EncodingType.Base64,
@@ -214,18 +214,22 @@ export async function playPreloaded(
           if (myGen !== _gen) { resolve(); return; }
           const player = createAudioPlayer({ uri: tmpUri });
           _nativePlayer = player;
+          let _doneOnce = false;
+          const done = () => {
+            if (_doneOnce) return;
+            _doneOnce = true;
+            if (_nativePlayer === player) _nativePlayer = null;
+            FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
+            resolve();
+          };
           player.addListener("playbackStatusUpdate", (status: any) => {
-            if (status.didJustFinish) {
-              if (_nativePlayer === player) _nativePlayer = null;
-              FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
-              resolve();
-            }
+            if (status.didJustFinish || status.playbackState === "ended") done();
           });
           player.play();
           // Safety timeout: estimate from base64 length (~0.1ms per base64 char = ~7.5ms/byte at 128kbps)
-          // min 10s, max 120s — covers short game clips through long story sentences
-          const safeMs = Math.min(120000, Math.max(10000, base64.length * 0.1));
-          setTimeout(() => resolve(), safeMs);
+          // min 6s, max 120s — covers short game clips through long story sentences
+          const safeMs = Math.min(120000, Math.max(6000, base64.length * 0.1));
+          setTimeout(() => done(), safeMs);
         }).catch(() => resolve());
       }
     } catch {

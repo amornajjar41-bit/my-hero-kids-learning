@@ -44,7 +44,7 @@ export default function ContactUs() {
 
   const [name, setName] = useState(profile?.parentName ?? "");
   const [email, setEmail] = useState(profile?.parentEmail ?? "");
-  const [subject, setSubject] = useState(subjects[0]);
+  const [subject, setSubject] = useState<string>(subjects[0]);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);

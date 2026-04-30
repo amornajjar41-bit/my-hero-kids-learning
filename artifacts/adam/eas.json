@@ -15,7 +15,7 @@
         "simulator": true
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://myheroapp.org"
+        "EXPO_PUBLIC_API_URL": "https://www.myheroapp.org"
       }
     },
     "preview": {
@@ -24,7 +24,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://myheroapp.org"
+        "EXPO_PUBLIC_API_URL": "https://www.myheroapp.org"
       }
     },
     "production": {
@@ -33,7 +33,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://myheroapp.org"
+        "EXPO_PUBLIC_API_URL": "https://www.myheroapp.org"
       }
     }
   },

@@ -54,9 +54,7 @@ export async function startBgMusic(): Promise<void> {
     await AudioModule.setAudioModeAsync({
       playsInSilentMode: true,
       shouldPlayInBackground: false,
-      interruptionModeIOS: 0,       // 0 = MixWithOthers
-      interruptionModeAndroid: 2,   // 2 = DuckOthers (lower bg volume when others speak)
-      shouldDuckAndroid: true,
+      interruptionMode: 'mixWithOthers',
     }).catch(() => {});
 
     const player = createAudioPlayer({ uri: BG_MUSIC_URL });

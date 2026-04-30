@@ -9,8 +9,8 @@
 
 import { getSessionToken } from "@/lib/auth";
 
-/** Production API base — always https://myheroapp.org for store builds */
-const PRODUCTION_API = "https://myheroapp.org";
+/** Production API base — use www to avoid redirect from bare domain */
+const PRODUCTION_API = "https://www.myheroapp.org";
 
 let initialized = false;
 

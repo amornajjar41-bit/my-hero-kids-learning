@@ -1,6 +1,6 @@
 /**
  * 4C – First-time interactive tour.
- * Shows once after registration. Uses expo-speech for local audio (zero API calls).
+ * Shows once after registration. Uses API TTS (echo/nova) for audio.
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -11,12 +11,12 @@ import {
   Text,
   View,
 } from "react-native";
-import * as Speech from "expo-speech";
 
 import { AdamCharacter } from "@/components/AdamCharacter";
 import { Confetti } from "@/components/Confetti";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
+import { speak, stop } from "@/lib/audio";
 import { getJSON, setJSON, STORAGE_KEYS } from "@/lib/storage";
 
 const { width } = Dimensions.get("window");
@@ -95,6 +95,7 @@ export function Tour({ visible, onDone }: Props) {
   const { profile } = useApp();
   const lang = profile?.language ?? "en";
   const hero = profile?.hero ?? "boy";
+  const voice = hero === "girl" ? "nova" : "echo";
 
   const [phase, setPhase] = useState<"welcome" | "steps" | "done">("welcome");
   const [step, setStep] = useState(0);
@@ -112,26 +113,18 @@ export function Tour({ visible, onDone }: Props) {
   }, [visible]);
 
   const speakStep = useCallback((s: TourStep) => {
-    Speech.stop();
+    stop();
     const text = lang === "ar" ? s.speech_ar : s.speech_en;
-    Speech.speak(text, {
-      language: lang === "ar" ? "ar" : "en-US",
-      rate: 0.9,
-      pitch: hero === "girl" ? 1.2 : 0.9,
-    });
-  }, [lang, hero]);
+    speak(text, voice).catch(() => {});
+  }, [lang, voice]);
 
   const speakWelcome = useCallback(() => {
-    Speech.stop();
+    stop();
     const text = lang === "ar"
       ? `مرحباً يا ${profile?.childName ?? "بطل"}! هل تريد جولة سريعة؟`
       : `Welcome to My Hero, ${profile?.childName ?? "hero"}! Want a quick tour?`;
-    Speech.speak(text, {
-      language: lang === "ar" ? "ar" : "en-US",
-      rate: 0.9,
-      pitch: hero === "girl" ? 1.2 : 0.9,
-    });
-  }, [lang, hero, profile]);
+    speak(text, voice).catch(() => {});
+  }, [lang, voice, profile]);
 
   useEffect(() => {
     if (visible && phase === "welcome") {
@@ -142,7 +135,7 @@ export function Tour({ visible, onDone }: Props) {
 
   useEffect(() => {
     if (phase === "steps") {
-      speakStep(STEPS[step]);
+      speakStep(STEPS[step]!);
     }
   }, [phase, step]);
 
@@ -157,13 +150,11 @@ export function Tour({ visible, onDone }: Props) {
   };
 
   const handleFinish = () => {
-    Speech.stop();
-    Speech.speak(
-      lang === "ar"
-        ? "يلا نبدأ مغامرتك! أنت بطل حقيقي!"
-        : "Let's start your adventure! You are a true hero!",
-      { language: lang === "ar" ? "ar" : "en-US", rate: 0.9 },
-    );
+    stop();
+    const text = lang === "ar"
+      ? "يلا نبدأ مغامرتك! أنت بطل حقيقي!"
+      : "Let's start your adventure! You are a true hero!";
+    speak(text, voice).catch(() => {});
     setShowConfetti(true);
     setPhase("done");
     setTimeout(() => {
@@ -173,13 +164,13 @@ export function Tour({ visible, onDone }: Props) {
   };
 
   const handleSkip = () => {
-    Speech.stop();
+    stop();
     onDone();
   };
 
   if (!visible) return null;
 
-  const current = STEPS[step];
+  const current = STEPS[step]!;
 
   return (
     <Modal transparent animationType="none" visible={visible} statusBarTranslucent>
@@ -206,7 +197,7 @@ export function Tour({ visible, onDone }: Props) {
           {phase === "welcome" && (
             <View style={{ alignItems: "center", gap: 16 }}>
               <Text style={{ fontSize: 36 }}>👋</Text>
-              <AdamCharacter hero={hero} size={130} pose="wave" />
+              <AdamCharacter hero={hero} size={130} pose="happy" />
               <Text style={{ fontWeight: "900", fontSize: 24, color: c.text, textAlign: "center" }}>
                 {lang === "ar"
                   ? `مرحباً يا ${profile?.childName ?? "بطل"}!`
@@ -268,7 +259,7 @@ export function Tour({ visible, onDone }: Props) {
                 elevation: 10,
               }}>
                 <Text style={{ fontSize: 64, marginBottom: 8 }}>{current.icon}</Text>
-                <AdamCharacter hero={hero} size={80} pose="wave" />
+                <AdamCharacter hero={hero} size={80} pose="excited" />
               </View>
 
               {/* Title */}
@@ -322,7 +313,7 @@ export function Tour({ visible, onDone }: Props) {
           {phase === "done" && (
             <View style={{ alignItems: "center", gap: 16, paddingVertical: 20 }}>
               <Text style={{ fontSize: 64 }}>🚀</Text>
-              <AdamCharacter hero={hero} size={120} pose="wave" />
+              <AdamCharacter hero={hero} size={120} pose="excited" />
               <Text style={{ fontWeight: "900", fontSize: 26, color: c.text, textAlign: "center" }}>
                 {lang === "ar" ? "يلا نبدأ المغامرة! 🚀" : "Let's start your adventure! 🚀"}
               </Text>

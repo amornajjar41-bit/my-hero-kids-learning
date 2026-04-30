@@ -68,7 +68,7 @@ export default function BirthdayCelebration() {
               <View style={{ position: "absolute", top: -32, left: 0, right: 0, alignItems: "center", zIndex: 10 }}>
                 <Text style={{ fontSize: 52 }}>🎩</Text>
               </View>
-              <AdamCharacter hero={profile?.hero} size={160} pose="wave" />
+              <AdamCharacter hero={profile?.hero} size={160} pose="excited" />
             </View>
 
             <Text style={{

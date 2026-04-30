@@ -57,7 +57,7 @@ export default function Blocked() {
 
           {/* Sleeping character */}
           <View style={{ position: "relative", marginBottom: 8 }}>
-            <AdamCharacter hero={profile?.hero} size={180} pose="wave" />
+            <AdamCharacter hero={profile?.hero} size={180} pose="happy" />
             {/* ZZZ floaters */}
             <View style={{ position: "absolute", top: -10, right: -10 }}>
               <Text style={{ fontSize: 18, color: "#FFF", fontWeight: "800", opacity: 0.9 }}>z</Text>

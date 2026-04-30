@@ -98,8 +98,8 @@ export default function StoriesScreen() {
               key={i}
               style={{
                 position: "absolute",
-                top: s.top as TextStyle["fontSize"],
-                left: s.left as TextStyle["fontSize"],
+                top: s.top as unknown as number,
+                left: s.left as unknown as number,
                 width: s.size,
                 height: s.size,
                 borderRadius: s.size,

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
@@ -345,7 +345,7 @@ async function nativeStopRecording(): Promise<{ base64: string; mimeType: string
   const result = await _nativeRec.stop();
   _nativeRec = null;
   const uri: string = result?.uri ?? result;
-  const { readAsStringAsync, EncodingType } = await import("expo-file-system");
+  const { readAsStringAsync, EncodingType } = await import("expo-file-system/legacy");
   const base64 = await readAsStringAsync(uri, { encoding: EncodingType.Base64 });
   const mimeType = uri.endsWith(".mp3") ? "audio/mp3" : "audio/m4a";
   return { base64, mimeType };
@@ -758,7 +758,7 @@ export default function Chat() {
         if (available) {
           await ExpoSpeechRecognitionModule.requestPermissionsAsync();
           deviceSttActive.current = true;
-          ExpoSpeechRecognitionModule.start({ lang: "en-US", interimResults: false, continuous: false });
+          ExpoSpeechRecognitionModule.start({ lang: lang === "ar" ? "ar-SA" : "en-US", interimResults: false, continuous: false });
         } else {
           // Fallback: record audio and send to Whisper on server
           await nativeStartRecording();
