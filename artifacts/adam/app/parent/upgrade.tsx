@@ -28,9 +28,20 @@ function formatPrice(usd: number, currency: string): string {
   const c = RATES[currency] ?? RATES.USD!;
   const amount = usd * c.rate;
   const rounded = amount >= 100 ? Math.round(amount) : Math.round(amount * 10) / 10;
-  // Force Western ASCII digits — never use toLocaleString (Android Arabic locale overrides it)
-  const numStr = String(rounded).replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
-  return `${c.symbol}${numStr}`;
+  // Walk char-by-char so we catch BOTH digit ranges that Android/Gulf devices use:
+  //   Basic Arabic-Indic   U+0660–U+0669  (٠١٢٣٤٥٦٧٨٩)
+  //   Extended Arabic-Indic U+06F0–U+06F9 (۰۱۲۳۴۵۶۷۸۹)
+  // Then prepend a Unicode LTR mark (U+200E) so Android's text shaper never
+  // converts ASCII digits back to Arabic-Indic at render time.
+  const raw = String(rounded);
+  let numStr = "";
+  for (let i = 0; i < raw.length; i++) {
+    const code = raw.charCodeAt(i);
+    if (code >= 0x0660 && code <= 0x0669) numStr += String.fromCharCode(code - 0x0660 + 0x30);
+    else if (code >= 0x06F0 && code <= 0x06F9) numStr += String.fromCharCode(code - 0x06F0 + 0x30);
+    else numStr += raw[i];
+  }
+  return `${c.symbol}\u200E${numStr}`;
 }
 
 export default function Upgrade() {
@@ -111,7 +122,7 @@ export default function Upgrade() {
               <Text style={{ color: c.mutedForeground, fontSize: 12 }}>Cancel anytime</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ fontWeight: "900", fontSize: 22, color: c.text }}>{monthly}</Text>
+              <Text style={{ fontWeight: "900", fontSize: 22, color: c.text, writingDirection: "ltr" }}>{monthly}</Text>
               <Text style={{ color: c.mutedForeground, fontSize: 11 }}>/month</Text>
             </View>
           </View>
@@ -146,8 +157,8 @@ export default function Upgrade() {
               <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12 }}>For committed learners</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ fontWeight: "900", fontSize: 22, color: "#FFF" }}>{sixMonths}</Text>
-              <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11 }}>{sixPerMonth}/mo</Text>
+              <Text style={{ fontWeight: "900", fontSize: 22, color: "#FFF", writingDirection: "ltr" }}>{sixMonths}</Text>
+              <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, writingDirection: "ltr" }}>{sixPerMonth}/mo</Text>
             </View>
           </View>
           <Pressable
@@ -181,8 +192,8 @@ export default function Upgrade() {
               <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 12 }}>Best value</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ fontWeight: "900", fontSize: 22, color: "#FFF" }}>{yearly}</Text>
-              <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 11 }}>{yearlyPerMonth}/mo</Text>
+              <Text style={{ fontWeight: "900", fontSize: 22, color: "#FFF", writingDirection: "ltr" }}>{yearly}</Text>
+              <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 11, writingDirection: "ltr" }}>{yearlyPerMonth}/mo</Text>
             </View>
           </View>
           <Pressable
