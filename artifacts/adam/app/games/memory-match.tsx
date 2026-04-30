@@ -19,7 +19,7 @@ import * as Haptics from "expo-haptics";
 import { Platform } from "react-native";
 
 import { useApp } from "@/contexts/AppContext";
-import { speakText } from "@/lib/tts";
+import { speak as speakText } from "@/lib/audio";
 import { playChime } from "@/lib/chime";
 
 // ── Encouragement messages ─────────────────────────────────────────────────

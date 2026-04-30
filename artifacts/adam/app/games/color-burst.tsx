@@ -6,7 +6,7 @@ import { Animated, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useApp } from "@/contexts/AppContext";
 import { playChime } from "@/lib/chime";
-import { speakText } from "@/lib/tts";
+import { speak as speakText } from "@/lib/audio";
 
 const PRAISE = ["Great job!", "Well done!", "Amazing!", "Fantastic!", "Super!"];
 
