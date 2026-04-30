@@ -330,14 +330,24 @@ function HighFiveSticker({ visible, onDismiss }: { visible: boolean; onDismiss: 
 let _nativeRec: any = null;
 
 async function nativeStartRecording(): Promise<void> {
+  // Clean up any stale recorder from a previous session
+  if (_nativeRec) {
+    try { await (_nativeRec as any).stop(); } catch { /* ignore */ }
+    _nativeRec = null;
+  }
   const { AudioModule, AudioRecorder, RecordingPresets } = await import("expo-audio");
-  // Always request — on iOS this shows the system dialog first time
+  // Request permission — shows system dialog the first time
   const perm = await AudioModule.requestRecordingPermissionsAsync();
   if (!perm.granted) throw Object.assign(new Error("Permission denied"), { name: "NotAllowedError" });
-  await AudioModule.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+  // Note: setAudioModeAsync is already called by startRec before this — don't call again
+  // expo-audio v1.x (SDK 54): no prepareToRecordAsync — record() directly
   _nativeRec = new AudioRecorder(RecordingPresets.HIGH_QUALITY);
-  await _nativeRec.prepareToRecordAsync();
-  _nativeRec.record();
+  try {
+    await (_nativeRec as any).record();
+  } catch {
+    // record() may return void or a rejected promise on some versions — ignore non-fatal errors
+    if (!_nativeRec) throw new Error("Recorder vanished");
+  }
 }
 
 async function nativeStopRecording(): Promise<{ base64: string; mimeType: string }> {
