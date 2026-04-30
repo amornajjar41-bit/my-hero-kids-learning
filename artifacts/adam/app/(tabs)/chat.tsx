@@ -35,6 +35,7 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useT, useLang } from "@/hooks/useT";
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import { chatSend, transcribe, type ChatMessage, type ChatSuggestion } from "@/lib/api";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
 import { getJSON, setJSON, STORAGE_KEYS, type SafetyAlert, type ChildMemory, defaultChildMemory } from "@/lib/storage";
@@ -463,7 +464,33 @@ export default function Chat() {
   const pttScale = useRef(new Animated.Value(1)).current;
   const highFiveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sendRef = useRef<((text: string) => Promise<void>) | null>(null);
+  // Hybrid STT refs
+  const deviceSttActive = useRef(false);
+  const nativeResultRef = useRef<string | null>(null);
+  const nativeConfidenceRef = useRef<number>(0);
 
+  // ── Native STT event handlers (fire while button is held) ─────────────────
+  useSpeechRecognitionEvent("result", (event) => {
+    if (!deviceSttActive.current) return;
+    const result = event.results[0];
+    if (!result) return;
+    const transcript = result.transcript ?? "";
+    const confidence = (result as any).confidence ?? 1.0;
+    if (transcript.trim()) {
+      nativeResultRef.current = transcript.trim();
+      nativeConfidenceRef.current = confidence;
+    }
+  });
+
+  useSpeechRecognitionEvent("error", () => {
+    if (!deviceSttActive.current) return;
+    deviceSttActive.current = false;
+    // Leave nativeResultRef unchanged — stopRec will fall through to AssemblyAI
+  });
+
+  useSpeechRecognitionEvent("end", () => {
+    deviceSttActive.current = false;
+  });
 
   useEffect(() => {
     (async () => {
@@ -515,7 +542,12 @@ export default function Chat() {
         setIsRecording(false);
         setRecSeconds(0);
         setTranscribing(false);
-        // Also kill any active recording so mic releases immediately
+        // Kill native STT if active
+        if (deviceSttActive.current) {
+          deviceSttActive.current = false;
+          try { ExpoSpeechRecognitionModule.stop(); } catch { /* ignore */ }
+        }
+        // Kill any active recording so mic releases immediately
         if (Platform.OS !== "web" && _nativeRec) {
           try { _nativeRec.stop(); } catch { /* ignore */ }
           _nativeRec = null;
@@ -533,7 +565,7 @@ export default function Chat() {
     }, [])
   );
 
-  // Request mic permission on native at startup — eagerly, no tutorial gate
+  // Request mic + STT permissions on native at startup (English only)
   useEffect(() => {
     if (Platform.OS !== "web") {
       (async () => {
@@ -542,12 +574,15 @@ export default function Chat() {
           await AudioModule.requestRecordingPermissionsAsync();
           await AudioModule.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
         } catch { /* ignore */ }
+        try {
+          // Pre-request STT permission so first use is instant
+          await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+        } catch { /* ignore */ }
       })();
     } else if (typeof window !== "undefined" && navigator?.mediaDevices) {
-      // Web: pre-warm the mic permission so it's ready immediately on first use
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then((stream) => { stream.getTracks().forEach((t) => t.stop()); })
-        .catch(() => { /* user may deny later — handled in startRec */ });
+        .catch(() => {});
     }
   }, []);
 
@@ -707,9 +742,18 @@ export default function Chat() {
     setMicError(null);
     setTooShort(false);
     setAdamPose("excited");
+    // Reset hybrid STT state
+    nativeResultRef.current = null;
+    nativeConfidenceRef.current = 0;
+    deviceSttActive.current = false;
+
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
+
+    // Stop any playing TTS before listening
+    stopAudio();
+
     recStartTime.current = Date.now();
     setRecSeconds(0);
     Animated.spring(pttScale, { toValue: 0.88, useNativeDriver: false, tension: 200 }).start();
@@ -718,18 +762,43 @@ export default function Chat() {
       if (Platform.OS === "web") {
         await webStartRecording();
       } else {
-        // Always record audio and send to Whisper — works universally on any device
+        // 1. Set audio mode once — needed for both recording and STT on iOS
+        const { AudioModule } = await import("expo-audio");
+        await AudioModule.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+
+        // 2. Start audio recording as AssemblyAI backup (always runs)
         await nativeStartRecording();
+
+        // 3. Try native STT in parallel as the primary free path (English only)
+        try {
+          const sttAvailable = ExpoSpeechRecognitionModule.isRecognitionAvailable();
+          if (sttAvailable) {
+            const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+            if (perm.granted) {
+              deviceSttActive.current = true;
+              ExpoSpeechRecognitionModule.start({
+                lang: "en-US",
+                interimResults: true,
+                continuous: false,
+                requiresOnDeviceRecognition: false,
+              });
+            }
+          }
+        } catch {
+          // Native STT failed to start — audio recording backup still runs
+          deviceSttActive.current = false;
+        }
       }
+
       setIsRecording(true);
 
-      // Auto-stop after 20 seconds (kids ask short questions)
+      // Auto-stop after 21 seconds
       autoStopRef.current = setTimeout(() => {
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
         }
         stopRec();
-      }, 20000);
+      }, 21000);
 
     } catch (e: any) {
       _clearRecTimers();
@@ -752,9 +821,15 @@ export default function Chat() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
 
+    // Stop native STT (results may still arrive briefly after this)
+    if (deviceSttActive.current) {
+      deviceSttActive.current = false;
+      try { ExpoSpeechRecognitionModule.stop(); } catch { /* ignore */ }
+    }
+
     setIsRecording(false);
 
-    // Need at least 1.2 seconds of audio for reliable transcription
+    // Minimum 1.2 seconds for reliable transcription
     if (duration < 1200) {
       setTooShort(true);
       setTimeout(() => setTooShort(false), 3000);
@@ -769,35 +844,71 @@ export default function Chat() {
       return;
     }
 
+    // Give native STT a brief moment to fire its final "result" event
+    if (Platform.OS !== "web") {
+      await new Promise<void>((r) => setTimeout(r, 350));
+    }
+
+    // ── PATH A: Native STT gave a confident result (free, instant) ───────────
+    const nativeText = nativeResultRef.current?.trim();
+    const nativeConf = nativeConfidenceRef.current;
+
+    if (Platform.OS !== "web" && nativeText && nativeConf >= 0.6) {
+      // Discard the audio recording — we don't need it
+      if (_nativeRec) {
+        try { await _nativeRec.stop(); } catch { /* ignore */ }
+        _nativeRec = null;
+      }
+      await sendRef.current?.(nativeText);
+      return;
+    }
+
+    // ── PATH B: AssemblyAI Universal-3-Pro fallback ───────────────────────────
     try {
       setTranscribing(true);
       setAdamPose("thinking");
+
       const { base64, mimeType } = Platform.OS === "web"
         ? await webStopRecording()
         : await nativeStopRecording();
 
       if (!base64) {
-        setTooShort(true);
-        setTranscribing(false);
-        setTimeout(() => setTooShort(false), 2200);
+        // Last resort: use native result even if low confidence
+        if (nativeText) {
+          setTranscribing(false);
+          await sendRef.current?.(nativeText);
+        } else {
+          setTooShort(true);
+          setTranscribing(false);
+          setTimeout(() => setTooShort(false), 2200);
+        }
         return;
       }
 
-      const { text } = await transcribe({ audioBase64: base64, mimeType, language: lang });
+      const { text } = await transcribe({ audioBase64: base64, mimeType, language: "en" });
       setTranscribing(false);
+
       if (text?.trim()) {
-        await send(text);
+        await sendRef.current?.(text);
+      } else if (nativeText) {
+        // AssemblyAI got nothing but native STT had something — use it
+        await sendRef.current?.(nativeText);
       } else {
         setTooShort(true);
         setAdamPose("normal");
         setTimeout(() => setTooShort(false), 2500);
       }
-    } catch (e) {
+    } catch {
       setTranscribing(false);
       setBusy(false);
       setAdamPose("normal");
-      setMicError("⚠️ Couldn't understand audio, please try again");
-      setTimeout(() => setMicError(null), 3500);
+      // Final fallback: use native STT result even if low confidence
+      if (nativeText) {
+        await sendRef.current?.(nativeText);
+      } else {
+        setMicError("⚠️ Couldn't hear you, please try again");
+        setTimeout(() => setMicError(null), 3500);
+      }
     }
   };
 

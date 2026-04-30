@@ -1,7 +1,7 @@
 /**
- * Audio transcription via AssemblyAI.
- * Uses the "nano" tier — cheapest plan, excellent accuracy for short kids' questions.
+ * Audio transcription via AssemblyAI Universal-3-Pro.
  * Flow: upload raw bytes → submit transcript job → poll until complete.
+ * English only — language_code fixed to "en".
  */
 const ASSEMBLYAI_KEY = process.env["ASSEMBLYAI_API_KEY"] ?? "";
 
@@ -16,12 +16,14 @@ interface HttpResponse {
 
 export async function transcribeAudio(
   audioBase64: string,
-  language: "en" | "ar" = "en",
+  _language: "en" | "ar" = "en",
   mimeType = "audio/wav"
 ): Promise<string> {
   if (!ASSEMBLYAI_KEY) {
     throw new Error("ASSEMBLYAI_API_KEY is not set");
   }
+
+  void mimeType;
 
   const audioBuffer = Buffer.from(audioBase64, "base64");
 
@@ -42,10 +44,11 @@ export async function transcribeAudio(
 
   const { upload_url } = (await uploadRes.json()) as { upload_url: string };
 
-  // 2. Submit transcription — universal-3-pro, English only
+  // 2. Submit transcription
+  // speech_model: "best" → uses Universal-3-Pro on Pro subscriptions
   const body: Record<string, unknown> = {
     audio_url: upload_url,
-    speech_models: ["universal-3-pro"],
+    speech_model: "best",
     language_code: "en",
     punctuate: true,
     format_text: true,
