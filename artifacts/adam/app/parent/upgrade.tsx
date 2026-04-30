@@ -20,16 +20,17 @@ const BENEFITS = [
 
 function formatPrice(usd: number, currency: string): string {
   const RATES: Record<string, { symbol: string; rate: number }> = {
-    USD: { symbol: "$", rate: 1 }, EUR: { symbol: "€", rate: 0.93 },
-    GBP: { symbol: "£", rate: 0.79 }, SAR: { symbol: "ر.س", rate: 3.75 },
-    AED: { symbol: "د.إ", rate: 3.67 }, KWD: { symbol: "د.ك", rate: 0.31 },
-    QAR: { symbol: "ر.ق", rate: 3.64 }, EGP: { symbol: "ج.م", rate: 30.9 },
+    USD: { symbol: "$",    rate: 1    }, EUR: { symbol: "€",    rate: 0.93 },
+    GBP: { symbol: "£",   rate: 0.79 }, SAR: { symbol: "SAR ", rate: 3.75 },
+    AED: { symbol: "AED ", rate: 3.67 }, KWD: { symbol: "KWD ", rate: 0.31 },
+    QAR: { symbol: "QAR ", rate: 3.64 }, EGP: { symbol: "EGP ", rate: 30.9 },
   };
   const c = RATES[currency] ?? RATES.USD!;
   const amount = usd * c.rate;
   const rounded = amount >= 100 ? Math.round(amount) : Math.round(amount * 10) / 10;
-  // Always use English (Western) numerals regardless of device locale
-  return `${c.symbol}${rounded.toLocaleString('en-US')}`;
+  // Force Western ASCII digits — never use toLocaleString (Android Arabic locale overrides it)
+  const numStr = String(rounded).replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+  return `${c.symbol}${numStr}`;
 }
 
 export default function Upgrade() {

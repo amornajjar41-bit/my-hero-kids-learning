@@ -66,6 +66,14 @@ function resetWebEl(): HTMLAudioElement {
 // ── Native player ─────────────────────────────────────────────────────────────
 let _nativePlayer: ReturnType<typeof createAudioPlayer> | null = null;
 
+// ── Cross-module stop hook ────────────────────────────────────────────────────
+// lessonAudio.ts registers its stop here so that audio.ts's stop() / stopAll()
+// also kills any preloaded-audio player that might be running in parallel.
+let _lessonAudioStop: (() => void) | null = null;
+export function setLessonAudioStop(fn: () => void): void {
+  _lessonAudioStop = fn;
+}
+
 // ── Shared state ──────────────────────────────────────────────────────────────
 let _soundEnabled = true;
 let _generation = 0;
@@ -85,6 +93,8 @@ export function isSpeaking(): boolean {
 
 // ── Stop ──────────────────────────────────────────────────────────────────────
 export async function stopAll(): Promise<void> {
+  // Kill any preloaded-audio player running in lessonAudio.ts first
+  _lessonAudioStop?.();
   _generation++;
   setState("idle");
   if (_webEl) {
@@ -99,6 +109,8 @@ export async function stopAll(): Promise<void> {
 }
 
 export function stop(): void {
+  // Kill any preloaded-audio player running in lessonAudio.ts first
+  _lessonAudioStop?.();
   _generation++;
   setState("idle");
   if (_webEl) {
@@ -191,7 +203,11 @@ function _doPlay(base64: string, textForTimeout: string, myGen: number): Promise
           encoding: FileSystem.EncodingType.Base64,
         })
           .then(() => {
-            if (myGen !== _generation) { resolve(); return; }
+            if (myGen !== _generation) {
+              // Cancelled while writing — delete the temp file so it doesn't accumulate
+              FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
+              resolve(); return;
+            }
 
             const player = createAudioPlayer({ uri: tmpUri });
             _nativePlayer = player;

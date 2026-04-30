@@ -210,7 +210,7 @@ export default function Welcome() {
 
               <View style={{ backgroundColor: "rgba(249,115,22,0.25)", borderRadius: 16, padding: 16, marginTop: 14, borderWidth: 1, borderColor: "rgba(249,115,22,0.4)" }}>
                 <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 15, textAlign: "center" }}>
-                  🎁 Try free for 7 days — no credit card needed
+                  🎁 Try free for 3 days — no credit card needed
                 </Text>
               </View>
               <View style={{ flexDirection: "row", gap: 8, marginTop: 10, justifyContent: "center", flexWrap: "wrap" }}>

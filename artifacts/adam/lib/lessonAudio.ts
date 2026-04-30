@@ -11,6 +11,11 @@ import { Platform } from "react-native";
 import { createAudioPlayer, AudioModule } from "expo-audio";
 import * as FileSystem from "expo-file-system/legacy";
 
+// ── Cross-module stop registration ───────────────────────────────────────────
+// Tells audio.ts to call our stopPreloaded() whenever speak() / stopAll() runs.
+// This prevents two players from running at the same time across both modules.
+import { stop as audioStop, setLessonAudioStop } from "./audio";
+
 // ── API base URL helper ───────────────────────────────────────────────────────
 // Priority: EXPO_PUBLIC_API_URL (EAS builds) → EXPO_PUBLIC_DOMAIN (Replit dev) → https://myheroapp.org
 function getBaseUrl(): string {
@@ -170,13 +175,25 @@ export function cacheAudio(path: string, base64: string): void {
 let _gen = 0;
 let _nativePlayer: ReturnType<typeof createAudioPlayer> | null = null;
 
-export function stopPreloaded(): void {
-  _gen++;
+// Only set audio mode once per session — repeated calls on Android can reset
+// the audio session mid-playback and cause glitches.
+let _audioModeSet = false;
+
+function _killNativePlayer(): void {
   if (_nativePlayer) {
     try { _nativePlayer.pause(); _nativePlayer.remove(); } catch { /* ignore */ }
     _nativePlayer = null;
   }
 }
+
+export function stopPreloaded(): void {
+  _gen++;
+  _killNativePlayer();
+}
+
+// Register with audio.ts so speak() / stopAll() also kills our player.
+// This prevents two players from simultaneously playing across both modules.
+setLessonAudioStop(stopPreloaded);
 
 /**
  * Play a pre-generated audio path.
@@ -189,15 +206,22 @@ export async function playPreloaded(
 ): Promise<boolean> {
   const base64 = _audioCache.get(path);
   if (!base64) {
+    // No cache hit — stop our own player then delegate to fallback (which uses audio.ts)
+    stopPreloaded();
     if (fallback) await fallback();
     return false;
   }
 
-  stopPreloaded();
+  // Stop BOTH the lessonAudio player AND any audio.ts (speak) player that may be
+  // running. Without this, two players overlap and cause the voice to glitch/cut.
+  stopPreloaded();   // stops lessonAudio._nativePlayer
+  audioStop();       // stops audio.ts._nativePlayer (speak / TTS player)
+
   const myGen = ++_gen;
 
-  await new Promise<void>((r) => setTimeout(r, 30)); // minimal hardware flush
-  if (myGen !== _gen) return true;
+  // Brief hardware flush — lets the previous player fully release the audio track
+  await new Promise<void>((r) => setTimeout(r, 30));
+  if (myGen !== _gen) return true; // superseded by a newer call
 
   return new Promise<void>((resolve) => {
     if (myGen !== _gen) { resolve(); return; }
@@ -210,13 +234,26 @@ export async function playPreloaded(
         el.onerror = () => resolve();
         el.play().catch(() => resolve());
       } else {
-        // interruptionModeIOS: 0 = MixWithOthers — lets bg music keep playing alongside voice-over
-        AudioModule.setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false, interruptionMode: 'mixWithOthers' }).catch(() => {});
+        // Set audio mode once per session — repeated calls on Android reset the
+        // audio session mid-playback and are the primary cause of glitching.
+        if (!_audioModeSet) {
+          _audioModeSet = true;
+          AudioModule.setAudioModeAsync({
+            playsInSilentMode: true,
+            shouldPlayInBackground: false,
+            interruptionMode: "mixWithOthers",
+          }).catch(() => {});
+        }
+
         const tmpUri = (FileSystem.cacheDirectory ?? "") + `pre_${Date.now()}.mp3`;
         FileSystem.writeAsStringAsync(tmpUri, base64, {
           encoding: FileSystem.EncodingType.Base64,
         }).then(() => {
-          if (myGen !== _gen) { resolve(); return; }
+          if (myGen !== _gen) {
+            // Cancelled while writing — clean up the temp file immediately
+            FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
+            resolve(); return;
+          }
           const player = createAudioPlayer({ uri: tmpUri });
           _nativePlayer = player;
           let _doneOnce = false;
@@ -228,12 +265,11 @@ export async function playPreloaded(
             resolve();
           };
           player.addListener("playbackStatusUpdate", (status: any) => {
-            if (status.didJustFinish || status.playbackState === "ended") done();
+            if (status.didJustFinish || status.playbackState === "ended" || status.playbackState === "stopped") done();
           });
           player.play();
-          // Safety timeout: estimate from base64 length (~0.1ms per base64 char = ~7.5ms/byte at 128kbps)
-          // min 6s, max 120s — covers short game clips through long story sentences
-          const safeMs = Math.min(120000, Math.max(6000, base64.length * 0.1));
+          // Safety timeout: ~0.1ms per base64 char (≈128 kbps MP3), min 4s, max 120s
+          const safeMs = Math.min(120000, Math.max(4000, base64.length * 0.1));
           setTimeout(() => done(), safeMs);
         }).catch(() => resolve());
       }

@@ -105,63 +105,69 @@ export default function ParentDashboard() {
   };
 
   // ── SSE stream consumer ───────────────────────────────────────────────────
-  async function runGeneration(
+  // Uses XMLHttpRequest instead of fetch — React Native Android does NOT support
+  // ReadableStream from fetch, so res.body.getReader() never yields chunks.
+  // XHR onprogress fires with partial responseText as chunks arrive.
+  function runGeneration(
     endpoint: string,
     abortRef: React.MutableRefObject<AbortController | null>,
     setState: React.Dispatch<React.SetStateAction<GenerationState>>,
   ) {
-    abortRef.current?.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
+    // Cancel any in-flight request first
+    (abortRef.current as any)?._xhr?.abort();
 
-    setState({ running: true, percent: 0, message: "Preparing…", done: false, error: "" });
+    setState({ running: true, percent: 0, message: "Starting…", done: false, error: "" });
 
-    try {
-      const res = await fetch(`${getApiBase()}${endpoint}`, {
-        method: "POST",
-        signal: ctrl.signal,
-      });
+    const xhr = new XMLHttpRequest();
+    (abortRef.current as any) = { _xhr: xhr };
 
-      if (!res.ok || !res.body) {
-        setState((s) => ({ ...s, running: false, error: `HTTP ${res.status}` }));
-        return;
+    let consumed = 0;
+
+    xhr.open("POST", `${getApiBase()}${endpoint}`, true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.setRequestHeader("Accept", "text/event-stream");
+
+    xhr.onprogress = () => {
+      const chunk = xhr.responseText.slice(consumed);
+      consumed = xhr.responseText.length;
+
+      const lines = chunk.split("\n");
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const data = JSON.parse(line.slice(6)) as {
+            progress?: number; total?: number; percent?: number;
+            message?: string; done?: boolean;
+          };
+          setState((s) => ({
+            ...s,
+            percent: data.percent ?? s.percent,
+            message: data.message ?? s.message,
+            done: data.done ?? false,
+            running: !(data.done ?? false),
+          }));
+        } catch { /* ignore malformed chunk */ }
       }
+    };
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const data = JSON.parse(line.slice(6)) as {
-              progress?: number; total?: number; percent?: number;
-              message?: string; done?: boolean;
-            };
-            setState((s) => ({
-              ...s,
-              percent: data.percent ?? s.percent,
-              message: data.message ?? s.message,
-              done: data.done ?? false,
-              running: !(data.done ?? false),
-            }));
-          } catch { /* ignore malformed chunk */ }
-        }
+    xhr.onload = () => {
+      if (xhr.status >= 400) {
+        setState((s) => ({ ...s, running: false, error: `HTTP ${xhr.status}` }));
+      } else {
+        setState((s) => ({ ...s, running: false, done: true, percent: 100 }));
       }
+    };
 
-      setState((s) => ({ ...s, running: false, done: true, percent: 100 }));
-    } catch (err: any) {
-      if (err?.name === "AbortError") return;
-      setState((s) => ({ ...s, running: false, error: String(err?.message ?? err) }));
-    }
+    xhr.onerror = () => {
+      setState((s) => ({ ...s, running: false, error: "Network error — check connection" }));
+    };
+
+    xhr.ontimeout = () => {
+      setState((s) => ({ ...s, running: false, error: "Timed out" }));
+    };
+
+    xhr.timeout = 600000; // 10 minutes max for large generation jobs
+    xhr.send();
   }
 
 
