@@ -1,0 +1,152 @@
+}
+Implement a hybrid STT system for an English-only application (no Arabic support at all). Follow these exact steps:
+
+---
+
+## STEP 1 — Install and configure expo-speech-recognition
+
+Ensure expo-speech-recognition is installed.
+
+Add to app.json:
+
+"plugins": [
+  [
+    "expo-speech-recognition",
+    {
+      "microphonePermission": "My Hero needs microphone access so children can ask questions by voice",
+      "speechRecognitionPermission": "My Hero needs speech recognition to understand what your child is saying"
+    }
+  ]
+]
+
+Add Android permissions:
+
+"android": {
+  "permissions": [
+    "android.permission.RECORD_AUDIO",
+    "android.permission.INTERNET"
+  ]
+}
+
+---
+
+## STEP 2 — Implement hybrid STT logic (ENGLISH ONLY)
+
+Create a useSpeechRecognition hook with the following logic:
+
+1. Always use English:
+   - language = "en-US"
+
+2. First attempt native speech recognition using expo-speech-recognition:
+   - request microphone permission before starting
+   - start listening with "en-US"
+
+3. If native recognition succeeds:
+   - check confidence score
+   - if confidence >= 0.7:
+     → use the result directly (ZERO cost)
+     → DO NOT call external STT
+
+4. If native recognition fails for ANY reason:
+   - low confidence (< 0.7)
+   - no result
+   - permission denied
+   - network issue
+   - exception
+
+   → silently fallback to AssemblyAI Universal-2
+   → NEVER show any error to the child
+
+---
+
+## STEP 3 — iOS configuration
+
+In app.json:
+
+"ios": {
+  "infoPlist": {
+    "NSMicrophoneUsageDescription": "My Hero needs microphone access so children can ask questions by voice",
+    "NSSpeechRecognitionUsageDescription": "My Hero needs speech recognition to understand what your child is saying"
+  }
+}
+
+Additional rules:
+
+- Properly configure AVAudioSession
+- BEFORE starting STT:
+  → stop any TTS audio playback
+- AFTER STT completes:
+  → resume TTS if needed
+
+---
+
+## STEP 4 — Android configuration
+
+- Request RECORD_AUDIO permission at runtime before first use
+
+Before requesting permission, show this message:
+
+"My Hero needs your microphone so your child can speak to the super hero!"
+
+Handle edge cases:
+
+- If Android speech recognition service is NOT available:
+  → automatically fallback to AssemblyAI
+  → no error shown
+
+---
+
+## STEP 5 — Recording UI (IMPORTANT for UX)
+
+While native STT is listening:
+→ show pulsing orange microphone animation
+
+While AssemblyAI is processing:
+→ show a subtle loading animation (no silence)
+
+Rules:
+
+- Maximum recording time: 21 seconds (auto-stop)
+- Minimum valid recording: 2 seconds
+
+Always show feedback so the child knows the app is listening.
+
+---
+
+## STEP 6 — After transcription
+
+Regardless of source:
+
+- Send text to GPT-4o Mini for response
+- Process response normally
+- Send response to TTS (with persistent cache)
+
+Logging:
+
+Store in Supabase:
+- transcription_text
+- method_used: "native" or "assemblyai"
+- confidence_score (if native)
+- timestamp
+
+---
+
+## FINAL STEP
+
+After implementing everything, run:
+
+npx expo prebuild --clean
+
+Then rebuild for both:
+- Android
+- iOS
+
+---
+
+## GOAL
+
+- Reduce STT cost by 50–80%
+- Keep high accuracy
+- Zero UX issues for children
+- Seamless fallback system
+- English-only experienc
