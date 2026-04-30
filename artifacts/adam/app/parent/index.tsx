@@ -221,7 +221,7 @@ export default function ParentDashboard() {
             </View>
             {safetyAlerts.slice(-3).map((a, i) => (
               <View key={i} style={{ marginTop: 10, backgroundColor: "rgba(153,27,27,0.08)", borderRadius: 10, padding: 10 }}>
-                <Text style={{ color: "#7F1D1D", fontSize: 11, marginBottom: 2 }}>{new Date(a.ts).toLocaleString()}</Text>
+                <Text style={{ color: "#7F1D1D", fontSize: 11, marginBottom: 2 }}>{new Date(a.ts).toLocaleString('en-US')}</Text>
                 <Text style={{ color: "#991B1B", fontSize: 13, fontWeight: "700" }}>
                   "{a.message.slice(0, 80)}{a.message.length > 80 ? "…" : ""}"
                 </Text>

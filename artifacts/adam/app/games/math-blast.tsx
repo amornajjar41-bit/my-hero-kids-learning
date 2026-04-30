@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -38,6 +38,27 @@ function makeQ(levelIdx: number): Q {
   return { a, b, op, ans };
 }
 
+// Generate a full level's questions with no consecutive repeats
+function generateLevelQuestions(levelIdx: number, count: number): Q[] {
+  const qs: Q[] = [];
+  for (let i = 0; i < count; i++) {
+    let candidate: Q;
+    let attempts = 0;
+    do {
+      candidate = makeQ(levelIdx);
+      attempts++;
+    } while (
+      attempts < 15 &&
+      qs.length > 0 &&
+      qs[qs.length - 1]!.a === candidate.a &&
+      qs[qs.length - 1]!.b === candidate.b &&
+      qs[qs.length - 1]!.op === candidate.op
+    );
+    qs.push(candidate);
+  }
+  return qs;
+}
+
 function buildOptions(ans: number): number[] {
   const set = new Set<number>([ans]);
   while (set.size < 4) {
@@ -61,12 +82,23 @@ export default function MathBlast() {
   const [done, setDone] = useState(false);
   const [feedback, setFeedback] = useState<"" | "ok" | "no">("");
 
+  // Pre-generate all questions for the current level — no repeats, no re-randomizing mid-level
+  const [levelQuestions, setLevelQuestions] = useState<Q[]>(() =>
+    generateLevelQuestions(0, mathLevels[0]!.questionsPerLevel)
+  );
+
   const currentLevel = mathLevels[levelIdx] ?? mathLevels[0]!;
   const totalQuestions = mathLevels.reduce((s, l) => s + l.questionsPerLevel, 0);
   const globalQ = mathLevels.slice(0, levelIdx).reduce((s, l) => s + l.questionsPerLevel, 0) + questionNo;
 
-  const q = useMemo(() => makeQ(levelIdx), [levelIdx, questionNo]);
-  const opts = useMemo(() => buildOptions(q.ans), [q]);
+  const q = levelQuestions[questionNo] ?? levelQuestions[0]!;
+  const opts = useMemo(() => buildOptions(q.ans), [q.a, q.b, q.op]);
+
+  // Re-generate questions when level advances
+  useEffect(() => {
+    setLevelQuestions(generateLevelQuestions(levelIdx, currentLevel.questionsPerLevel));
+    setQuestionNo(0);
+  }, [levelIdx]);
 
   useEffect(() => {
     preloadMathAudio(lang);
@@ -76,7 +108,6 @@ export default function MathBlast() {
     };
   }, [lang]);
 
-  // Map operator symbols to spoken words
   const opWord = (op: string): string => {
     if (lang === "ar") {
       const ar: Record<string, string> = { "+": "زائد", "-": "ناقص", "×": "ضرب", "÷": "قسمة" };
@@ -86,7 +117,7 @@ export default function MathBlast() {
     return en[op] ?? op;
   };
 
-  // Read question aloud using preloaded paths; fall back to speak() if cache miss
+  // Read question aloud — short delay then play parts sequentially
   useEffect(() => {
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -95,28 +126,32 @@ export default function MathBlast() {
       const aPath = mathNumPath(q.a, lang);
       const opPath = mathOpPath(opKey, lang);
       const bPath = mathNumPath(q.b, lang);
+
+      // Try preloaded path: play a → op → b with short gaps
       const hitA = await playPreloaded(aPath);
       if (cancelled) return;
-      if (!hitA) { speak(`${q.a} ${opWord(q.op)} ${q.b}`, voice).catch(() => {}); return; }
-      await new Promise<void>((r) => setTimeout(r, 120));
+      if (!hitA) {
+        // Cache miss — speak whole equation in one fast TTS call
+        speak(`${q.a} ${opWord(q.op)} ${q.b}`, voice, 1.15).catch(() => {});
+        return;
+      }
+      await new Promise<void>((r) => setTimeout(r, 80));
       if (cancelled) return;
       await playPreloaded(opPath);
-      await new Promise<void>((r) => setTimeout(r, 120));
+      await new Promise<void>((r) => setTimeout(r, 80));
       if (cancelled) return;
       await playPreloaded(bPath);
-    }, 500);
+    }, 200);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [levelIdx, questionNo]);
+  }, [q]);
 
-  const choose = (n: number) => {
+  const choose = useCallback((n: number) => {
     if (feedback) return;
     if (n === q.ans) {
       setScore((s) => s + 1);
       setFeedback("ok");
-      // Play a random pre-generated correct phrase; fall back to short TTS
       const variant = Math.floor(Math.random() * 5);
-      const path = mathCorrectPath(variant, lang);
-      playPreloaded(path, () =>
+      playPreloaded(mathCorrectPath(variant, lang), () =>
         speak(lang === "ar" ? "ممتاز!" : "Correct!", voice)
       ).catch(() => {});
       setTimeout(() => {
@@ -125,7 +160,7 @@ export default function MathBlast() {
         if (nextQ >= currentLevel.questionsPerLevel) {
           const nextLevel = levelIdx + 1;
           if (nextLevel >= mathLevels.length) setDone(true);
-          else { setLevelIdx(nextLevel); setQuestionNo(0); }
+          else setLevelIdx(nextLevel);
         } else {
           setQuestionNo(nextQ);
         }
@@ -134,7 +169,7 @@ export default function MathBlast() {
       setFeedback("no");
       setTimeout(() => setFeedback(""), 700);
     }
-  };
+  }, [feedback, q, questionNo, currentLevel, levelIdx, lang, voice]);
 
   useEffect(() => {
     if (done) {

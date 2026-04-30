@@ -28,7 +28,8 @@ function formatPrice(usd: number, currency: string): string {
   const c = RATES[currency] ?? RATES.USD!;
   const amount = usd * c.rate;
   const rounded = amount >= 100 ? Math.round(amount) : Math.round(amount * 10) / 10;
-  return `${c.symbol}${rounded.toLocaleString()}`;
+  // Always use English (Western) numerals regardless of device locale
+  return `${c.symbol}${rounded.toLocaleString('en-US')}`;
 }
 
 export default function Upgrade() {
