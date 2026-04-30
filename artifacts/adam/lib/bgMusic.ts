@@ -11,9 +11,9 @@
 import { Platform } from "react-native";
 import { createAudioPlayer, AudioModule } from "expo-audio";
 
-// BenSound "Relaxing" — royalty-free, calm piano, stable CDN
+// Calm ambient pad — hosted in Supabase Storage (no CDN blocking, no referrer issues)
 const BG_MUSIC_URL =
-  "https://www.bensound.com/bensound-music/bensound-relaxing.mp3";
+  "https://ptkncbdsrnzkmuagygom.supabase.co/storage/v1/object/public/game-audio/bg-music.mp3";
 
 const VOLUME = 0.18;
 
