@@ -106,14 +106,15 @@ function resolveVoice(text: string, voice: string): VoiceParams {
 }
 
 // ── Text sanitiser ────────────────────────────────────────────────────────────
-function cleanText(text: string, maxChars = 400): string {
+function cleanText(text: string, maxChars = 4500): string {
   const cleaned = text
     .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}]/gu, "")
     .replace(/\*\*/g, "")
     .replace(/[*_`#]/g, "")
     .trim();
   if (cleaned.length <= maxChars) return cleaned;
-  const sentences = cleaned.split(/(?<=[.!?؟])\s+/);
+  // Split at sentence boundaries and accumulate until limit
+  const sentences = cleaned.split(/(?<=[.!?])\s+/);
   let out = "";
   for (const s of sentences) {
     if ((out + " " + s).trim().length > maxChars) break;
@@ -139,6 +140,8 @@ async function synthesizeWavenet(text: string, voice: string, speakingRate = 0.9
 
   const voiceParams = resolveVoice(text, voice);
 
+  // Longer texts need more time — scale timeout with text length (min 15s, max 30s)
+  const timeoutMs = Math.min(30000, Math.max(15000, text.length * 5));
   const response = await withTimeout(
     fetch(`${GOOGLE_TTS_URL}?key=${apiKey}`, {
       method: "POST",
@@ -153,7 +156,7 @@ async function synthesizeWavenet(text: string, voice: string, speakingRate = 0.9
         },
       }),
     }) as Promise<unknown> as Promise<HttpResponse>,
-    12000,
+    timeoutMs,
   );
 
   if (!response.ok) {
@@ -187,7 +190,7 @@ router.post("/tts", async (req, res) => {
     return;
   }
 
-  const limit = typeof maxChars === "number" && maxChars > 0 ? Math.min(maxChars, 400) : 400;
+  const limit = typeof maxChars === "number" && maxChars > 0 ? Math.min(maxChars, 4500) : 4500;
   const speechText = cleanText(text, limit);
   const rate = speakingRateFromAge(ageGroup);
 

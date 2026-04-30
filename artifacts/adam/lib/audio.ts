@@ -291,6 +291,49 @@ function _doPlay(base64: string, textForTimeout: string, myGen: number): Promise
   });
 }
 
+// ── Sentence chunker — split long texts into playable pieces ─────────────────
+const CHUNK_MAX = 600; // characters per chunk
+
+function splitChunks(text: string): string[] {
+  const cleaned = text.trim();
+  if (cleaned.length <= CHUNK_MAX) return [cleaned];
+
+  // Split on sentence-ending punctuation followed by whitespace
+  const sentences = cleaned.split(/(?<=[.!?])\s+/);
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const s of sentences) {
+    if ((current + " " + s).trim().length > CHUNK_MAX && current.length > 0) {
+      chunks.push(current.trim());
+      current = s;
+    } else {
+      current = current ? current + " " + s : s;
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+  return chunks.length > 0 ? chunks : [cleaned.slice(0, CHUNK_MAX)];
+}
+
+// ── Fetch a single TTS chunk (with in-app LRU cache) ─────────────────────────
+async function fetchChunk(
+  text: string,
+  voice: "echo" | "nova",
+  ageGroup?: string,
+): Promise<string | null> {
+  const ck = ttsCacheKey(text, ageGroup ? `${voice}:${ageGroup}` : voice);
+  const hit = ttsCacheGet(ck);
+  if (hit) return hit;
+  try {
+    const result = await ttsSpeak({ text, voice, ageGroup });
+    if (!result?.audioBase64) return null;
+    ttsCacheSet(ck, result.audioBase64);
+    return result.audioBase64;
+  } catch {
+    return null;
+  }
+}
+
 // ── speak() — Google WaveNet Neural2 (chat, lessons, stories, games) ──────────
 export async function speak(
   text: string,
@@ -318,24 +361,32 @@ export async function speak(
     } catch { /* ignore */ }
   }
 
-  const cacheKey = ageGroup ? `${voice}:${ageGroup}` : voice;
-  const ck = ttsCacheKey(text, cacheKey);
-  let base64 = ttsCacheGet(ck);
+  const chunks = splitChunks(text);
 
-  if (!base64) {
-    try {
-      const result = await ttsSpeak({ text, voice, ageGroup });
-      if (!result?.audioBase64) { setState("idle"); return; }
-      base64 = result.audioBase64;
-      ttsCacheSet(ck, base64);
-    } catch {
-      setState("error");
-      return;
+  // Pre-fetch next chunk in the background while current one plays
+  for (let i = 0; i < chunks.length; i++) {
+    if (myGen !== _generation) { setState("idle"); return; }
+
+    const chunk = chunks[i]!;
+
+    // Start fetching next chunk immediately (don't await)
+    if (i + 1 < chunks.length) {
+      fetchChunk(chunks[i + 1]!, voice, ageGroup).catch(() => {});
+    }
+
+    const base64 = await fetchChunk(chunk, voice, ageGroup);
+    if (!base64) continue; // skip failed chunks, keep going
+
+    if (myGen !== _generation) { setState("idle"); return; }
+    await _doPlay(base64, chunk, myGen);
+
+    // Small pause between chunks so it sounds natural
+    if (i + 1 < chunks.length && myGen === _generation) {
+      await new Promise<void>((r) => setTimeout(r, 80));
     }
   }
 
-  if (myGen !== _generation) { setState("idle"); return; }
-  return _doPlay(base64, text, myGen);
+  if (myGen === _generation) setState("idle");
 }
 
 // ── speakEdgeStory() — kept for backward compat, routes to speak() ────────────
