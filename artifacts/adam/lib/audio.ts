@@ -63,8 +63,14 @@ function resetWebEl(): HTMLAudioElement {
   return getWebEl();
 }
 
-// ── Native player ─────────────────────────────────────────────────────────────
+// ── Native player — single persistent instance, reused via player.replace() ───
+// Creating/removing players on every TTS call exhausts Android's audio session
+// pool after ~5-10 rapid calls, causing subsequent players to silently fail.
+// Keeping one player and calling replace() avoids this entirely.
 let _nativePlayer: ReturnType<typeof createAudioPlayer> | null = null;
+let _nativeSub: { remove: () => void } | null = null;
+let _nativeActiveTmp: string | null = null;
+let _nativeCancelCb: (() => void) | null = null;
 
 // ── Cross-module stop hook ────────────────────────────────────────────────────
 // lessonAudio.ts registers its stop here so that audio.ts's stop() / stopAll()
@@ -88,37 +94,46 @@ export function isSpeaking(): boolean {
     const el = _webEl;
     return el != null && !el.paused && el.src !== "" && el.src !== window?.location?.href;
   }
-  return _nativePlayer !== null;
+  return _audioState === "playing";
+}
+
+function _clearNativeSub(): void {
+  if (_nativeSub) { try { _nativeSub.remove(); } catch { /* ignore */ } _nativeSub = null; }
+}
+
+function _cancelNativePending(): void {
+  if (_nativeCancelCb) { const c = _nativeCancelCb; _nativeCancelCb = null; c(); }
 }
 
 // ── Stop ──────────────────────────────────────────────────────────────────────
 export async function stopAll(): Promise<void> {
-  // Kill any preloaded-audio player running in lessonAudio.ts first
   _lessonAudioStop?.();
   _generation++;
   setState("idle");
+  _clearNativeSub();
+  _cancelNativePending();
   if (_webEl) {
     try { _webEl.pause(); _webEl.src = ""; _webEl.load(); } catch { /* no-op */ }
   }
   if (_nativePlayer) {
     try { _nativePlayer.pause(); } catch { /* no-op */ }
-    try { _nativePlayer.remove(); } catch { /* no-op */ }
-    _nativePlayer = null;
+    // Do NOT remove — we reuse the player instance to avoid exhausting the Android audio pool
   }
   await new Promise<void>((r) => setTimeout(r, 50));
 }
 
 export function stop(): void {
-  // Kill any preloaded-audio player running in lessonAudio.ts first
   _lessonAudioStop?.();
   _generation++;
   setState("idle");
+  _clearNativeSub();
+  _cancelNativePending();
   if (_webEl) {
     try { _webEl.pause(); _webEl.src = ""; _webEl.load(); } catch { /* no-op */ }
   }
   if (_nativePlayer) {
-    try { _nativePlayer.pause(); _nativePlayer.remove(); } catch { /* no-op */ }
-    _nativePlayer = null;
+    try { _nativePlayer.pause(); } catch { /* no-op */ }
+    // Do NOT remove — reuse on next speak()
   }
 }
 
@@ -194,7 +209,6 @@ function _doPlay(base64: string, textForTimeout: string, myGen: number): Promise
         playWebWithRecovery(uri).then(resolve);
 
       } else {
-        // Write base64 → temp MP3 → play with expo-audio
         const tmpUri =
           (FileSystem.cacheDirectory ?? "") +
           `tts_${Date.now()}_${Math.random().toString(36).slice(2)}.mp3`;
@@ -204,42 +218,68 @@ function _doPlay(base64: string, textForTimeout: string, myGen: number): Promise
         })
           .then(() => {
             if (myGen !== _generation) {
-              // Cancelled while writing — delete the temp file so it doesn't accumulate
               FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
               resolve(); return;
             }
 
-            const player = createAudioPlayer({ uri: tmpUri });
-            _nativePlayer = player;
+            // Clear any previous listener before attaching the new one
+            _clearNativeSub();
 
+            const oldTmp = _nativeActiveTmp;
+            _nativeActiveTmp = tmpUri;
+
+            // Reuse the persistent player or create it for the very first time.
+            // player.replace() swaps the audio source without destroying the native
+            // MediaPlayer — avoids the Android audio pool exhaustion that causes
+            // silent failures after ~10 rapid create/remove cycles.
+            if (_nativePlayer) {
+              try {
+                _nativePlayer.replace({ uri: tmpUri });
+              } catch {
+                // replace() failed — fall back to a fresh instance
+                try { _nativePlayer.remove(); } catch { /* ignore */ }
+                _nativePlayer = createAudioPlayer({ uri: tmpUri });
+              }
+            } else {
+              _nativePlayer = createAudioPlayer({ uri: tmpUri });
+            }
+
+            // Delete the old temp file after the player has moved to the new source
+            if (oldTmp && oldTmp !== tmpUri) {
+              FileSystem.deleteAsync(oldTmp, { idempotent: true }).catch(() => {});
+            }
+
+            const player = _nativePlayer;
             let resolved = false;
+
             function done() {
               if (resolved) return;
               resolved = true;
               setState("idle");
-              if (_nativePlayer === player) _nativePlayer = null;
-              FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
+              _clearNativeSub();
+              _nativeCancelCb = null;
+              if (_nativeActiveTmp === tmpUri) {
+                FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
+                _nativeActiveTmp = null;
+              }
               resolve();
             }
 
-            player.addListener("playbackStatusUpdate", (status: any) => {
-              if (
-                status?.didJustFinish === true ||
-                status?.playbackState === "ended" ||
-                status?.playbackState === "stopped"
-              ) {
+            // Register cancel hook — called by stop()/stopAll() for instant resolution
+            _nativeCancelCb = done;
+
+            const sub = player.addListener("playbackStatusUpdate", (status: any) => {
+              if (status?.didJustFinish === true || status?.playbackState === "ended") {
                 done();
               }
             });
+            _nativeSub = sub;
 
             setState("playing");
             player.play();
 
             // Safety timeout: 120 ms/char, min 6 s, max 90 s
-            const safetyMs = Math.min(
-              Math.max(textForTimeout.length * 120, 6000),
-              90000,
-            );
+            const safetyMs = Math.min(Math.max(textForTimeout.length * 120, 6000), 90000);
             setTimeout(done, safetyMs);
           })
           .catch(() => { setState("error"); resolve(); });

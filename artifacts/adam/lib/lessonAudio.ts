@@ -173,25 +173,35 @@ export function cacheAudio(path: string, base64: string): void {
 // ── Playback (< 100ms when preloaded) ────────────────────────────────────────
 
 let _gen = 0;
-let _nativePlayer: ReturnType<typeof createAudioPlayer> | null = null;
 
-// Only set audio mode once per session — repeated calls on Android can reset
-// the audio session mid-playback and cause glitches.
+// Single persistent player — reused via player.replace() to avoid exhausting
+// Android's audio session pool (same fix as audio.ts).
+let _nativePlayer: ReturnType<typeof createAudioPlayer> | null = null;
+let _nativeSub: { remove: () => void } | null = null;
+let _nativeActiveTmp: string | null = null;
+let _cancelCb: (() => void) | null = null;
+
 let _audioModeSet = false;
 
-function _killNativePlayer(): void {
-  if (_nativePlayer) {
-    try { _nativePlayer.pause(); _nativePlayer.remove(); } catch { /* ignore */ }
-    _nativePlayer = null;
-  }
+function _clearSub(): void {
+  if (_nativeSub) { try { _nativeSub.remove(); } catch { /* ignore */ } _nativeSub = null; }
+}
+
+function _cancelPending(): void {
+  if (_cancelCb) { const c = _cancelCb; _cancelCb = null; c(); }
 }
 
 export function stopPreloaded(): void {
   _gen++;
-  _killNativePlayer();
+  _clearSub();
+  _cancelPending(); // immediately resolves any awaited playPreloaded() Promise
+  if (_nativePlayer) {
+    try { _nativePlayer.pause(); } catch { /* ignore */ }
+    // Do NOT remove — reuse on next playPreloaded() via player.replace()
+  }
 }
 
-// Register with audio.ts so speak() / stopAll() also kills our player.
+// Register with audio.ts so speak() / stopAll() also pauses our player.
 // This prevents two players from simultaneously playing across both modules.
 setLessonAudioStop(stopPreloaded);
 
@@ -206,75 +216,101 @@ export async function playPreloaded(
 ): Promise<boolean> {
   const base64 = _audioCache.get(path);
   if (!base64) {
-    // No cache hit — stop our own player then delegate to fallback (which uses audio.ts)
     stopPreloaded();
     if (fallback) await fallback();
     return false;
   }
 
-  // Stop BOTH the lessonAudio player AND any audio.ts (speak) player that may be
-  // running. Without this, two players overlap and cause the voice to glitch/cut.
-  stopPreloaded();   // stops lessonAudio._nativePlayer
-  audioStop();       // stops audio.ts._nativePlayer (speak / TTS player)
+  // Stop BOTH players — lessonAudio (via stopPreloaded) and audio.ts speak player.
+  // audioStop() calls stop() which calls _lessonAudioStop = stopPreloaded again (double OK).
+  stopPreloaded();
+  audioStop();
 
   const myGen = ++_gen;
 
-  // Brief hardware flush — lets the previous player fully release the audio track
   await new Promise<void>((r) => setTimeout(r, 30));
-  if (myGen !== _gen) return true; // superseded by a newer call
+  if (myGen !== _gen) return true;
 
-  return new Promise<void>((resolve) => {
-    if (myGen !== _gen) { resolve(); return; }
+  return new Promise<boolean>((resolve) => {
+    if (myGen !== _gen) { resolve(true); return; }
 
-    try {
-      if (Platform.OS === "web") {
-        const el = document.createElement("audio");
-        el.src = `data:audio/mpeg;base64,${base64}`;
-        el.onended = () => resolve();
-        el.onerror = () => resolve();
-        el.play().catch(() => resolve());
-      } else {
-        // Set audio mode once per session — repeated calls on Android reset the
-        // audio session mid-playback and are the primary cause of glitching.
-        if (!_audioModeSet) {
-          _audioModeSet = true;
-          AudioModule.setAudioModeAsync({
-            playsInSilentMode: true,
-            shouldPlayInBackground: false,
-            interruptionMode: "mixWithOthers",
-          }).catch(() => {});
-        }
-
-        const tmpUri = (FileSystem.cacheDirectory ?? "") + `pre_${Date.now()}.mp3`;
-        FileSystem.writeAsStringAsync(tmpUri, base64, {
-          encoding: FileSystem.EncodingType.Base64,
-        }).then(() => {
-          if (myGen !== _gen) {
-            // Cancelled while writing — clean up the temp file immediately
-            FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
-            resolve(); return;
-          }
-          const player = createAudioPlayer({ uri: tmpUri });
-          _nativePlayer = player;
-          let _doneOnce = false;
-          const done = () => {
-            if (_doneOnce) return;
-            _doneOnce = true;
-            if (_nativePlayer === player) _nativePlayer = null;
-            FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
-            resolve();
-          };
-          player.addListener("playbackStatusUpdate", (status: any) => {
-            if (status.didJustFinish || status.playbackState === "ended" || status.playbackState === "stopped") done();
-          });
-          player.play();
-          // Safety timeout: ~0.1ms per base64 char (≈128 kbps MP3), min 4s, max 120s
-          const safeMs = Math.min(120000, Math.max(4000, base64.length * 0.1));
-          setTimeout(() => done(), safeMs);
-        }).catch(() => resolve());
-      }
-    } catch {
-      resolve();
+    if (Platform.OS === "web") {
+      const el = document.createElement("audio");
+      el.src = `data:audio/mpeg;base64,${base64}`;
+      el.onended = () => resolve(true);
+      el.onerror = () => resolve(true);
+      el.play().catch(() => resolve(true));
+      return;
     }
-  }).then(() => true);
+
+    // Set audio mode once — calling setAudioModeAsync on every play can reset
+    // the Android audio session mid-track.
+    if (!_audioModeSet) {
+      _audioModeSet = true;
+      AudioModule.setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: false,
+        interruptionMode: "mixWithOthers",
+      }).catch(() => {});
+    }
+
+    const tmpUri = (FileSystem.cacheDirectory ?? "") + `pre_${Date.now()}.mp3`;
+
+    FileSystem.writeAsStringAsync(tmpUri, base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    }).then(() => {
+      if (myGen !== _gen) {
+        FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
+        resolve(true); return;
+      }
+
+      // Clear previous listener, swap temp file, reuse / create player
+      _clearSub();
+      const oldTmp = _nativeActiveTmp;
+      _nativeActiveTmp = tmpUri;
+
+      if (_nativePlayer) {
+        try {
+          _nativePlayer.replace({ uri: tmpUri });
+        } catch {
+          try { _nativePlayer.remove(); } catch { /* ignore */ }
+          _nativePlayer = createAudioPlayer({ uri: tmpUri });
+        }
+      } else {
+        _nativePlayer = createAudioPlayer({ uri: tmpUri });
+      }
+
+      // Delete old temp file after player has replaced its source
+      if (oldTmp && oldTmp !== tmpUri) {
+        FileSystem.deleteAsync(oldTmp, { idempotent: true }).catch(() => {});
+      }
+
+      let _doneOnce = false;
+      const done = () => {
+        if (_doneOnce) return;
+        _doneOnce = true;
+        _clearSub();
+        _cancelCb = null;
+        if (_nativeActiveTmp === tmpUri) {
+          FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {});
+          _nativeActiveTmp = null;
+        }
+        resolve(true);
+      };
+
+      // Cancel hook — lets stopPreloaded() instantly resolve any awaited Promise
+      _cancelCb = done;
+
+      const sub = _nativePlayer.addListener("playbackStatusUpdate", (status: any) => {
+        if (status.didJustFinish || status.playbackState === "ended") done();
+      });
+      _nativeSub = sub;
+
+      _nativePlayer.play();
+
+      // Safety timeout: ~0.1ms per base64 char (≈128 kbps MP3), min 4s, max 120s
+      const safeMs = Math.min(120000, Math.max(4000, base64.length * 0.1));
+      setTimeout(() => done(), safeMs);
+    }).catch(() => resolve(true));
+  });
 }
