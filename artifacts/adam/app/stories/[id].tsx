@@ -3,12 +3,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { getCurrentStoryId } from "@/lib/storyStore";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator, Animated, Pressable, ScrollView,
+  Text, View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Animated, { FadeIn } from "react-native-reanimated";
+import ReAnimated, { FadeIn } from "react-native-reanimated";
 
 import { Confetti } from "@/components/Confetti";
-import { SoftCard } from "@/components/SoftCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { AudioStatusBadge } from "@/components/AudioStatusBadge";
 import { useColors } from "@/hooks/useColors";
@@ -21,6 +23,31 @@ import { speak, stopAll } from "@/lib/audio";
 import { startBgMusic, stopBgMusic } from "@/lib/bgMusic";
 import { generateStorySentence } from "@/lib/api";
 
+// Floating star component for background decoration
+function Star({ style }: { style: any }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 1800 + Math.random() * 1200, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0, duration: 1800 + Math.random() * 1200, useNativeDriver: true }),
+      ]),
+    ).start();
+  }, [anim]);
+  return (
+    <Animated.Text style={[style, { opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.9] }) }]}>
+      ✦
+    </Animated.Text>
+  );
+}
+
+const STARS = [
+  { top: 40, left: 20, fontSize: 10 }, { top: 70, right: 35, fontSize: 8 },
+  { top: 120, left: 60, fontSize: 12 }, { top: 90, right: 80, fontSize: 7 },
+  { top: 200, left: 15, fontSize: 9 }, { top: 160, right: 20, fontSize: 11 },
+  { top: 240, left: 130, fontSize: 8 }, { top: 300, right: 50, fontSize: 10 },
+];
+
 export default function StoryReader() {
   const c = useColors();
   const router = useRouter();
@@ -28,9 +55,6 @@ export default function StoryReader() {
   const lang = useLang();
   const { profile, saveProgress, addPoints } = useApp();
 
-  // Resolve story ID once on mount so it never flickers on re-renders.
-  // URL params are the primary source of truth (always correct on web and native).
-  // The module store is a safety net for the very first native render before params arrive.
   const rawParam = Array.isArray(params.id) ? params.id[0] : params.id;
   const [storyId] = useState<string>(() => {
     if (rawParam && rawParam !== "") return rawParam;
@@ -46,14 +70,11 @@ export default function StoryReader() {
   const autoPlayRef = useRef(false);
 
   const totalSentences = story.sentences.length;
-  // Stories always use the female narrator voice regardless of character choice (Adam/Lulu)
   const voice = "nova" as const;
-  // Infer the story lang from its id prefix ("ar-…" → ar, else en)
   const storyLang: "en" | "ar" = story.id.startsWith("ar") ? "ar" : "en";
 
   useEffect(() => {
     preloadStory(story.id, totalSentences).then(() => setLoaded(true));
-    // Start calm looping background music (low volume — voice-over plays on top)
     startBgMusic();
     return () => {
       autoPlayRef.current = false;
@@ -77,12 +98,7 @@ export default function StoryReader() {
     const path = storyPath(story.id, idx);
     const text = story.sentences[idx] ?? "";
 
-    // Tiered audio resolution:
-    //  1. In-memory preload cache (< 100 ms, Supabase pre-generated)
-    //  2. On-demand server generation → cache result for future sentences
-    //  3. Live TTS fallback (always produces audio)
     await playPreloaded(path, async () => {
-      // Cache miss — try on-demand Google Neural2 generation first
       setGenerating(true);
       try {
         const result = await generateStorySentence({
@@ -93,30 +109,24 @@ export default function StoryReader() {
         });
         if (result?.audioBase64) {
           cacheAudio(path, result.audioBase64);
-          // Play the newly cached audio
           await playPreloaded(path);
           return;
         }
-      } catch { /* fall through */ } finally {
+      } catch { } finally {
         setGenerating(false);
       }
-      // Last resort: live TTS (always works even if Google quota is exhausted)
       await speak(text, voice, 1.0, undefined, profile?.ageGroup);
     });
 
     setGenerating(false);
     setIsPlaying(false);
     if (autoPlayRef.current) {
-      await new Promise<void>((r) => setTimeout(r, 50));
+      await new Promise<void>((r) => setTimeout(r, 60));
       if (autoPlayRef.current) playSentence(idx + 1);
     }
   };
 
-  const startAutoPlay = () => {
-    autoPlayRef.current = true;
-    playSentence(sentenceIdx);
-  };
-
+  const startAutoPlay = () => { autoPlayRef.current = true; playSentence(sentenceIdx); };
   const stopAutoPlay = () => {
     autoPlayRef.current = false;
     stopPreloaded();
@@ -125,171 +135,236 @@ export default function StoryReader() {
   };
 
   const isArabic = lang === "ar";
+  const progress = totalSentences > 0 ? (sentenceIdx / totalSentences) * 100 : 0;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
-      <AudioStatusBadge />
-      <View style={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <Pressable
-          onPress={() => { stopAutoPlay(); router.back(); }}
-          style={({ pressed }) => ({
-            width: 40, height: 40, borderRadius: 20,
-            backgroundColor: c.card, alignItems: "center", justifyContent: "center",
-            opacity: pressed ? 0.7 : 1,
-          })}
-        >
-          <Ionicons name="arrow-back" size={20} color={c.text} />
-        </Pressable>
-        <Text style={{ fontWeight: "800", fontSize: 18, color: c.text, flex: 1 }} numberOfLines={1}>
-          {story.titleEn}
-        </Text>
-        <Text style={{ fontSize: 11, color: c.mutedForeground }}>
-          {sentenceIdx + 1}/{totalSentences}
-        </Text>
-      </View>
+    <View style={{ flex: 1 }}>
+      {/* Deep magical gradient background */}
+      <LinearGradient
+        colors={["#0D0826", "#1A1045", "#0D1B3E"]}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+      />
 
-      {finished ? (
-        <ScrollView contentContainerStyle={{ padding: 20, gap: 18, alignItems: "center" }}>
-          <Confetti count={60} />
-          <Text style={{ fontSize: 80, textAlign: "center" }}>{story.emoji}</Text>
-          <SoftCard color={c.primary} style={{ width: "100%" }}>
-            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 20, textAlign: "center" }}>
-              The End! 🎉
+      {/* Floating stars */}
+      {STARS.map((s, i) => (
+        <Star
+          key={i}
+          style={{
+            position: "absolute",
+            color: "#A78BFA",
+            fontSize: s.fontSize,
+            top: s.top,
+            ...(s as any).left !== undefined ? { left: (s as any).left } : { right: (s as any).right },
+          }}
+        />
+      ))}
+
+      {/* Soft glow orb top-center */}
+      <View style={{
+        position: "absolute", top: -60, alignSelf: "center",
+        width: 240, height: 240, borderRadius: 120,
+        backgroundColor: "#7C3AED", opacity: 0.12,
+      }} />
+
+      <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+        <AudioStatusBadge />
+
+        {/* Header */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <Pressable
+            onPress={() => { stopAutoPlay(); router.back(); }}
+            style={({ pressed }) => ({
+              width: 40, height: 40, borderRadius: 20,
+              backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center",
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Ionicons name="arrow-back" size={20} color="#FFF" />
+          </Pressable>
+          <Text style={{ fontWeight: "800", fontSize: 17, color: "#FFF", flex: 1 }} numberOfLines={1}>
+            {story.titleEn}
+          </Text>
+          <View style={{ backgroundColor: "rgba(167,139,250,0.25)", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+            <Text style={{ fontSize: 11, color: "#C4B5FD", fontWeight: "700" }}>
+              {sentenceIdx + 1}/{totalSentences}
             </Text>
-            <Text style={{ color: "#FFF", opacity: 0.95, textAlign: "center", marginTop: 10, lineHeight: 22, fontSize: 15 }}>
-              Lesson: {story.moral}
-            </Text>
-          </SoftCard>
-          <PrimaryButton
-            title="Read Again"
-            fullWidth
-            onPress={() => { setSentenceIdx(0); setFinished(false); setIsPlaying(false); autoPlayRef.current = false; }}
-          />
-          <PrimaryButton
-            title="Another Story"
-            variant="secondary"
-            fullWidth
-            onPress={() => router.back()}
-          />
-        </ScrollView>
-      ) : (
-        <ScrollView contentContainerStyle={{ padding: 18, gap: 18 }}>
-          <View style={{ alignItems: "center", gap: 12 }}>
-            <Text style={{ fontSize: 80 }}>{story.emoji}</Text>
-            <View style={{ flexDirection: "row", gap: 6 }}>
+          </View>
+        </View>
+
+        {/* Progress bar */}
+        <View style={{ marginHorizontal: 16, marginBottom: 8, height: 3, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 2 }}>
+          <View style={{ width: `${progress}%`, height: "100%", backgroundColor: "#A78BFA", borderRadius: 2 }} />
+        </View>
+
+        {finished ? (
+          <ScrollView contentContainerStyle={{ padding: 24, gap: 18, alignItems: "center" }}>
+            <Confetti count={60} />
+            <View style={{ backgroundColor: "rgba(167,139,250,0.15)", borderRadius: 30, padding: 20, alignItems: "center" }}>
+              <Text style={{ fontSize: 72, textAlign: "center" }}>{story.emoji}</Text>
+            </View>
+            <View style={{ backgroundColor: "rgba(124,58,237,0.3)", borderRadius: 24, padding: 24, width: "100%", borderWidth: 1, borderColor: "rgba(167,139,250,0.3)" }}>
+              <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 22, textAlign: "center" }}>
+                The End! 🌟
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.9)", textAlign: "center", marginTop: 10, lineHeight: 24, fontSize: 15 }}>
+                {story.moral}
+              </Text>
+            </View>
+            <PrimaryButton title="Read Again" fullWidth onPress={() => { setSentenceIdx(0); setFinished(false); setIsPlaying(false); autoPlayRef.current = false; }} />
+            <PrimaryButton title="Another Story" variant="secondary" fullWidth onPress={() => router.back()} />
+          </ScrollView>
+        ) : (
+          <ScrollView contentContainerStyle={{ padding: 18, gap: 16, paddingBottom: 40 }}>
+
+            {/* Story emoji with moon glow */}
+            <View style={{ alignItems: "center", marginBottom: 4 }}>
+              <View style={{
+                width: 100, height: 100, borderRadius: 50, alignItems: "center", justifyContent: "center",
+                backgroundColor: "rgba(167,139,250,0.12)",
+                shadowColor: "#A78BFA", shadowOpacity: 0.4, shadowRadius: 20, elevation: 8,
+              }}>
+                <Text style={{ fontSize: 60 }}>{story.emoji}</Text>
+              </View>
+            </View>
+
+            {/* Dot progress */}
+            <View style={{ flexDirection: "row", gap: 5, justifyContent: "center", flexWrap: "wrap" }}>
               {story.sentences.map((_, i) => (
                 <View
                   key={i}
                   style={{
-                    width: i === sentenceIdx ? 20 : 8,
+                    width: i === sentenceIdx ? 22 : 8,
                     height: 8, borderRadius: 4,
-                    backgroundColor: i <= sentenceIdx ? c.primary : c.muted,
+                    backgroundColor: i <= sentenceIdx
+                      ? (i === sentenceIdx ? "#A78BFA" : "rgba(167,139,250,0.5)")
+                      : "rgba(255,255,255,0.1)",
                   }}
                 />
               ))}
             </View>
-          </View>
 
-          <Animated.View key={sentenceIdx} entering={FadeIn.duration(300)}>
-            <LinearGradient
-              colors={["#2D1B69", "#1A0F3F"]}
-              style={{ borderRadius: c.radius, padding: 24 }}
-            >
-              {!loaded && (
-                <ActivityIndicator color="#FFF" style={{ marginBottom: 12 }} />
-              )}
-              <Text
-                style={{
-                  color: "#FFF",
-                  fontSize: isArabic ? 22 : 20,
-                  fontWeight: "700",
-                  lineHeight: isArabic ? 38 : 32,
-                  textAlign: isArabic ? "right" : "left",
-                  writingDirection: isArabic ? "rtl" : "ltr",
-                }}
-              >
-                {story.sentences[sentenceIdx] ?? ""}
-              </Text>
-            </LinearGradient>
-          </Animated.View>
+            {/* Current sentence card — storybook page style */}
+            <ReAnimated.View key={sentenceIdx} entering={FadeIn.duration(350)}>
+              <View style={{
+                borderRadius: 24,
+                backgroundColor: "rgba(255,255,255,0.06)",
+                borderWidth: 1,
+                borderColor: "rgba(167,139,250,0.3)",
+                padding: 26,
+                shadowColor: "#7C3AED",
+                shadowOpacity: 0.2,
+                shadowRadius: 16,
+                elevation: 4,
+              }}>
+                {/* Decorative corner quotes */}
+                <Text style={{ position: "absolute", top: 10, left: 16, fontSize: 28, color: "rgba(167,139,250,0.3)", fontFamily: "serif" }}>"</Text>
+                <Text style={{ position: "absolute", bottom: 10, right: 16, fontSize: 28, color: "rgba(167,139,250,0.3)", fontFamily: "serif" }}>"</Text>
 
-          {generating && (
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 4 }}>
-              <ActivityIndicator size="small" color={c.primary} />
-              <Text style={{ color: c.mutedForeground, fontSize: 13 }}>Generating audio…</Text>
-            </View>
-          )}
+                {!loaded && <ActivityIndicator color="#A78BFA" style={{ marginBottom: 12 }} />}
 
-          <View style={{ flexDirection: "row", gap: 12, justifyContent: "center", marginTop: 8 }}>
-            <Pressable
-              disabled={sentenceIdx === 0}
-              onPress={() => { stopAutoPlay(); setSentenceIdx((i) => Math.max(0, i - 1)); }}
-              style={({ pressed }) => ({
-                width: 50, height: 50, borderRadius: 25,
-                backgroundColor: c.muted, alignItems: "center", justifyContent: "center",
-                opacity: sentenceIdx === 0 ? 0.3 : pressed ? 0.7 : 1,
-              })}
-            >
-              <Ionicons name="play-skip-back" size={22} color={c.text} />
-            </Pressable>
-
-            <Pressable
-              onPress={isPlaying ? stopAutoPlay : startAutoPlay}
-              style={({ pressed }) => ({
-                width: 70, height: 70, borderRadius: 35,
-                backgroundColor: c.primary, alignItems: "center", justifyContent: "center",
-                opacity: pressed ? 0.85 : 1,
-              })}
-            >
-              <Ionicons name={isPlaying ? "pause" : "play"} size={30} color="#FFF" />
-            </Pressable>
-
-            <Pressable
-              onPress={() => {
-                stopAutoPlay();
-                if (sentenceIdx + 1 >= totalSentences) setFinished(true);
-                else setSentenceIdx((i) => i + 1);
-              }}
-              style={({ pressed }) => ({
-                width: 50, height: 50, borderRadius: 25,
-                backgroundColor: c.muted, alignItems: "center", justifyContent: "center",
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <Ionicons name="play-skip-forward" size={22} color={c.text} />
-            </Pressable>
-          </View>
-
-          <SoftCard>
-            <Text style={{ fontWeight: "700", color: c.mutedForeground, fontSize: 12, marginBottom: 8 }}>
-              Full Story
-            </Text>
-            {story.sentences.map((sentence, i) => (
-              <Pressable
-                key={i}
-                onPress={() => { stopAutoPlay(); playSentence(i); }}
-                style={{
-                  padding: 8, borderRadius: 8,
-                  backgroundColor: i === sentenceIdx ? c.primary + "22" : "transparent",
-                  marginBottom: 4,
-                }}
-              >
                 <Text
                   style={{
-                    color: i === sentenceIdx ? c.primary : i < sentenceIdx ? c.mutedForeground : c.text,
-                    fontWeight: i === sentenceIdx ? "700" : "400",
-                    fontSize: 14, lineHeight: 22,
+                    color: "#F3F0FF",
+                    fontSize: isArabic ? 23 : 21,
+                    fontWeight: "700",
+                    lineHeight: isArabic ? 40 : 34,
                     textAlign: isArabic ? "right" : "left",
                     writingDirection: isArabic ? "rtl" : "ltr",
+                    paddingHorizontal: 8,
                   }}
                 >
-                  {i === sentenceIdx ? "▶ " : ""}{sentence}
+                  {story.sentences[sentenceIdx] ?? ""}
                 </Text>
+              </View>
+            </ReAnimated.View>
+
+            {generating && (
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <ActivityIndicator size="small" color="#A78BFA" />
+                <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Generating audio…</Text>
+              </View>
+            )}
+
+            {/* Playback controls */}
+            <View style={{ flexDirection: "row", gap: 16, justifyContent: "center", alignItems: "center", marginTop: 4 }}>
+              <Pressable
+                disabled={sentenceIdx === 0}
+                onPress={() => { stopAutoPlay(); setSentenceIdx((i) => Math.max(0, i - 1)); }}
+                style={({ pressed }) => ({
+                  width: 52, height: 52, borderRadius: 26,
+                  backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center",
+                  borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
+                  opacity: sentenceIdx === 0 ? 0.25 : pressed ? 0.7 : 1,
+                })}
+              >
+                <Ionicons name="play-skip-back" size={22} color="#FFF" />
               </Pressable>
-            ))}
-          </SoftCard>
-        </ScrollView>
-      )}
-    </SafeAreaView>
+
+              <Pressable
+                onPress={isPlaying ? stopAutoPlay : startAutoPlay}
+                style={({ pressed }) => ({
+                  width: 76, height: 76, borderRadius: 38,
+                  backgroundColor: "#7C3AED",
+                  alignItems: "center", justifyContent: "center",
+                  opacity: pressed ? 0.85 : 1,
+                  shadowColor: "#7C3AED", shadowOpacity: 0.6, shadowRadius: 16, elevation: 8,
+                  borderWidth: 2, borderColor: "rgba(255,255,255,0.2)",
+                })}
+              >
+                <Ionicons name={isPlaying ? "pause" : "play"} size={32} color="#FFF" />
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  stopAutoPlay();
+                  if (sentenceIdx + 1 >= totalSentences) setFinished(true);
+                  else setSentenceIdx((i) => i + 1);
+                }}
+                style={({ pressed }) => ({
+                  width: 52, height: 52, borderRadius: 26,
+                  backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center",
+                  borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Ionicons name="play-skip-forward" size={22} color="#FFF" />
+              </Pressable>
+            </View>
+
+            {/* Full story list */}
+            <View style={{
+              backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 20,
+              borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", padding: 16,
+            }}>
+              <Text style={{ fontWeight: "700", color: "rgba(167,139,250,0.8)", fontSize: 12, marginBottom: 10, letterSpacing: 1 }}>
+                FULL STORY
+              </Text>
+              {story.sentences.map((sentence, i) => (
+                <Pressable
+                  key={i}
+                  onPress={() => { stopAutoPlay(); playSentence(i); }}
+                  style={{
+                    padding: 10, borderRadius: 10, marginBottom: 4,
+                    backgroundColor: i === sentenceIdx ? "rgba(124,58,237,0.25)" : "transparent",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: i === sentenceIdx ? "#C4B5FD" : i < sentenceIdx ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.7)",
+                      fontWeight: i === sentenceIdx ? "700" : "400",
+                      fontSize: 13, lineHeight: 21,
+                      textAlign: isArabic ? "right" : "left",
+                      writingDirection: isArabic ? "rtl" : "ltr",
+                    }}
+                  >
+                    {i === sentenceIdx ? "▶ " : ""}{sentence}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+        )}
+      </SafeAreaView>
+    </View>
   );
 }

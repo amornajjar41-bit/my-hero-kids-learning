@@ -42,12 +42,32 @@ export type RewardItem = {
 };
 
 export const REWARD_SHOP: RewardItem[] = [
-  { id: "cape",      emoji: "🦸",  en: "Hero Cape",        ar: "رداء البطل",       cost: 50,  category: "accessory" },
-  { id: "hat",       emoji: "🎩",  en: "Magic Hat",        ar: "قبعة سحرية",       cost: 100, category: "accessory" },
-  { id: "crown",     emoji: "👑",  en: "Royal Crown",      ar: "تاج ملكي",         cost: 100, category: "accessory" },
-  { id: "costume",   emoji: "🥷",  en: "Ninja Suit",       ar: "بدلة نينجا",       cost: 150, category: "accessory" },
-  { id: "bg-galaxy", emoji: "🌌",  en: "Galaxy Background",ar: "خلفية المجرة",     cost: 200, category: "background" },
-  { id: "gold-star", emoji: "⭐",  en: "Golden Star",      ar: "نجمة ذهبية",       cost: 300, category: "trophy" },
+  // ── Accessories (cheap → expensive) ──────────────────────────────────────
+  { id: "cape",        emoji: "🦸",  en: "Hero Cape",          ar: "رداء البطل",         cost: 50,  category: "accessory" },
+  { id: "glasses",     emoji: "🕶️",  en: "Cool Shades",        ar: "نظارات رائعة",       cost: 60,  category: "accessory" },
+  { id: "wand",        emoji: "🪄",  en: "Magic Wand",         ar: "عصا سحرية",          cost: 75,  category: "accessory" },
+  { id: "hat",         emoji: "🎩",  en: "Magic Hat",          ar: "قبعة سحرية",         cost: 90,  category: "accessory" },
+  { id: "crown",       emoji: "👑",  en: "Royal Crown",        ar: "تاج ملكي",           cost: 110, category: "accessory" },
+  { id: "shield",      emoji: "🛡️",  en: "Hero Shield",        ar: "درع البطل",          cost: 130, category: "accessory" },
+  { id: "costume",     emoji: "🥷",  en: "Ninja Suit",         ar: "بدلة نينجا",         cost: 150, category: "accessory" },
+  { id: "jetpack",     emoji: "🚀",  en: "Jetpack",            ar: "حزمة نفاثة",         cost: 180, category: "accessory" },
+  { id: "robot-suit",  emoji: "🤖",  en: "Robot Armor",        ar: "درع الروبوت",        cost: 200, category: "accessory" },
+  { id: "wings",       emoji: "🦅",  en: "Eagle Wings",        ar: "أجنحة النسر",        cost: 220, category: "accessory" },
+  // ── Backgrounds ───────────────────────────────────────────────────────────
+  { id: "bg-sunset",   emoji: "🌅",  en: "Sunset Paradise",    ar: "جنة الغروب",         cost: 150, category: "background" },
+  { id: "bg-ocean",    emoji: "🌊",  en: "Deep Ocean",         ar: "أعماق المحيط",       cost: 175, category: "background" },
+  { id: "bg-jungle",   emoji: "🌴",  en: "Jungle Adventure",   ar: "مغامرة الغابة",      cost: 175, category: "background" },
+  { id: "bg-galaxy",   emoji: "🌌",  en: "Galaxy Background",  ar: "خلفية المجرة",       cost: 200, category: "background" },
+  { id: "bg-castle",   emoji: "🏰",  en: "Magic Castle",       ar: "القلعة السحرية",     cost: 225, category: "background" },
+  { id: "bg-space",    emoji: "🪐",  en: "Outer Space",        ar: "الفضاء الخارجي",     cost: 250, category: "background" },
+  // ── Trophies & Awards ─────────────────────────────────────────────────────
+  { id: "gold-star",   emoji: "⭐",  en: "Golden Star",        ar: "نجمة ذهبية",         cost: 200, category: "trophy" },
+  { id: "silver-cup",  emoji: "🥈",  en: "Silver Cup",         ar: "كأس فضية",           cost: 250, category: "trophy" },
+  { id: "gold-cup",    emoji: "🥇",  en: "Gold Cup",           ar: "كأس ذهبية",          cost: 300, category: "trophy" },
+  { id: "diamond",     emoji: "💎",  en: "Diamond Trophy",     ar: "كأس الماس",          cost: 400, category: "trophy" },
+  { id: "champion",    emoji: "🏆",  en: "Champion Trophy",    ar: "كأس البطل",          cost: 500, category: "trophy" },
+  { id: "legend",      emoji: "🌟",  en: "Legend Crown",       ar: "تاج الأسطورة",       cost: 750, category: "trophy" },
+  { id: "ultimate",    emoji: "👑",  en: "Ultimate Hero Badge", ar: "شارة البطل الأعظم", cost: 1000, category: "trophy" },
 ];
 
 export type Progress = {

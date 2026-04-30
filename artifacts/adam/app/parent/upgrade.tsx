@@ -4,35 +4,35 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-import { SoftCard } from "@/components/SoftCard";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 
 const BENEFITS = [
-  "Unlimited homework help 📚",
-  "Voice chat with your hero 🎤",
-  "Photo homework upload 📷",
-  "Full English curriculum with all subjects 🌍",
-  "All 4 educational games 🎮",
-  "Parent-controlled screen time & reports ⏱️",
+  { emoji: "📚", en: "Unlimited homework help & AI tutor", ar: "مساعدة غير محدودة في الواجبات" },
+  { emoji: "🎤", en: "Voice chat with your hero character", ar: "محادثة صوتية مع بطلك" },
+  { emoji: "📷", en: "Photo homework upload & explain", ar: "تصوير الواجب وشرحه" },
+  { emoji: "🌍", en: "Full English & Arabic curriculum", ar: "منهج كامل بالإنجليزية والعربية" },
+  { emoji: "🎮", en: "All 7 educational games unlocked", ar: "جميع الألعاب التعليمية السبع" },
+  { emoji: "🌙", en: "20+ bedtime stories with audio", ar: "+٢٠ قصة مع صوت احترافي" },
+  { emoji: "⏱️", en: "Parent controls & screen time limits", ar: "تحكم أولياء الأمور بوقت الشاشة" },
+  { emoji: "🏆", en: "Rewards, badges & achievement shop", ar: "مكافآت وشارات ومتجر الإنجازات" },
+];
+
+const SOCIAL_PROOF = [
+  { stars: "⭐⭐⭐⭐⭐", text: "My son asks to use it every night!", name: "Sarah M." },
+  { stars: "⭐⭐⭐⭐⭐", text: "Best investment for my daughter's learning", name: "Ahmed K." },
 ];
 
 function formatPrice(usd: number, currency: string): string {
   const RATES: Record<string, { symbol: string; rate: number }> = {
-    USD: { symbol: "$",    rate: 1    }, EUR: { symbol: "€",    rate: 0.93 },
-    GBP: { symbol: "£",   rate: 0.79 }, SAR: { symbol: "SAR ", rate: 3.75 },
+    USD: { symbol: "$", rate: 1 }, EUR: { symbol: "€", rate: 0.93 },
+    GBP: { symbol: "£", rate: 0.79 }, SAR: { symbol: "SAR ", rate: 3.75 },
     AED: { symbol: "AED ", rate: 3.67 }, KWD: { symbol: "KWD ", rate: 0.31 },
     QAR: { symbol: "QAR ", rate: 3.64 }, EGP: { symbol: "EGP ", rate: 30.9 },
   };
   const c = RATES[currency] ?? RATES.USD!;
   const amount = usd * c.rate;
   const rounded = amount >= 100 ? Math.round(amount) : Math.round(amount * 10) / 10;
-  // Walk char-by-char so we catch BOTH digit ranges that Android/Gulf devices use:
-  //   Basic Arabic-Indic   U+0660–U+0669  (٠١٢٣٤٥٦٧٨٩)
-  //   Extended Arabic-Indic U+06F0–U+06F9 (۰۱۲۳۴۵۶۷۸۹)
-  // Then prepend a Unicode LTR mark (U+200E) so Android's text shaper never
-  // converts ASCII digits back to Arabic-Indic at render time.
   const raw = String(rounded);
   let numStr = "";
   for (let i = 0; i < raw.length; i++) {
@@ -49,12 +49,14 @@ export default function Upgrade() {
   const router = useRouter();
   const { profile, patchProfile } = useApp();
   const [loading, setLoading] = useState(false);
+  const [chosen, setChosen] = useState<"monthly" | "6months" | "yearly">("yearly");
 
   const currency = profile?.currency ?? "USD";
+  const lang = (profile?.language ?? "en") as "en" | "ar";
 
-  const subscribe = async (plan: "monthly" | "6months" | "yearly") => {
+  const subscribe = async () => {
     setLoading(true);
-    await patchProfile({ isPaid: true, paidPlan: plan });
+    await patchProfile({ isPaid: true, paidPlan: chosen });
     setLoading(false);
     router.back();
   };
@@ -66,157 +68,231 @@ export default function Upgrade() {
   const yearlyPerMonth = formatPrice(236.99 / 12, currency);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
-      <View style={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => ({
-            width: 40, height: 40, borderRadius: 20,
-            backgroundColor: c.card, alignItems: "center", justifyContent: "center",
-            opacity: pressed ? 0.7 : 1,
-          })}
-        >
-          <Ionicons name="close" size={20} color={c.text} />
-        </Pressable>
-        <Text style={{ fontWeight: "800", fontSize: 20, color: c.text, flex: 1 }}>
-          ✨ Upgrade My Hero
-        </Text>
-      </View>
+    <View style={{ flex: 1 }}>
+      <LinearGradient
+        colors={["#0D0826", "#1A1045", "#2D1B69"]}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+      />
 
-      <ScrollView contentContainerStyle={{ padding: 18, gap: 16, paddingBottom: 60 }}>
+      <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+        {/* Header */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, flexDirection: "row", alignItems: "center" }}>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => ({
+              width: 40, height: 40, borderRadius: 20,
+              backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center",
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Ionicons name="close" size={20} color="#FFF" />
+          </Pressable>
+          <View style={{ flex: 1, alignItems: "center" }}>
+            <View style={{ backgroundColor: "#F59E0B", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 5 }}>
+              <Text style={{ color: "#000", fontWeight: "900", fontSize: 11 }}>
+                🏅 {lang === "ar" ? "رقم ١ في تعليم الأطفال" : "#1 PARENT-APPROVED APP"}
+              </Text>
+            </View>
+          </View>
+          <View style={{ width: 40 }} />
+        </View>
 
-        {/* Hero Banner */}
-        <LinearGradient
-          colors={["#1A0F3F", "#2D1B69"]}
-          style={{ borderRadius: 20, padding: 24, alignItems: "center", gap: 10 }}
-        >
-          <Text style={{ fontSize: 56 }}>🦸</Text>
-          <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 20, textAlign: "center" }}>
-            Unlock My Hero's Full Powers
-          </Text>
-          <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, textAlign: "center", lineHeight: 20 }}>
-            Unlimited, safe and fun learning for your child every day
-          </Text>
-        </LinearGradient>
+        <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
 
-        {/* Benefits */}
-        <SoftCard style={{ gap: 10 }}>
-          <Text style={{ fontWeight: "800", color: c.text, fontSize: 16 }}>
-            Everything included:
-          </Text>
-          {BENEFITS.map((b) => (
-            <View key={b} style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
-              <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: "#10B981", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 12 }}>✓</Text>
+          {/* Hero section */}
+          <View style={{ alignItems: "center", gap: 8, paddingVertical: 10 }}>
+            <Text style={{ fontSize: 72 }}>🦸</Text>
+            <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 26, textAlign: "center", lineHeight: 32 }}>
+              {lang === "ar" ? "أطلق قوى بطلك الكاملة" : "Unlock Your Hero's\nFull Powers"}
+            </Text>
+            <Text style={{ color: "rgba(167,139,250,0.9)", fontSize: 14, textAlign: "center", lineHeight: 20 }}>
+              {lang === "ar"
+                ? "تعلّم لا حدود له، آمن وممتع كل يوم"
+                : "Safe, fun & unlimited learning — every single day"}
+            </Text>
+          </View>
+
+          {/* Benefits grid */}
+          <View style={{ backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 24, padding: 18, borderWidth: 1, borderColor: "rgba(167,139,250,0.2)", gap: 10 }}>
+            <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 14, marginBottom: 4 }}>
+              {lang === "ar" ? "✦ كل شيء مشمول" : "✦ Everything included"}
+            </Text>
+            {BENEFITS.map((b) => (
+              <View key={b.en} style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+                <Text style={{ fontSize: 20, width: 26, textAlign: "center" }}>{b.emoji}</Text>
+                <Text style={{ flex: 1, color: "rgba(255,255,255,0.85)", fontSize: 13, lineHeight: 20 }}>
+                  {lang === "ar" ? b.ar : b.en}
+                </Text>
+                <Text style={{ color: "#10B981", fontSize: 16 }}>✓</Text>
               </View>
-              <Text style={{ flex: 1, color: c.text, fontSize: 14, lineHeight: 22 }}>{b}</Text>
-            </View>
-          ))}
-        </SoftCard>
+            ))}
+          </View>
 
-        {/* MONTHLY */}
-        <SoftCard style={{ gap: 10 }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <View style={{ gap: 2 }}>
-              <Text style={{ fontWeight: "800", fontSize: 17, color: c.text }}>Monthly</Text>
-              <Text style={{ color: c.mutedForeground, fontSize: 12 }}>Cancel anytime</Text>
+          {/* Social proof */}
+          <View style={{ gap: 10 }}>
+            {SOCIAL_PROOF.map((r, i) => (
+              <View key={i} style={{
+                backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 18, padding: 14,
+                borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
+              }}>
+                <Text style={{ fontSize: 12 }}>{r.stars}</Text>
+                <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, marginTop: 4, fontStyle: "italic" }}>"{r.text}"</Text>
+                <Text style={{ color: "#A78BFA", fontSize: 11, marginTop: 4 }}>— {r.name}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Plan selector */}
+          <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 14, textAlign: "center" }}>
+            {lang === "ar" ? "اختر خطتك" : "Choose your plan"}
+          </Text>
+
+          {/* Monthly */}
+          <Pressable
+            onPress={() => setChosen("monthly")}
+            style={{
+              borderRadius: 20, borderWidth: 2.5,
+              borderColor: chosen === "monthly" ? "#A78BFA" : "rgba(255,255,255,0.12)",
+              backgroundColor: chosen === "monthly" ? "rgba(124,58,237,0.2)" : "rgba(255,255,255,0.04)",
+              padding: 18,
+              flexDirection: "row", alignItems: "center",
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 17 }}>
+                {lang === "ar" ? "شهري" : "Monthly"}
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2 }}>
+                {lang === "ar" ? "ألغِ في أي وقت" : "Cancel anytime"}
+              </Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ fontWeight: "900", fontSize: 22, color: c.text, writingDirection: "ltr" }}>{monthly}</Text>
-              <Text style={{ color: c.mutedForeground, fontSize: 11 }}>/month</Text>
+              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 22, writingDirection: "ltr" }}>{monthly}</Text>
+              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>
+                {lang === "ar" ? "/شهر" : "/month"}
+              </Text>
             </View>
-          </View>
+            <View style={{
+              width: 24, height: 24, borderRadius: 12, borderWidth: 2,
+              borderColor: chosen === "monthly" ? "#A78BFA" : "rgba(255,255,255,0.3)",
+              backgroundColor: chosen === "monthly" ? "#A78BFA" : "transparent",
+              alignItems: "center", justifyContent: "center", marginLeft: 12,
+            }}>
+              {chosen === "monthly" && <Text style={{ color: "#FFF", fontSize: 12 }}>✓</Text>}
+            </View>
+          </Pressable>
+
+          {/* 6 months */}
+          <Pressable
+            onPress={() => setChosen("6months")}
+            style={{
+              borderRadius: 20, borderWidth: 2.5,
+              borderColor: chosen === "6months" ? "#A78BFA" : "rgba(255,255,255,0.12)",
+              backgroundColor: chosen === "6months" ? "rgba(124,58,237,0.2)" : "rgba(255,255,255,0.04)",
+              padding: 18,
+              flexDirection: "row", alignItems: "center",
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: "row", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 17 }}>
+                  {lang === "ar" ? "٦ أشهر" : "6 Months"}
+                </Text>
+                <View style={{ backgroundColor: "rgba(245,158,11,0.3)", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Text style={{ color: "#FDE68A", fontSize: 10, fontWeight: "800" }}>
+                    {lang === "ar" ? "وفّر ١٠%" : "SAVE 10%"}
+                  </Text>
+                </View>
+              </View>
+              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2, writingDirection: "ltr" }}>
+                {sixPerMonth}{lang === "ar" ? "/شهر" : "/mo"}
+              </Text>
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 22, writingDirection: "ltr" }}>{sixMonths}</Text>
+              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>
+                {lang === "ar" ? "مرة واحدة" : "one time"}
+              </Text>
+            </View>
+            <View style={{
+              width: 24, height: 24, borderRadius: 12, borderWidth: 2,
+              borderColor: chosen === "6months" ? "#A78BFA" : "rgba(255,255,255,0.3)",
+              backgroundColor: chosen === "6months" ? "#A78BFA" : "transparent",
+              alignItems: "center", justifyContent: "center", marginLeft: 12,
+            }}>
+              {chosen === "6months" && <Text style={{ color: "#FFF", fontSize: 12 }}>✓</Text>}
+            </View>
+          </Pressable>
+
+          {/* Yearly — highlighted */}
+          <Pressable
+            onPress={() => setChosen("yearly")}
+            style={{
+              borderRadius: 20, borderWidth: 2.5,
+              borderColor: "#FDE68A",
+              backgroundColor: chosen === "yearly" ? "rgba(253,230,138,0.1)" : "rgba(253,230,138,0.05)",
+              padding: 18,
+              flexDirection: "row", alignItems: "center",
+              shadowColor: "#FDE68A", shadowOpacity: chosen === "yearly" ? 0.25 : 0, shadowRadius: 12, elevation: chosen === "yearly" ? 6 : 0,
+            }}
+          >
+            {/* BEST VALUE badge */}
+            <View style={{ position: "absolute", top: -12, right: 16, backgroundColor: "#F59E0B", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
+              <Text style={{ color: "#000", fontWeight: "900", fontSize: 10 }}>
+                {lang === "ar" ? "⭐ الأفضل قيمة · وفّر ٢١%" : "⭐ BEST VALUE · SAVE 21%"}
+              </Text>
+            </View>
+            <View style={{ flex: 1, marginTop: 4 }}>
+              <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 17 }}>
+                {lang === "ar" ? "سنوي" : "Yearly"}
+              </Text>
+              <Text style={{ color: "rgba(253,230,138,0.6)", fontSize: 12, marginTop: 2, writingDirection: "ltr" }}>
+                {yearlyPerMonth}{lang === "ar" ? "/شهر" : "/mo"}
+              </Text>
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 22, writingDirection: "ltr" }}>{yearly}</Text>
+              <Text style={{ color: "rgba(253,230,138,0.6)", fontSize: 11 }}>
+                {lang === "ar" ? "مرة واحدة" : "one time"}
+              </Text>
+            </View>
+            <View style={{
+              width: 24, height: 24, borderRadius: 12, borderWidth: 2,
+              borderColor: "#FDE68A",
+              backgroundColor: chosen === "yearly" ? "#F59E0B" : "transparent",
+              alignItems: "center", justifyContent: "center", marginLeft: 12,
+            }}>
+              {chosen === "yearly" && <Text style={{ color: "#000", fontSize: 12, fontWeight: "900" }}>✓</Text>}
+            </View>
+          </Pressable>
+
+          {/* CTA */}
           <Pressable
             disabled={loading}
-            onPress={() => subscribe("monthly")}
+            onPress={subscribe}
             style={({ pressed }) => ({
-              backgroundColor: c.primary, borderRadius: 14, paddingVertical: 13, alignItems: "center",
-              opacity: pressed || loading ? 0.85 : 1,
+              borderRadius: 20, paddingVertical: 18, alignItems: "center",
+              backgroundColor: "#F59E0B",
+              opacity: pressed || loading ? 0.88 : 1,
+              shadowColor: "#F59E0B", shadowOpacity: 0.4, shadowRadius: 16, elevation: 6,
             })}
           >
-            {loading ? <ActivityIndicator color="#FFF" /> : (
-              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 15 }}>
-                Choose Monthly
+            {loading ? (
+              <ActivityIndicator color="#000" />
+            ) : (
+              <Text style={{ color: "#000", fontWeight: "900", fontSize: 17 }}>
+                {lang === "ar" ? "🚀 ابدأ رحلة التعلم" : "🚀 Start Learning Journey"}
               </Text>
             )}
           </Pressable>
-        </SoftCard>
 
-        {/* 6 MONTHS */}
-        <LinearGradient colors={["#7C3AED", "#A78BFA"]} style={{ borderRadius: 20, padding: 20, gap: 10 }}>
-          <View style={{ position: "absolute", top: -12, alignSelf: "center", zIndex: 1 }}>
-            <View style={{ backgroundColor: "#5B21B6", borderRadius: 20, paddingHorizontal: 14, paddingVertical: 4 }}>
-              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12 }}>
-                🔥 SAVE 10%
-              </Text>
-            </View>
-          </View>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-            <View style={{ gap: 2 }}>
-              <Text style={{ fontWeight: "800", fontSize: 17, color: "#FFF" }}>6 Months</Text>
-              <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12 }}>For committed learners</Text>
-            </View>
-            <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ fontWeight: "900", fontSize: 22, color: "#FFF", writingDirection: "ltr" }}>{sixMonths}</Text>
-              <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, writingDirection: "ltr" }}>{sixPerMonth}/mo</Text>
-            </View>
-          </View>
-          <Pressable
-            disabled={loading}
-            onPress={() => subscribe("6months")}
-            style={({ pressed }) => ({
-              backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 14, paddingVertical: 13, alignItems: "center",
-              borderWidth: 1.5, borderColor: "rgba(255,255,255,0.5)", opacity: pressed || loading ? 0.85 : 1,
-            })}
-          >
-            {loading ? <ActivityIndicator color="#FFF" /> : (
-              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 15 }}>
-                Choose 6 Months
-              </Text>
-            )}
-          </Pressable>
-        </LinearGradient>
-
-        {/* YEARLY — Most Popular */}
-        <LinearGradient colors={["#FF6B35", "#FFA76A"]} style={{ borderRadius: 20, padding: 20, gap: 10 }}>
-          <View style={{ position: "absolute", top: -12, alignSelf: "center", zIndex: 1 }}>
-            <View style={{ backgroundColor: "#C2410C", borderRadius: 20, paddingHorizontal: 14, paddingVertical: 4 }}>
-              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12 }}>
-                ⭐ MOST POPULAR · SAVE 21%
-              </Text>
-            </View>
-          </View>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-            <View style={{ gap: 2 }}>
-              <Text style={{ fontWeight: "800", fontSize: 17, color: "#FFF" }}>Yearly</Text>
-              <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 12 }}>Best value</Text>
-            </View>
-            <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ fontWeight: "900", fontSize: 22, color: "#FFF", writingDirection: "ltr" }}>{yearly}</Text>
-              <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 11, writingDirection: "ltr" }}>{yearlyPerMonth}/mo</Text>
-            </View>
-          </View>
-          <Pressable
-            disabled={loading}
-            onPress={() => subscribe("yearly")}
-            style={({ pressed }) => ({
-              backgroundColor: "#FFF", borderRadius: 14, paddingVertical: 13, alignItems: "center",
-              opacity: pressed || loading ? 0.85 : 1,
-              shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
-            })}
-          >
-            {loading ? <ActivityIndicator color="#FF6B35" /> : (
-              <Text style={{ color: "#FF6B35", fontWeight: "900", fontSize: 15 }}>
-                Choose Yearly ⭐
-              </Text>
-            )}
-          </Pressable>
-        </LinearGradient>
-
-        <Text style={{ textAlign: "center", color: c.mutedForeground, fontSize: 12, lineHeight: 20 }}>
-          No hidden fees. Cancel anytime. Your child's data is always safe and private.
-        </Text>
-      </ScrollView>
-    </SafeAreaView>
+          <Text style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", fontSize: 11, lineHeight: 18 }}>
+            {lang === "ar"
+              ? "لا رسوم خفية. إلغاء في أي وقت. بيانات طفلك آمنة دائماً."
+              : "No hidden fees · Cancel anytime · Your child's data is always safe"}
+          </Text>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
