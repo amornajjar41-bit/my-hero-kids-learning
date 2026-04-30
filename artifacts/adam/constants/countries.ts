@@ -209,9 +209,23 @@ export const COUNTRIES: CountryEntry[] = [
 
 export function convertPrice(usdPrice: number, rate: number, symbol: string): string {
   const local = usdPrice * rate;
-  if (local < 10) return `${symbol}${local.toFixed(2)}`;
-  if (local < 100) return `${symbol}${Math.round(local)}`;
-  return `${symbol}${Math.round(local).toLocaleString()}`;
+  let num: string;
+  if (local < 10) {
+    num = local.toFixed(2);
+  } else if (local < 100) {
+    num = String(Math.round(local));
+  } else {
+    // Use explicit comma formatting — avoid toLocaleString which produces Arabic-Indic numerals
+    const rounded = Math.round(local);
+    num = rounded >= 1000
+      ? `${Math.floor(rounded / 1000)},${String(rounded % 1000).padStart(3, "0")}`
+      : String(rounded);
+  }
+  // Strip any Arabic-Indic digits just in case (U+0660–U+0669 and U+06F0–U+06F9)
+  const safe = num.replace(/[\u0660-\u0669\u06F0-\u06F9]/g, (c) =>
+    String.fromCharCode(c.charCodeAt(0) - (c.charCodeAt(0) >= 0x06F0 ? 0x06F0 : 0x0660) + 48)
+  );
+  return `\u200E${symbol}${safe}`;
 }
 
 export const PLANS_USD = {

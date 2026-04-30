@@ -7,6 +7,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useApp } from "@/contexts/AppContext";
 import { useLang } from "@/hooks/useT";
 import { playChime } from "@/lib/chime";
+import { speakText } from "@/lib/tts";
+
+const PRAISE = ["Great job!", "Well done!", "Amazing!", "Fantastic!", "Super!"];
 
 const ITEMS = ["⭐", "🍎", "🐟", "🎈", "🌟", "🏀", "🦋", "🍕", "🌺", "🎁"];
 
@@ -28,7 +31,8 @@ function makeQuestion(level: number) {
 export default function NumberHunt() {
   const router = useRouter();
   const lang = useLang();
-  const { addPoints, saveProgress } = useApp();
+  const { addPoints, saveProgress, profile } = useApp();
+  const voice = profile?.hero === "girl" ? "nova" : "echo";
 
   const TOTAL = 8;
   const [current, setCurrent] = useState(0);
@@ -41,7 +45,12 @@ export default function NumberHunt() {
     if (selected !== null) return;
     const correct = n === q.count;
     setSelected(n);
-    if (correct) playChime("success"); else playChime("tap");
+    if (correct) {
+      playChime("success");
+      speakText(PRAISE[Math.floor(Math.random() * PRAISE.length)]!, voice).catch(() => {});
+    } else {
+      playChime("tap");
+    }
     setTimeout(() => {
       const newScore = score + (correct ? 1 : 0);
       if (current + 1 >= TOTAL) {

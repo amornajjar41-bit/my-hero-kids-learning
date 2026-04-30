@@ -4,9 +4,7 @@
  * Runs in a completely separate player from the voice-over so both can
  * play simultaneously. Uses mixWithOthers so the narrator is never interrupted.
  *
- * Key fix: listen for "isLoaded" status before calling play(), because
- * createAudioPlayer() loads asynchronously and an immediate play() may be
- * ignored if the source buffer isn't ready yet.
+ * Robust: isLoaded listener + immediate play attempt + 2s timer fallback.
  */
 import { Platform } from "react-native";
 import { createAudioPlayer, AudioModule } from "expo-audio";
@@ -20,10 +18,12 @@ let _bgPlayer: ReturnType<typeof createAudioPlayer> | null = null;
 let _bgWebEl: HTMLAudioElement | null = null;
 let _active = false;
 let _hasStarted = false;
+let _fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function stopBgMusic(): void {
   _active = false;
   _hasStarted = false;
+  if (_fallbackTimer) { clearTimeout(_fallbackTimer); _fallbackTimer = null; }
   if (_bgPlayer) {
     try { _bgPlayer.pause(); } catch { }
     try { _bgPlayer.remove(); } catch { }
@@ -52,8 +52,7 @@ export async function startBgMusic(): Promise<void> {
       return;
     }
 
-    // Set MixWithOthers BEFORE creating the player so the audio session is
-    // already in mixing mode when the player initialises its own session.
+    // Set MixWithOthers BEFORE creating the player
     await AudioModule.setAudioModeAsync({
       playsInSilentMode: true,
       shouldPlayInBackground: false,
@@ -63,29 +62,43 @@ export async function startBgMusic(): Promise<void> {
     const player = createAudioPlayer({ uri: BG_MUSIC_URL });
     _bgPlayer = player;
 
-    // Set properties — wrapped in try/catch in case they're read-only on some builds
+    // Set volume and loop
     try { (player as any).volume = VOLUME; } catch { }
     try { (player as any).loop = true; } catch { }
+
+    const doPlay = () => {
+      if (!_active || _bgPlayer !== player) return;
+      if (!_hasStarted) {
+        _hasStarted = true;
+        try { player.volume = VOLUME; } catch { }
+        try { player.play(); } catch { }
+      }
+    };
 
     player.addListener("playbackStatusUpdate", (status: any) => {
       if (!_active || _bgPlayer !== player) return;
 
-      // Fire play() the first time the source is loaded and buffered
-      if (!_hasStarted && status.isLoaded) {
-        _hasStarted = true;
-        try { player.play(); } catch { }
+      // Fire play() the first time source is loaded and ready
+      if (status.isLoaded && !_hasStarted) {
+        doPlay();
       }
 
-      // Manual loop fallback — covers builds where player.loop didn't stick
-      if (status.didJustFinish || status.playbackState === "ended") {
+      // Manual loop fallback
+      if (_hasStarted && (status.didJustFinish || status.playbackState === "ended")) {
         try { player.seekTo(0); player.play(); } catch { }
       }
     });
 
-    // Also try immediately — succeeds if audio was already cached on device
-    try { player.play(); } catch { }
+    // Immediate attempt — works if audio is cached
+    doPlay();
+
+    // 2-second timer fallback — covers slow networks or unresponsive status events
+    _fallbackTimer = setTimeout(() => {
+      _fallbackTimer = null;
+      doPlay();
+    }, 2000);
 
   } catch {
-    // Background music is optional — never let this crash the story screen
+    // Background music is optional — never crash the story screen
   }
 }

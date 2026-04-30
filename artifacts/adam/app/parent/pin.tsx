@@ -186,7 +186,11 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
     );
   };
 
-  if (mode === "loading") return null;
+  if (mode === "loading") {
+    return (
+      <LinearGradient colors={["#7C3AED", "#4F46E5"]} style={{ flex: 1 }} />
+    );
+  }
 
   const title = {
     setup: lang === "ar" ? "أنشئ رقمك السري" : "Create your PIN",

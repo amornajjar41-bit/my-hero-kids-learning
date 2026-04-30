@@ -853,12 +853,12 @@ export default function Chat() {
   const charSize = Math.min(Math.max(screenH * 0.11, 80), 95);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0D0A1E" }} edges={["top"]}>
       <AudioStatusBadge />
       {/* Top bar: name + controls */}
       <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, flexDirection: "row", alignItems: "center", gap: 12 }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontWeight: "900", color: c.text, fontSize: 18 }}>{heroName}</Text>
+          <Text style={{ fontWeight: "900", color: "#FFF", fontSize: 18 }}>{heroName}</Text>
           <Text style={{ color: "#22C55E", fontSize: 12, fontWeight: "700" }}>
             ● {lang === "ar" ? "متصل" : "Online"}
           </Text>
@@ -866,9 +866,9 @@ export default function Chat() {
         <SoundToggle />
         <Pressable
           onPress={() => setMessages([])}
-          style={({ pressed }) => ({ paddingHorizontal: 12, height: 36, borderRadius: 18, backgroundColor: c.muted, justifyContent: "center", opacity: pressed ? 0.7 : 1 })}
+          style={({ pressed }) => ({ paddingHorizontal: 12, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.12)", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}
         >
-          <Text style={{ color: c.text, fontWeight: "700", fontSize: 12 }}>{t("newChat")}</Text>
+          <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 12 }}>{t("newChat")}</Text>
         </Pressable>
       </View>
 
@@ -962,10 +962,10 @@ export default function Chat() {
                     <Image source={{ uri: `data:image/jpeg;base64,${m.imageBase64}` }} style={{ width: 180, height: 180, borderRadius: 14, marginBottom: 6 }} resizeMode="cover" />
                   )}
                   <LinearGradient
-                    colors={m.role === "user" ? [c.primary, "#FFA76A"] : [c.card, c.card]}
+                    colors={m.role === "user" ? [c.primary, "#FFA76A"] : ["#1E1A3A", "#2D2560"]}
                     style={{ padding: 14, borderRadius: 18, borderTopLeftRadius: m.role === "user" ? 18 : 4, borderTopRightRadius: m.role === "user" ? 4 : 18 }}
                   >
-                    <Text style={{ color: m.role === "user" ? "#FFF" : c.text, fontSize: 16, lineHeight: 22, textAlign: lang === "ar" ? "right" : "left" }}>
+                    <Text style={{ color: "#FFF", fontSize: 16, lineHeight: 22, textAlign: lang === "ar" ? "right" : "left" }}>
                       {m.text}
                     </Text>
                     {m.role === "assistant" && (
@@ -1019,7 +1019,7 @@ export default function Chat() {
         )}
 
         {/* Input area */}
-        <View style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: Platform.OS === "ios" ? 24 : 12, backgroundColor: c.card, borderTopColor: c.border, borderTopWidth: 1, gap: 8 }}>
+        <View style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: Platform.OS === "ios" ? 24 : 12, backgroundColor: "#100D28", borderTopColor: "rgba(255,255,255,0.08)", borderTopWidth: 1, gap: 8 }}>
           {/* Text input */}
           <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
             <TextInput
@@ -1028,7 +1028,7 @@ export default function Chat() {
               placeholder={t("typeMessage")}
               placeholderTextColor={c.mutedForeground}
               multiline
-              style={{ flex: 1, backgroundColor: c.muted, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10, minHeight: 44, maxHeight: 100, color: c.text, fontSize: 15, textAlign: lang === "ar" ? "right" : "left" }}
+              style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10, minHeight: 44, maxHeight: 100, color: "#FFF", fontSize: 15, textAlign: lang === "ar" ? "right" : "left" }}
             />
             {(input.trim() || pendingImage) && (
               <Pressable onPress={() => send(input, pendingImage ?? undefined)} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: c.primary, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}>
@@ -1041,11 +1041,11 @@ export default function Chat() {
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4 }}>
             {/* Camera buttons */}
             <View style={{ flexDirection: "row", gap: 10 }}>
-              <Pressable onPress={() => pickImage(true)} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: c.muted, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}>
-                <Ionicons name="camera" size={22} color={c.text} />
+              <Pressable onPress={() => pickImage(true)} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}>
+                <Ionicons name="camera" size={22} color="#FFF" />
               </Pressable>
-              <Pressable onPress={() => pickImage(false)} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: c.muted, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}>
-                <Ionicons name="image" size={22} color={c.text} />
+              <Pressable onPress={() => pickImage(false)} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}>
+                <Ionicons name="image" size={22} color="#FFF" />
               </Pressable>
             </View>
 
@@ -1086,7 +1086,7 @@ export default function Chat() {
                     {`0:${recSeconds < 10 ? "0" : ""}${recSeconds}  Release to send`}
                   </Text>
                 ) : (
-                  <Text style={{ color: c.mutedForeground, fontWeight: "700", fontSize: 11 }}>
+                  <Text style={{ color: "rgba(255,255,255,0.5)", fontWeight: "700", fontSize: 11 }}>
                     Hold to talk 🎤
                   </Text>
                 )}

@@ -7,6 +7,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useApp } from "@/contexts/AppContext";
 import { useLang } from "@/hooks/useT";
 import { playChime } from "@/lib/chime";
+import { speakText } from "@/lib/tts";
+
+const PRAISE = ["Great job!", "Well done!", "Amazing!", "Fantastic!", "Super!"];
 
 type ColorQ = {
   label: { en: string; ar: string };
@@ -37,7 +40,8 @@ function makeQuestion(): ColorQ {
 export default function ColorBurst() {
   const router = useRouter();
   const lang = useLang();
-  const { addPoints, saveProgress } = useApp();
+  const { addPoints, saveProgress, profile } = useApp();
+  const voice = profile?.hero === "girl" ? "nova" : "echo";
 
   const TOTAL = 8;
   const [q, setQ] = useState(() => makeQuestion());
@@ -102,7 +106,12 @@ export default function ColorBurst() {
     const correct = hex === q.hex;
     setSelected(hex);
     if (timerRef.current) clearInterval(timerRef.current);
-    if (correct) playChime("success"); else playChime("tap");
+    if (correct) {
+      playChime("success");
+      speakText(PRAISE[Math.floor(Math.random() * PRAISE.length)]!, voice).catch(() => {});
+    } else {
+      playChime("tap");
+    }
     setTimeout(() => next(correct), 700);
   }, [selected, q.hex, next]);
 

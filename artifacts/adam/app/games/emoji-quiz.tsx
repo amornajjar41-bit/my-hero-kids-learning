@@ -7,6 +7,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useApp } from "@/contexts/AppContext";
 import { useLang } from "@/hooks/useT";
 import { playChime } from "@/lib/chime";
+import { speakText } from "@/lib/tts";
+
+const PRAISE = ["Great job!", "Well done!", "Amazing!", "Fantastic!", "Super!"];
 
 type Question = {
   emoji: string;
@@ -34,7 +37,8 @@ function shuffle<T>(arr: T[]): T[] {
 export default function EmojiQuiz() {
   const router = useRouter();
   const lang = useLang();
-  const { addPoints, saveProgress } = useApp();
+  const { addPoints, saveProgress, profile } = useApp();
+  const voice = profile?.hero === "girl" ? "nova" : "echo";
 
   const [questions] = useState(() => shuffle(QUESTIONS).slice(0, 7));
   const [current, setCurrent] = useState(0);
@@ -60,6 +64,7 @@ export default function EmojiQuiz() {
 
     if (correct) {
       playChime("success");
+      speakText(PRAISE[Math.floor(Math.random() * PRAISE.length)]!, voice).catch(() => {});
       Animated.sequence([
         Animated.timing(scale, { toValue: 1.15, duration: 150, useNativeDriver: true }),
         Animated.timing(scale, { toValue: 1, duration: 150, useNativeDriver: true }),

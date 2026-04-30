@@ -310,10 +310,10 @@ export default function Home() {
                 <Text style={{ fontSize: 38 }}>🏆</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 17 }}>
-                    {lang === "ar" ? "غرفة الجوائز" : "Rewards Room"}
+                    Trophy Room
                   </Text>
                   <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 2 }}>
-                    ⭐ {progress.pointsTotal ?? 0} {lang === "ar" ? "نقطة" : "pts"} · {allBadges.length} {lang === "ar" ? "شارة" : "badges"}
+                    ⭐ {progress.pointsTotal ?? 0} pts · {allBadges.length} trophies to collect
                   </Text>
                 </View>
                 <View style={{ backgroundColor: "#F59E0B", borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 }}>
@@ -370,7 +370,7 @@ export default function Home() {
               {progress.lessonsCompleted.length} {t("lessonsCompleted").toLowerCase()}
             </Text>
             <Text style={{ color: "#C9A070", fontSize: 11, marginTop: 4 }}>
-              {allBadges.length} badges to collect ✦
+              {allBadges.length} trophies to collect ✦
             </Text>
           </View>
         </ScrollView>
