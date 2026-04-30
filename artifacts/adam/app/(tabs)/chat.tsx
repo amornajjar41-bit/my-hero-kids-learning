@@ -35,7 +35,6 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useT, useLang } from "@/hooks/useT";
-import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import { chatSend, transcribe, type ChatMessage, type ChatSuggestion } from "@/lib/api";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
 import { getJSON, setJSON, STORAGE_KEYS, type SafetyAlert, type ChildMemory, defaultChildMemory } from "@/lib/storage";
@@ -463,8 +462,6 @@ export default function Chat() {
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pttScale = useRef(new Animated.Value(1)).current;
   const highFiveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Device STT (Apple/Google on-device, free) — native only
-  const deviceSttActive = useRef(false);
   const sendRef = useRef<((text: string) => Promise<void>) | null>(null);
 
 
@@ -671,39 +668,7 @@ export default function Chat() {
     }
   }, [messages, lang, profile, saveProgress, voice, heroName]);
 
-  // Keep sendRef current so device STT event handlers can call send()
   useEffect(() => { sendRef.current = send; }, [send]);
-
-  // ── Device STT event handlers (native only, Apple/Google on-device — free) ──
-  useSpeechRecognitionEvent("result", (event) => {
-    if (!deviceSttActive.current) return;
-    const transcript = event.results[0]?.transcript ?? "";
-    if (event.isFinal && transcript.trim()) {
-      deviceSttActive.current = false;
-      setTranscribing(false);
-      setIsRecording(false);
-      sendRef.current?.(transcript.trim());
-    }
-  });
-  useSpeechRecognitionEvent("error", () => {
-    if (!deviceSttActive.current) return;
-    deviceSttActive.current = false;
-    setTranscribing(false);
-    setIsRecording(false);
-    setAdamPose("normal");
-    setMicError("⚠️ Couldn't understand, try again");
-    setTimeout(() => setMicError(null), 3000);
-  });
-  useSpeechRecognitionEvent("end", () => {
-    if (!deviceSttActive.current) return;
-    // No result came back before recognition ended
-    deviceSttActive.current = false;
-    setTranscribing(false);
-    setIsRecording(false);
-    setAdamPose("normal");
-    setTooShort(true);
-    setTimeout(() => setTooShort(false), 2500);
-  });
 
   const pickImage = async (fromCamera: boolean) => {
     const perm = fromCamera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -753,16 +718,8 @@ export default function Chat() {
       if (Platform.OS === "web") {
         await webStartRecording();
       } else {
-        // Try device STT first — free (Apple on iOS, Google on Android)
-        const available = ExpoSpeechRecognitionModule.isRecognitionAvailable();
-        if (available) {
-          await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-          deviceSttActive.current = true;
-          ExpoSpeechRecognitionModule.start({ lang: lang === "ar" ? "ar-SA" : "en-US", interimResults: false, continuous: false });
-        } else {
-          // Fallback: record audio and send to Whisper on server
-          await nativeStartRecording();
-        }
+        // Always record audio and send to Whisper — works universally on any device
+        await nativeStartRecording();
       }
       setIsRecording(true);
 
@@ -793,15 +750,6 @@ export default function Chat() {
 
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
-
-    // Device STT path — stop and wait for result/end events
-    if (deviceSttActive.current) {
-      setIsRecording(false);
-      setTranscribing(true);
-      setAdamPose("thinking");
-      ExpoSpeechRecognitionModule.stop();
-      return;
     }
 
     setIsRecording(false);
@@ -1053,47 +1001,51 @@ export default function Chat() {
               </Pressable>
             </View>
 
-            {/* Big PTT button */}
-            <View style={{ alignItems: "center", gap: 4 }}>
-              {isRecording && <Waveform active />}
-              <View style={{ alignItems: "center", justifyContent: "center" }}>
-                <PulseRing active={isRecording} />
-                <Animated.View style={{ transform: [{ scale: pttScale }] }}>
-                  <Pressable
-                    onPressIn={startRec}
-                    onPressOut={stopRec}
-                    disabled={transcribing || busy}
-                    style={{
-                      width: 88, height: 88, borderRadius: 44,
-                      backgroundColor: transcribing || busy ? "#9CA3AF" : isRecording ? "#EF4444" : "#FF6B35",
-                      alignItems: "center", justifyContent: "center",
-                      shadowColor: isRecording ? "#EF4444" : "#FF6B35",
-                      shadowOpacity: transcribing || busy ? 0.2 : 0.55,
-                      shadowRadius: 14, shadowOffset: { width: 0, height: 4 },
-                      elevation: 8,
-                    }}
-                  >
-                    {transcribing ? (
-                      <Text style={{ fontSize: 26 }}>⏳</Text>
-                    ) : (
-                      <Ionicons name={isRecording ? "stop" : "mic"} size={36} color="#FFF" />
-                    )}
-                  </Pressable>
-                </Animated.View>
+            {/* Big PTT button — English only */}
+            {lang !== "ar" ? (
+              <View style={{ alignItems: "center", gap: 4 }}>
+                {isRecording && <Waveform active />}
+                <View style={{ alignItems: "center", justifyContent: "center" }}>
+                  <PulseRing active={isRecording} />
+                  <Animated.View style={{ transform: [{ scale: pttScale }] }}>
+                    <Pressable
+                      onPressIn={startRec}
+                      onPressOut={stopRec}
+                      disabled={transcribing || busy}
+                      style={{
+                        width: 88, height: 88, borderRadius: 44,
+                        backgroundColor: transcribing || busy ? "#9CA3AF" : isRecording ? "#EF4444" : "#FF6B35",
+                        alignItems: "center", justifyContent: "center",
+                        shadowColor: isRecording ? "#EF4444" : "#FF6B35",
+                        shadowOpacity: transcribing || busy ? 0.2 : 0.55,
+                        shadowRadius: 14, shadowOffset: { width: 0, height: 4 },
+                        elevation: 8,
+                      }}
+                    >
+                      {transcribing ? (
+                        <Text style={{ fontSize: 26 }}>⏳</Text>
+                      ) : (
+                        <Ionicons name={isRecording ? "stop" : "mic"} size={36} color="#FFF" />
+                      )}
+                    </Pressable>
+                  </Animated.View>
+                </View>
+                {/* Label below button */}
+                {transcribing ? (
+                  <Text style={{ color: "#6B7280", fontWeight: "700", fontSize: 11 }}>Transcribing...</Text>
+                ) : isRecording ? (
+                  <Text style={{ color: "#EF4444", fontWeight: "800", fontSize: 13 }}>
+                    {`0:${recSeconds < 10 ? "0" : ""}${recSeconds}  Release to send`}
+                  </Text>
+                ) : (
+                  <Text style={{ color: c.mutedForeground, fontWeight: "700", fontSize: 11 }}>
+                    Hold to talk 🎤
+                  </Text>
+                )}
               </View>
-              {/* Label below button */}
-              {transcribing ? (
-                <Text style={{ color: "#6B7280", fontWeight: "700", fontSize: 11 }}>Transcribing...</Text>
-              ) : isRecording ? (
-                <Text style={{ color: "#EF4444", fontWeight: "800", fontSize: 13 }}>
-                  {`0:${recSeconds < 10 ? "0" : ""}${recSeconds}  Release to send`}
-                </Text>
-              ) : (
-                <Text style={{ color: c.mutedForeground, fontWeight: "700", fontSize: 11 }}>
-                  Hold to talk 🎤
-                </Text>
-              )}
-            </View>
+            ) : (
+              <View style={{ width: 88 }} />
+            )}
 
             {/* Balance spacer */}
             <View style={{ width: 44 + 10 + 44 }} />
