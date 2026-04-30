@@ -12,6 +12,7 @@ import { supabase } from "../lib/supabase.js";
 import { openaiChat } from "../lib/openai-chat.js";
 import { clearCacheByPrefix } from "./audio.js";
 import { sendEmail, weeklyReportHtml } from "../lib/email.js";
+import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 
@@ -739,15 +740,15 @@ async function fileExists(bucket: string, path: string): Promise<boolean> {
 }
 
 async function uploadAudio(bucket: string, path: string, buffer: Buffer): Promise<boolean> {
-  try {
-    const { error } = await supabase.storage.from(bucket).upload(`${path}.mp3`, buffer, {
-      contentType: "audio/mpeg",
-      upsert: true,
-    });
-    return !error;
-  } catch {
+  const { error } = await supabase.storage.from(bucket).upload(`${path}.mp3`, buffer, {
+    contentType: "audio/mpeg",
+    upsert: true,
+  });
+  if (error) {
+    logger.warn({ bucket, path, err: error.message }, "[admin] Supabase upload failed");
     return false;
   }
+  return true;
 }
 
 async function generateAndStore(
@@ -823,12 +824,11 @@ async function generateAndStoreStory(
     const exists = await fileExists("stories-audio", `${path}.mp3`);
     if (exists) return true;
   }
-  try {
-    const buffer = await synthesizeStoryGoogle(text, lang);
-    return await uploadAudio("stories-audio", path, buffer);
-  } catch {
-    return false;
-  }
+  // Let errors propagate so the SSE caller can log and report them
+  const buffer = await synthesizeStoryGoogle(text, lang);
+  const ok = await uploadAudio("stories-audio", path, buffer);
+  if (!ok) throw new Error(`Supabase upload failed for ${path}`);
+  return true;
 }
 
 // ── Build lesson audio items ──────────────────────────────────────────────────
@@ -1034,22 +1034,126 @@ router.post("/admin/generate-stories", async (req, res) => {
 
   const total = STORY_SENTENCES.length;
   let progress = 0;
+  let succeeded = 0;
+  let failed = 0;
+  const failures: { path: string; error: string }[] = [];
 
   sseWrite(res, { progress: 0, total, message: `Starting generation of ${total} story audio segments...` });
 
   await runConcurrent(STORY_SENTENCES, 2, async (sentence) => {
     const path = `story-${sentence.storyId}/sentence-${sentence.index}`;
-    await generateAndStoreStory(path, sentence.text, sentence.lang as "en" | "ar", false); // always regenerate
+    try {
+      await generateAndStoreStory(path, sentence.text, sentence.lang as "en" | "ar", false);
+      succeeded++;
+    } catch (e: any) {
+      const errMsg = String(e?.message ?? e ?? "unknown error");
+      failed++;
+      failures.push({ path, error: errMsg });
+      logger.warn({ path, err: errMsg }, "[admin] Story audio generation failed");
+    }
     progress++;
-    sseWrite(res, { progress, total, message: `Story ${sentence.storyId} sentence ${sentence.index}`, percent: Math.round((progress / total) * 100) });
+    sseWrite(res, {
+      progress,
+      total,
+      succeeded,
+      failed,
+      message: `[${progress}/${total}] story-${sentence.storyId}/sentence-${sentence.index}`,
+      percent: Math.round((progress / total) * 100),
+    });
   });
 
   try {
-    await supabase.from("app_settings").upsert({ key: "stories_generated", value: "true" }, { onConflict: "key" });
+    if (succeeded > 0) {
+      await supabase.from("app_settings").upsert({ key: "stories_generated", value: "true" }, { onConflict: "key" });
+    }
   } catch { /* best effort */ }
 
-  sseWrite(res, { progress: total, total, done: true, message: "All story audio generated!" });
+  sseWrite(res, {
+    progress: total,
+    total,
+    done: true,
+    succeeded,
+    failed,
+    failures: failures.slice(0, 30),
+    message: `Done! ✅ ${succeeded} succeeded  ❌ ${failed} failed`,
+  });
   res.end();
+});
+
+// ── Storage + TTS diagnostics ─────────────────────────────────────────────────
+// GET /api/admin/check-storage
+router.get("/admin/check-storage", async (_req, res) => {
+  const result: Record<string, unknown> = {};
+
+  // Test Google TTS key with a minimal real synthesis
+  try {
+    const apiKey = process.env["GOOGLE_TTS_API_KEY"];
+    if (!apiKey) {
+      result["tts"] = { ok: false, error: "GOOGLE_TTS_API_KEY not set" };
+    } else {
+      const buf = await synthesizeWavenet("hello", "en", "+0%", "+0Hz", 8000);
+      result["tts"] = { ok: buf.length > 100, bytes: buf.length };
+    }
+  } catch (e: any) {
+    result["tts"] = { ok: false, error: String(e?.message ?? e) };
+  }
+
+  // Test each Supabase storage bucket
+  for (const bucket of ["stories-audio", "lessons-audio"] as const) {
+    try {
+      const { data, error } = await supabase.storage.from(bucket).list("", { limit: 5 });
+      result[bucket] = {
+        ok: !error,
+        error: error?.message,
+        fileCount: data?.length ?? 0,
+        sample: data?.map((f) => f.name).slice(0, 3),
+      };
+    } catch (e: any) {
+      result[bucket] = { ok: false, error: String(e?.message ?? e) };
+    }
+  }
+
+  res.json(result);
+});
+
+// ── On-demand single story sentence generation ────────────────────────────────
+// POST /api/admin/generate-story-sentence
+// Used by the story reader when pre-generated audio is missing for a sentence.
+router.post("/admin/generate-story-sentence", async (req, res) => {
+  const { storyId, sentenceIndex, text, lang = "en" } = req.body as {
+    storyId?: string;
+    sentenceIndex?: number;
+    text?: string;
+    lang?: string;
+  };
+  if (!storyId || sentenceIndex == null || !text) {
+    return res.status(400).json({ ok: false, error: "storyId, sentenceIndex, and text are required" });
+  }
+
+  const path = `story-${storyId}/sentence-${sentenceIndex}`;
+
+  // Check Supabase first — might already be there from a previous generation run
+  try {
+    const { data: existing, error: dlErr } = await supabase.storage.from("stories-audio").download(`${path}.mp3`);
+    if (!dlErr && existing) {
+      const ab = await existing.arrayBuffer();
+      const base64 = Buffer.from(ab).toString("base64");
+      return res.json({ ok: true, audioBase64: base64, source: "cache" });
+    }
+  } catch { /* will generate */ }
+
+  try {
+    const buffer = await synthesizeStoryGoogle(text, lang as "en" | "ar");
+    // Best-effort upload so next request hits the cache
+    uploadAudio("stories-audio", path, buffer).catch((e: unknown) => {
+      logger.warn({ path, err: String(e) }, "[admin] background upload failed");
+    });
+    const base64 = buffer.toString("base64");
+    return res.json({ ok: true, audioBase64: base64, source: "generated" });
+  } catch (e: any) {
+    logger.warn({ path, err: String(e?.message ?? e) }, "[admin] generate-story-sentence failed");
+    return res.status(500).json({ ok: false, error: String(e?.message ?? e) });
+  }
 });
 
 // ── Chat cache pre-warming ────────────────────────────────────────────────────

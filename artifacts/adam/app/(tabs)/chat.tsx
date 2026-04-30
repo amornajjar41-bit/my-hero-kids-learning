@@ -30,6 +30,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AdamCharacter, CharacterPose } from "@/components/AdamCharacter";
 import { SoftCard } from "@/components/SoftCard";
 import { SoundToggle } from "@/components/SoundToggle";
+import { AudioStatusBadge } from "@/components/AudioStatusBadge";
 import { SpeakButton } from "@/components/SpeakButton";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
@@ -853,7 +854,7 @@ export default function Chat() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
-
+      <AudioStatusBadge />
       {/* Top bar: name + controls */}
       <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, flexDirection: "row", alignItems: "center", gap: 12 }}>
         <View style={{ flex: 1 }}>

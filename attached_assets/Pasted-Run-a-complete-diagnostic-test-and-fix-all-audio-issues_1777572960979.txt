@@ -1,0 +1,17 @@
+Run a complete diagnostic test and fix all audio issues. Apply all fixes together:
+FIX 1 — Stories Audio Generation (HTTP 200 but no audio):
+The generate stories button returns HTTP 200 but no audio is created. Debug the story generation endpoint completely. Check if the Google TTS API key is valid and has quota remaining. Check if the Supabase storage bucket “stories-audio” exists and has write permissions. Add proper error logging that shows exactly what fails during generation. Fix the generation so all 10 stories generate successfully. After fixing, test generation of all 10 stories and confirm each file is saved to Supabase storage.
+FIX 2 — Stories must use female voice only:
+All stories must use female voice exclusively — never male voice. The character voice setting (Adam/Lulu) must NOT affect story narration voice — stories always use female voice regardless of character choice.
+FIX 3 — Some stories play text without audio:
+When audio file is missing or fails to load, the story shows text but plays nothing. Fix this by: checking if audio URL exists in Supabase before playing, if audio URL is missing trigger on-demand generation for that specific story, show a loading spinner while generating, never show a story without audio — either play cached audio or generate new audio first.
+FIX 4 — Chat and lesson audio stops working:
+Audio in chat, games, and lessons stops working intermittently. This is caused by the AudioManager getting into a broken state. Fix by: completely rewriting the AudioManager to use a single HTMLAudioElement that is never destroyed, add automatic recovery when audio fails — if play() throws an error reset the audio element and retry once, add a visible audio status indicator in development mode showing current audio state, ensure audio context is resumed after any user interaction on iOS (iOS requires user gesture to unlock audio).
+FIX 5 — Complete Load Testing:
+Simulate concurrent usage to verify the app can handle multiple subscribers. Test the following scenarios and report results:
+	•	10 simultaneous chat requests to the API
+	•	10 simultaneous TTS requests
+	•	10 simultaneous STT requests
+	•	Database read/write under concurrent load
+	•	Vercel serverless function cold start time
+Report: average response time, error rate, and any bottlenecks found. If any endpoint fails under 10 concurrent users fix it before reporting back.

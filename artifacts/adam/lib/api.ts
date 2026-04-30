@@ -136,6 +136,25 @@ export async function ttsEdgeStory(opts: {
   }
 }
 
+/** On-demand generate audio for a single story sentence (falls back to TTS) */
+export async function generateStorySentence(opts: {
+  storyId: string;
+  sentenceIndex: number;
+  text: string;
+  lang: "en" | "ar";
+}): Promise<{ audioBase64: string } | null> {
+  try {
+    const result = await postJSON<{ ok: boolean; audioBase64?: string }>(
+      "/api/admin/generate-story-sentence",
+      opts,
+    );
+    if (result?.ok && result.audioBase64) return { audioBase64: result.audioBase64 };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function reportSafetyAlert(opts: {
   childName: string;
   parentEmail: string;

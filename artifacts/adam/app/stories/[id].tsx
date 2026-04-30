@@ -10,14 +10,16 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { Confetti } from "@/components/Confetti";
 import { SoftCard } from "@/components/SoftCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
+import { AudioStatusBadge } from "@/components/AudioStatusBadge";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { useLang } from "@/hooks/useT";
 
 import { STORIES } from "@/constants/stories";
-import { preloadStory, storyPath, playPreloaded, stopPreloaded } from "@/lib/lessonAudio";
+import { preloadStory, storyPath, playPreloaded, stopPreloaded, cacheAudio } from "@/lib/lessonAudio";
 import { speak, stopAll } from "@/lib/audio";
 import { startBgMusic, stopBgMusic } from "@/lib/bgMusic";
+import { generateStorySentence } from "@/lib/api";
 
 export default function StoryReader() {
   const c = useColors();
@@ -40,10 +42,14 @@ export default function StoryReader() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const autoPlayRef = useRef(false);
 
   const totalSentences = story.sentences.length;
-  const voice = profile?.hero === "girl" ? "nova" : "echo";
+  // Stories always use the female narrator voice regardless of character choice (Adam/Lulu)
+  const voice = "nova" as const;
+  // Infer the story lang from its id prefix ("ar-…" → ar, else en)
+  const storyLang: "en" | "ar" = story.id.startsWith("ar") ? "ar" : "en";
 
   useEffect(() => {
     preloadStory(story.id, totalSentences).then(() => setLoaded(true));
@@ -67,8 +73,38 @@ export default function StoryReader() {
     }
     setSentenceIdx(idx);
     setIsPlaying(true);
+
     const path = storyPath(story.id, idx);
-    await playPreloaded(path, () => speak(story.sentences[idx] ?? "", voice, 1.0, undefined, profile?.ageGroup));
+    const text = story.sentences[idx] ?? "";
+
+    // Tiered audio resolution:
+    //  1. In-memory preload cache (< 100 ms, Supabase pre-generated)
+    //  2. On-demand server generation → cache result for future sentences
+    //  3. Live TTS fallback (always produces audio)
+    await playPreloaded(path, async () => {
+      // Cache miss — try on-demand Google Neural2 generation first
+      setGenerating(true);
+      try {
+        const result = await generateStorySentence({
+          storyId: story.id,
+          sentenceIndex: idx,
+          text,
+          lang: storyLang,
+        });
+        if (result?.audioBase64) {
+          cacheAudio(path, result.audioBase64);
+          // Play the newly cached audio
+          await playPreloaded(path);
+          return;
+        }
+      } catch { /* fall through */ } finally {
+        setGenerating(false);
+      }
+      // Last resort: live TTS (always works even if Google quota is exhausted)
+      await speak(text, voice, 1.0, undefined, profile?.ageGroup);
+    });
+
+    setGenerating(false);
     setIsPlaying(false);
     if (autoPlayRef.current) {
       await new Promise<void>((r) => setTimeout(r, 50));
@@ -92,6 +128,7 @@ export default function StoryReader() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
+      <AudioStatusBadge />
       <View style={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 10 }}>
         <Pressable
           onPress={() => { stopAutoPlay(); router.back(); }}
@@ -175,6 +212,13 @@ export default function StoryReader() {
               </Text>
             </LinearGradient>
           </Animated.View>
+
+          {generating && (
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 4 }}>
+              <ActivityIndicator size="small" color={c.primary} />
+              <Text style={{ color: c.mutedForeground, fontSize: 13 }}>Generating audio…</Text>
+            </View>
+          )}
 
           <View style={{ flexDirection: "row", gap: 12, justifyContent: "center", marginTop: 8 }}>
             <Pressable

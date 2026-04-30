@@ -160,6 +160,11 @@ export function isPreloaded(path: string): boolean {
   return _audioCache.has(path);
 }
 
+/** Manually insert audio into the in-memory cache (e.g. after on-demand generation) */
+export function cacheAudio(path: string, base64: string): void {
+  _audioCache.set(path, base64);
+}
+
 // ── Playback (< 100ms when preloaded) ────────────────────────────────────────
 
 let _gen = 0;
