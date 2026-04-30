@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
@@ -326,41 +325,6 @@ function HighFiveSticker({ visible, onDismiss }: { visible: boolean; onDismiss: 
   );
 }
 
-// ── Native recorder (imperative, module-level) ──────────────────────────────
-let _nativeRec: any = null;
-
-async function nativeStartRecording(): Promise<void> {
-  // Clean up any stale recorder from a previous session
-  if (_nativeRec) {
-    try { await (_nativeRec as any).stop(); } catch { /* ignore */ }
-    _nativeRec = null;
-  }
-  const { AudioModule, AudioRecorder, RecordingPresets } = await import("expo-audio");
-  // Request permission — shows system dialog the first time
-  const perm = await AudioModule.requestRecordingPermissionsAsync();
-  if (!perm.granted) throw Object.assign(new Error("Permission denied"), { name: "NotAllowedError" });
-  // Note: setAudioModeAsync is already called by startRec before this — don't call again
-  // expo-audio v1.x (SDK 54): no prepareToRecordAsync — record() directly
-  _nativeRec = new AudioRecorder(RecordingPresets.HIGH_QUALITY);
-  try {
-    await (_nativeRec as any).record();
-  } catch {
-    // record() may return void or a rejected promise on some versions — ignore non-fatal errors
-    if (!_nativeRec) throw new Error("Recorder vanished");
-  }
-}
-
-async function nativeStopRecording(): Promise<{ base64: string; mimeType: string }> {
-  if (!_nativeRec) throw new Error("no native recorder");
-  const result = await _nativeRec.stop();
-  _nativeRec = null;
-  const uri: string = result?.uri ?? result;
-  const { readAsStringAsync, EncodingType } = await import("expo-file-system/legacy");
-  const base64 = await readAsStringAsync(uri, { encoding: EncodingType.Base64 });
-  const mimeType = uri.endsWith(".mp3") ? "audio/mp3" : "audio/m4a";
-  return { base64, mimeType };
-}
-
 // ── Web WAV recorder using Web Audio API ─────────────────────────────────────
 // MediaRecorder produces webm/opus which causes conversion issues.
 // Instead we capture raw PCM via ScriptProcessorNode and encode as WAV.
@@ -477,7 +441,6 @@ export default function Chat() {
   // Hybrid STT refs
   const deviceSttActive = useRef(false);
   const nativeResultRef = useRef<string | null>(null);
-  const nativeConfidenceRef = useRef<number>(0);
 
   // ── Native STT event handlers (fire while button is held) ─────────────────
   useSpeechRecognitionEvent("result", (event) => {
@@ -485,10 +448,8 @@ export default function Chat() {
     const result = event.results[0];
     if (!result) return;
     const transcript = result.transcript ?? "";
-    const confidence = (result as any).confidence ?? 1.0;
     if (transcript.trim()) {
       nativeResultRef.current = transcript.trim();
-      nativeConfidenceRef.current = confidence;
     }
   });
 
@@ -556,11 +517,6 @@ export default function Chat() {
         if (deviceSttActive.current) {
           deviceSttActive.current = false;
           try { ExpoSpeechRecognitionModule.stop(); } catch { /* ignore */ }
-        }
-        // Kill any active recording so mic releases immediately
-        if (Platform.OS !== "web" && _nativeRec) {
-          try { _nativeRec.stop(); } catch { /* ignore */ }
-          _nativeRec = null;
         }
         if (Platform.OS === "web") {
           try {
@@ -752,52 +708,41 @@ export default function Chat() {
     setMicError(null);
     setTooShort(false);
     setAdamPose("excited");
-    // Reset hybrid STT state
     nativeResultRef.current = null;
-    nativeConfidenceRef.current = 0;
     deviceSttActive.current = false;
 
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
 
-    // Stop any playing TTS before listening
     stopAudio();
-
     recStartTime.current = Date.now();
     setRecSeconds(0);
     Animated.spring(pttScale, { toValue: 0.88, useNativeDriver: false, tension: 200 }).start();
 
     try {
       if (Platform.OS === "web") {
+        // Web: WAV recording → AssemblyAI (no native STT available)
         await webStartRecording();
       } else {
-        // 1. Set audio mode once — needed for both recording and STT on iOS
-        const { AudioModule } = await import("expo-audio");
-        await AudioModule.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-
-        // 2. Start audio recording as AssemblyAI backup (always runs)
-        await nativeStartRecording();
-
-        // 3. Try native STT in parallel as the primary free path (English only)
-        try {
-          const sttAvailable = ExpoSpeechRecognitionModule.isRecognitionAvailable();
-          if (sttAvailable) {
-            const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-            if (perm.granted) {
-              deviceSttActive.current = true;
-              ExpoSpeechRecognitionModule.start({
-                lang: "en-US",
-                interimResults: true,
-                continuous: false,
-                requiresOnDeviceRecognition: false,
-              });
-            }
-          }
-        } catch {
-          // Native STT failed to start — audio recording backup still runs
-          deviceSttActive.current = false;
+        // Native (Android + iOS): use on-device STT ONLY.
+        // Do NOT run audio recording in parallel — both would compete for the
+        // microphone (AudioRecord on Android is exclusive), causing one to fail.
+        const sttAvailable = ExpoSpeechRecognitionModule.isRecognitionAvailable();
+        if (!sttAvailable) {
+          throw Object.assign(new Error("STT not available"), { name: "NotAvailableError" });
         }
+        const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+        if (!perm.granted) {
+          throw Object.assign(new Error("Permission denied"), { name: "NotAllowedError" });
+        }
+        deviceSttActive.current = true;
+        ExpoSpeechRecognitionModule.start({
+          lang: "en-US",
+          interimResults: true,
+          continuous: false,
+          requiresOnDeviceRecognition: false,
+        });
       }
 
       setIsRecording(true);
@@ -812,10 +757,14 @@ export default function Chat() {
 
     } catch (e: any) {
       _clearRecTimers();
+      deviceSttActive.current = false;
       const denied = e?.name === "NotAllowedError" || e?.message?.includes("permission") || e?.message?.includes("denied");
-      setMicError(denied
-        ? "📵 Please allow microphone access in Settings"
-        : "⚠️ Mic failed, try again");
+      const unavailable = e?.name === "NotAvailableError";
+      setMicError(
+        denied ? "📵 Please allow microphone access in Settings" :
+        unavailable ? "🎤 Voice not available on this device" :
+        "⚠️ Mic failed, try again"
+      );
       setAdamPose("normal");
       setTimeout(() => setMicError(null), 4000);
     }
@@ -831,7 +780,7 @@ export default function Chat() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
 
-    // Stop native STT (results may still arrive briefly after this)
+    // Stop native STT — results may still arrive briefly after this call
     if (deviceSttActive.current) {
       deviceSttActive.current = false;
       try { ExpoSpeechRecognitionModule.stop(); } catch { /* ignore */ }
@@ -839,14 +788,10 @@ export default function Chat() {
 
     setIsRecording(false);
 
-    // Minimum 1.2 seconds for reliable transcription
+    // Minimum 1.2 seconds for a meaningful utterance
     if (duration < 1200) {
       setTooShort(true);
       setTimeout(() => setTooShort(false), 3000);
-      if (Platform.OS !== "web" && _nativeRec) {
-        try { await _nativeRec.stop(); } catch { /* ignore */ }
-        _nativeRec = null;
-      }
       if (Platform.OS === "web") {
         try { _wavStream?.getTracks().forEach((t) => t.stop()); _wavProcessor?.disconnect(); _wavSource?.disconnect(); _wavCtx?.close(); } catch { /* ignore */ }
         _wavStream = null; _wavProcessor = null; _wavSource = null; _wavCtx = null; _wavChunks = [];
@@ -854,44 +799,33 @@ export default function Chat() {
       return;
     }
 
-    // Give native STT a brief moment to fire its final "result" event
+    // ── NATIVE PATH: on-device STT result (Android / iOS) ────────────────────
     if (Platform.OS !== "web") {
-      await new Promise<void>((r) => setTimeout(r, 350));
-    }
+      // Give STT a brief moment to fire its final "result" event
+      await new Promise<void>((r) => setTimeout(r, 400));
 
-    // ── PATH A: Native STT gave a confident result (free, instant) ───────────
-    const nativeText = nativeResultRef.current?.trim();
-    const nativeConf = nativeConfidenceRef.current;
-
-    if (Platform.OS !== "web" && nativeText && nativeConf >= 0.6) {
-      // Discard the audio recording — we don't need it
-      if (_nativeRec) {
-        try { await _nativeRec.stop(); } catch { /* ignore */ }
-        _nativeRec = null;
+      const nativeText = nativeResultRef.current?.trim();
+      if (nativeText) {
+        await sendRef.current?.(nativeText);
+      } else {
+        setMicError("🎤 Couldn't hear you — please try again or type");
+        setAdamPose("normal");
+        setTimeout(() => setMicError(null), 3500);
       }
-      await sendRef.current?.(nativeText);
       return;
     }
 
-    // ── PATH B: AssemblyAI Universal-3-Pro fallback ───────────────────────────
+    // ── WEB PATH: WAV → AssemblyAI ────────────────────────────────────────────
     try {
       setTranscribing(true);
       setAdamPose("thinking");
 
-      const { base64, mimeType } = Platform.OS === "web"
-        ? await webStopRecording()
-        : await nativeStopRecording();
+      const { base64, mimeType } = await webStopRecording();
 
       if (!base64) {
-        // Last resort: use native result even if low confidence
-        if (nativeText) {
-          setTranscribing(false);
-          await sendRef.current?.(nativeText);
-        } else {
-          setTooShort(true);
-          setTranscribing(false);
-          setTimeout(() => setTooShort(false), 2200);
-        }
+        setTooShort(true);
+        setTranscribing(false);
+        setTimeout(() => setTooShort(false), 2200);
         return;
       }
 
@@ -900,9 +834,6 @@ export default function Chat() {
 
       if (text?.trim()) {
         await sendRef.current?.(text);
-      } else if (nativeText) {
-        // AssemblyAI got nothing but native STT had something — use it
-        await sendRef.current?.(nativeText);
       } else {
         setTooShort(true);
         setAdamPose("normal");
@@ -912,13 +843,8 @@ export default function Chat() {
       setTranscribing(false);
       setBusy(false);
       setAdamPose("normal");
-      // Final fallback: use native STT result even if low confidence
-      if (nativeText) {
-        await sendRef.current?.(nativeText);
-      } else {
-        setMicError("⚠️ Couldn't hear you, please try again");
-        setTimeout(() => setMicError(null), 3500);
-      }
+      setMicError("⚠️ Couldn't hear you, please try again");
+      setTimeout(() => setMicError(null), 3500);
     }
   };
 
