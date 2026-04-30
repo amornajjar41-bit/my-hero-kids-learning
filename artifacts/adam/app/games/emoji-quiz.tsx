@@ -5,7 +5,6 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Animated, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useApp } from "@/contexts/AppContext";
-import { useLang } from "@/hooks/useT";
 import { playChime } from "@/lib/chime";
 import { speakText } from "@/lib/tts";
 
@@ -13,21 +12,21 @@ const PRAISE = ["Great job!", "Well done!", "Amazing!", "Fantastic!", "Super!"];
 
 type Question = {
   emoji: string;
-  correct: { en: string; ar: string };
-  options: { en: string; ar: string }[];
+  correct: string;
+  options: string[];
 };
 
 const QUESTIONS: Question[] = [
-  { emoji: "🍎", correct: { en: "Apple", ar: "تفاحة" }, options: [{ en: "Apple", ar: "تفاحة" }, { en: "Orange", ar: "برتقالة" }, { en: "Mango", ar: "مانجو" }, { en: "Grape", ar: "عنب" }] },
-  { emoji: "🐶", correct: { en: "Dog", ar: "كلب" }, options: [{ en: "Cat", ar: "قطة" }, { en: "Dog", ar: "كلب" }, { en: "Lion", ar: "أسد" }, { en: "Rabbit", ar: "أرنب" }] },
-  { emoji: "🌞", correct: { en: "Sun", ar: "شمس" }, options: [{ en: "Moon", ar: "قمر" }, { en: "Star", ar: "نجمة" }, { en: "Sun", ar: "شمس" }, { en: "Cloud", ar: "سحابة" }] },
-  { emoji: "🚗", correct: { en: "Car", ar: "سيارة" }, options: [{ en: "Bus", ar: "حافلة" }, { en: "Car", ar: "سيارة" }, { en: "Plane", ar: "طائرة" }, { en: "Boat", ar: "قارب" }] },
-  { emoji: "🏠", correct: { en: "House", ar: "منزل" }, options: [{ en: "School", ar: "مدرسة" }, { en: "Hospital", ar: "مستشفى" }, { en: "House", ar: "منزل" }, { en: "Park", ar: "حديقة" }] },
-  { emoji: "🎵", correct: { en: "Music", ar: "موسيقى" }, options: [{ en: "Book", ar: "كتاب" }, { en: "Music", ar: "موسيقى" }, { en: "Dance", ar: "رقص" }, { en: "Song", ar: "أغنية" }] },
-  { emoji: "🌺", correct: { en: "Flower", ar: "زهرة" }, options: [{ en: "Flower", ar: "زهرة" }, { en: "Tree", ar: "شجرة" }, { en: "Leaf", ar: "ورقة" }, { en: "Grass", ar: "عشب" }] },
-  { emoji: "⚽", correct: { en: "Football", ar: "كرة قدم" }, options: [{ en: "Basketball", ar: "كرة سلة" }, { en: "Tennis", ar: "تنس" }, { en: "Football", ar: "كرة قدم" }, { en: "Cricket", ar: "كريكيت" }] },
-  { emoji: "🍕", correct: { en: "Pizza", ar: "بيتزا" }, options: [{ en: "Burger", ar: "برغر" }, { en: "Pizza", ar: "بيتزا" }, { en: "Pasta", ar: "مكرونة" }, { en: "Bread", ar: "خبز" }] },
-  { emoji: "🦋", correct: { en: "Butterfly", ar: "فراشة" }, options: [{ en: "Bee", ar: "نحلة" }, { en: "Ant", ar: "نملة" }, { en: "Butterfly", ar: "فراشة" }, { en: "Fly", ar: "ذبابة" }] },
+  { emoji: "🍎", correct: "Apple", options: ["Apple", "Orange", "Mango", "Grape"] },
+  { emoji: "🐶", correct: "Dog", options: ["Cat", "Dog", "Lion", "Rabbit"] },
+  { emoji: "🌞", correct: "Sun", options: ["Moon", "Star", "Sun", "Cloud"] },
+  { emoji: "🚗", correct: "Car", options: ["Bus", "Car", "Plane", "Boat"] },
+  { emoji: "🏠", correct: "House", options: ["School", "Hospital", "House", "Park"] },
+  { emoji: "🎵", correct: "Music", options: ["Book", "Music", "Dance", "Song"] },
+  { emoji: "🌺", correct: "Flower", options: ["Flower", "Tree", "Leaf", "Grass"] },
+  { emoji: "⚽", correct: "Football", options: ["Basketball", "Tennis", "Football", "Cricket"] },
+  { emoji: "🍕", correct: "Pizza", options: ["Burger", "Pizza", "Pasta", "Bread"] },
+  { emoji: "🦋", correct: "Butterfly", options: ["Bee", "Ant", "Butterfly", "Fly"] },
 ];
 
 function shuffle<T>(arr: T[]): T[] {
@@ -36,7 +35,6 @@ function shuffle<T>(arr: T[]): T[] {
 
 export default function EmojiQuiz() {
   const router = useRouter();
-  const lang = useLang();
   const { addPoints, saveProgress, profile } = useApp();
   const voice = profile?.hero === "girl" ? "nova" : "echo";
 
@@ -52,15 +50,15 @@ export default function EmojiQuiz() {
   const q = questions[current];
   if (!q) return null;
 
-  const shuffledOpts = useRef<{ en: string; ar: string }[]>([]);
+  const shuffledOpts = useRef<string[]>([]);
   if (!selected && shuffledOpts.current.length === 0) {
     shuffledOpts.current = shuffle(q.options);
   }
 
-  const handleAnswer = useCallback((option: { en: string; ar: string }) => {
+  const handleAnswer = useCallback((option: string) => {
     if (selected) return;
-    const correct = option.en === q.correct.en;
-    setSelected(option.en);
+    const correct = option === q.correct;
+    setSelected(option);
 
     if (correct) {
       playChime("success");
@@ -100,19 +98,19 @@ export default function EmojiQuiz() {
         <LinearGradient colors={["#1A0A3F", "#2D1B69"]} style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 30, gap: 20 }}>
           <Text style={{ fontSize: 80 }}>🏆</Text>
           <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 28, textAlign: "center" }}>
-            {lang === "ar" ? "أحسنت!" : "Well Done!"}
+            Well Done!
           </Text>
           <Text style={{ color: "#FFF", fontSize: 18, textAlign: "center" }}>
-            {score}/{questions.length} {lang === "ar" ? "إجابات صحيحة" : "correct answers"}
+            {score}/{questions.length} correct answers
           </Text>
           <Pressable
             onPress={() => { setCurrent(0); setScore(0); setFinished(false); shuffledOpts.current = []; }}
             style={{ backgroundColor: "#F59E0B", borderRadius: 20, paddingHorizontal: 32, paddingVertical: 14 }}
           >
-            <Text style={{ color: "#000", fontWeight: "900", fontSize: 16 }}>{lang === "ar" ? "العب مجدداً" : "Play Again"}</Text>
+            <Text style={{ color: "#000", fontWeight: "900", fontSize: 16 }}>Play Again</Text>
           </Pressable>
           <Pressable onPress={() => router.back()}>
-            <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>{lang === "ar" ? "رجوع" : "Back"}</Text>
+            <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Back</Text>
           </Pressable>
         </LinearGradient>
       </View>
@@ -129,7 +127,7 @@ export default function EmojiQuiz() {
             <Ionicons name="arrow-back" size={20} color="#FFF" />
           </Pressable>
           <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 20, flex: 1 }}>
-            🤩 {lang === "ar" ? "مسابقة الرموز" : "Emoji Quiz"}
+            🤩 Emoji Quiz
           </Text>
           <View style={{ backgroundColor: "rgba(253,230,138,0.2)", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
             <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 13 }}>⭐ {score}</Text>
@@ -154,14 +152,14 @@ export default function EmojiQuiz() {
           </Animated.View>
 
           <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 15, marginBottom: 24, textAlign: "center" }}>
-            {lang === "ar" ? "ما هذا الرمز؟" : "What does this emoji mean?"}
+            What does this emoji mean?
           </Text>
 
           {/* Options grid */}
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "center", width: "100%" }}>
             {shuffledOpts.current.map((opt) => {
-              const isCorrect = opt.en === q.correct.en;
-              const isSelected = selected === opt.en;
+              const isCorrect = opt === q.correct;
+              const isSelected = selected === opt;
               let bg = "rgba(255,255,255,0.08)";
               let border = "rgba(255,255,255,0.15)";
               if (isSelected && isCorrect) { bg = "rgba(16,185,129,0.3)"; border = "#10B981"; }
@@ -170,7 +168,7 @@ export default function EmojiQuiz() {
 
               return (
                 <Pressable
-                  key={opt.en}
+                  key={opt}
                   onPress={() => handleAnswer(opt)}
                   style={({ pressed }) => ({
                     width: "46%", borderRadius: 18, padding: 16, alignItems: "center",
@@ -179,7 +177,7 @@ export default function EmojiQuiz() {
                   })}
                 >
                   <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 15, textAlign: "center" }}>
-                    {lang === "ar" ? opt.ar : opt.en}
+                    {opt}
                   </Text>
                   {isSelected && isCorrect && <Text style={{ fontSize: 18, marginTop: 4 }}>✅</Text>}
                   {isSelected && !isCorrect && <Text style={{ fontSize: 18, marginTop: 4 }}>❌</Text>}

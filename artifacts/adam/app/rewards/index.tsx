@@ -16,7 +16,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { allBadges, badgeName } from "@/constants/badges";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
-import { useLang } from "@/hooks/useT";
 import { REWARD_SHOP, type RewardItem } from "@/lib/storage";
 
 // ── Floating star ──────────────────────────────────────────────────────────
@@ -92,7 +91,6 @@ function TrophyBadge({ earned, emoji, name }: { earned: boolean; emoji: string; 
 function ShopCard({ item, unlocked, canAfford, onBuy }: {
   item: RewardItem; unlocked: boolean; canAfford: boolean; onBuy: () => void;
 }) {
-  const lang = useLang();
   return (
     <Pressable
       onPress={unlocked ? undefined : canAfford ? onBuy : undefined}
@@ -110,7 +108,7 @@ function ShopCard({ item, unlocked, canAfford, onBuy }: {
       >
         <Text style={{ fontSize: 36 }}>{item.emoji}</Text>
         <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13, textAlign: "center" }}>
-          {lang === "ar" ? item.ar : item.en}
+          {item.en}
         </Text>
         {unlocked ? (
           <View style={{ backgroundColor: "#10B981", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
@@ -129,7 +127,6 @@ function ShopCard({ item, unlocked, canAfford, onBuy }: {
 
 export default function TrophyRoom() {
   const router = useRouter();
-  const lang = useLang();
   const { progress, saveProgress } = useApp();
 
   const earnedCount = allBadges.filter((b) =>
@@ -246,7 +243,7 @@ export default function TrophyRoom() {
                   storiesListened: progress.storiesListened,
                   pointsTotal: progress.pointsTotal ?? 0,
                 });
-                return <TrophyBadge key={b.id} earned={earned} emoji={b.emoji} name={badgeName(b, lang)} />;
+                return <TrophyBadge key={b.id} earned={earned} emoji={b.emoji} name={badgeName(b)} />;
               })}
             </View>
           </View>

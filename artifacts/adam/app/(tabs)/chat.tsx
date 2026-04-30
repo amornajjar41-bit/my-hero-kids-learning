@@ -168,16 +168,14 @@ function VoiceTutorial({ visible, onDismiss, lang, heroName }: { visible: boolea
           <LinearGradient colors={["#FF8A4C", "#FF6B35"]} style={{ borderRadius: 28, padding: 28, alignItems: "center" }}>
             <Text style={{ fontSize: 60 }}>🦸</Text>
             <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 20, textAlign: "center", marginTop: 12 }}>
-              {lang === "ar" ? `أهلاً! أنا ${heroName}!` : `Hey! I'm ${heroName}!`}
+              {`Hey! I'm ${heroName}!`}
             </Text>
             <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 15, textAlign: "center", marginTop: 10, lineHeight: 22 }}>
-              {lang === "ar"
-                ? "شايف الزر البرتقالي الكبير؟ اضغط عليه وسألني أي شي — رياضيات، علوم، إنجليزي، أي شي! 🎤"
-                : "See the big orange button? Hold it and ask me ANYTHING — maths, science, English, anything! I'm all ears! 🦸🎤"}
+              See the big orange button? Hold it and ask me ANYTHING — maths, science, English, anything! I'm all ears! 🦸🎤
             </Text>
             <Pressable onPress={onDismiss} style={({ pressed }) => ({ marginTop: 20, backgroundColor: "#FFF", paddingVertical: 14, paddingHorizontal: 32, borderRadius: 30, opacity: pressed ? 0.85 : 1 })}>
               <Text style={{ color: "#FF6B35", fontWeight: "800", fontSize: 16 }}>
-                {lang === "ar" ? "فهمت! يلا نبدأ! 🚀" : "Got it! Let's go! 🚀"}
+                Got it! Let's go! 🚀
               </Text>
             </Pressable>
           </LinearGradient>
@@ -189,10 +187,10 @@ function VoiceTutorial({ visible, onDismiss, lang, heroName }: { visible: boolea
 
 // ── Emoji Opening Buttons ────────────────────────────────────────────────────
 const EMOJI_OPENERS = [
-  { emoji: "🎒", en: "Help me with homework", ar: "ساعدني بالواجب", color: "#3B82F6" },
-  { emoji: "🎮", en: "Let's play a game!", ar: "يلا نلعب!", color: "#10B981" },
-  { emoji: "📚", en: "I want to learn something", ar: "بدي أتعلم شي", color: "#8B5CF6" },
-  { emoji: "😊", en: "Just saying hi!", ar: "بس أسلم عليك!", color: "#F59E0B" },
+  { emoji: "🎒", en: "Help me with homework", color: "#3B82F6" },
+  { emoji: "🎮", en: "Let's play a game!", color: "#10B981" },
+  { emoji: "📚", en: "I want to learn something", color: "#8B5CF6" },
+  { emoji: "😊", en: "Just saying hi!", color: "#F59E0B" },
 ];
 
 function EmojiButton({ item, lang, onTap, delay }: {
@@ -208,7 +206,7 @@ function EmojiButton({ item, lang, onTap, delay }: {
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
-        onPress={() => onTap(lang === "ar" ? item.ar : item.en)}
+        onPress={() => onTap(item.en)}
         style={({ pressed }) => ({
           backgroundColor: item.color + "18",
           borderRadius: 20,
@@ -223,7 +221,7 @@ function EmojiButton({ item, lang, onTap, delay }: {
       >
         <Text style={{ fontSize: 36 }}>{item.emoji}</Text>
         <Text style={{ color: "#374151", fontWeight: "700", fontSize: 13, textAlign: "center" }}>
-          {lang === "ar" ? item.ar : item.en}
+          {item.en}
         </Text>
       </Pressable>
     </Animated.View>
@@ -236,7 +234,7 @@ function EmojiOpening({ lang, heroName, hero, onTap }: {
   return (
     <View style={{ padding: 8, gap: 12 }}>
       <Text style={{ textAlign: "center", fontSize: 15, fontWeight: "700", color: "#6B7280", marginBottom: 4 }}>
-        {lang === "ar" ? `مرحباً! أنا ${heroName} 👋 كيف أساعدك اليوم؟` : `Hey! I'm ${heroName} 👋 What shall we do?`}
+        {`Hey! I'm ${heroName} 👋 What shall we do?`}
       </Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
         {EMOJI_OPENERS.map((item, i) => (
@@ -494,9 +492,7 @@ export default function Chat() {
     greetedRef.current = true;
     const name = profile?.childName ?? "";
     const heroN = profile?.hero === "girl" ? "Sara" : "Adam";
-    const greeting = lang === "ar"
-      ? `مرحباً ${name}! أنا ${heroN}. كيف أقدر أساعدك اليوم؟`
-      : `Hey ${name}! I'm ${heroN}. What can I help you with today?`;
+    const greeting = `Hey ${name}! I'm ${heroN}. What can I help you with today?`;
     const timer = setTimeout(() => {
       speak(greeting, profile?.hero === "girl" ? "nova" : "echo", 1.0, undefined, profile?.ageGroup).catch(() => {});
     }, 700);
@@ -573,7 +569,7 @@ export default function Chat() {
     if (!text.trim() && !imageBase64) return;
     const userMsg: ChatMessage = {
       role: "user",
-      text: text.trim() || (lang === "ar" ? "ساعدني بهالواجب" : "Help me with this"),
+      text: text.trim() || "Help me with this",
       imageBase64,
     };
     const newHistory = [...messages, userMsg];
@@ -596,12 +592,11 @@ export default function Chat() {
       // Update child memory with recent topic
       const userText = userMsg.text.toLowerCase();
       const topicHints: Record<string, string[]> = {
-        "math": ["math","number","add","subtract","multiply","divide","fraction","equation","رياضيات","جمع","طرح","ضرب","قسمة"],
-        "science": ["science","biology","chemistry","physics","planet","space","علوم","فيزياء","كيمياء","فضاء"],
-        "english": ["english","grammar","sentence","word","verb","noun","إنجليزي","grammar","جملة"],
-        "arabic": ["arabic","عربي","نحو","صرف","قراءة"],
-        "history": ["history","تاريخ"],
-        "geography": ["geography","جغرافيا"],
+        "math": ["math","number","add","subtract","multiply","divide","fraction","equation"],
+        "science": ["science","biology","chemistry","physics","planet","space"],
+        "english": ["english","grammar","sentence","word","verb","noun"],
+        "history": ["history"],
+        "geography": ["geography"],
       };
       let detectedTopic: string | null = null;
       for (const [topic, keywords] of Object.entries(topicHints)) {
@@ -663,7 +658,7 @@ export default function Chat() {
       addPoints(10);
     } catch {
       setAdamPose("normal");
-      setMessages((m) => [...m, { role: "assistant", text: lang === "ar" ? "في مشكلة بالاتصال 😢 جرب مرة ثانية" : "Connection issue 😢 try again" }]);
+      setMessages((m) => [...m, { role: "assistant", text: "Connection issue 😢 try again" }]);
     } finally {
       setBusy(false);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
@@ -860,7 +855,7 @@ export default function Chat() {
         <View style={{ flex: 1 }}>
           <Text style={{ fontWeight: "900", color: "#FFF", fontSize: 18 }}>{heroName}</Text>
           <Text style={{ color: "#22C55E", fontSize: 12, fontWeight: "700" }}>
-            ● {lang === "ar" ? "متصل" : "Online"}
+            ● Online
           </Text>
         </View>
         <SoundToggle />
@@ -965,7 +960,7 @@ export default function Chat() {
                     colors={m.role === "user" ? [c.primary, "#FFA76A"] : ["#1E1A3A", "#2D2560"]}
                     style={{ padding: 14, borderRadius: 18, borderTopLeftRadius: m.role === "user" ? 18 : 4, borderTopRightRadius: m.role === "user" ? 4 : 18 }}
                   >
-                    <Text style={{ color: "#FFF", fontSize: 16, lineHeight: 22, textAlign: lang === "ar" ? "right" : "left" }}>
+                    <Text style={{ color: "#FFF", fontSize: 16, lineHeight: 22 }}>
                       {m.text}
                     </Text>
                     {m.role === "assistant" && (
@@ -1010,7 +1005,7 @@ export default function Chat() {
           <SoftCard style={{ marginHorizontal: 14, marginBottom: 8, flexDirection: "row", alignItems: "center", gap: 10 }} padded={false}>
             <Image source={{ uri: `data:image/jpeg;base64,${pendingImage}` }} style={{ width: 60, height: 60, borderRadius: 14, margin: 8 }} />
             <Text style={{ flex: 1, color: c.text, fontWeight: "700" }}>
-              📸 {lang === "ar" ? "صورة جاهزة للإرسال" : "Photo ready to send"}
+              📸 Photo ready to send
             </Text>
             <Pressable onPress={() => setPendingImage(null)} style={{ padding: 14 }}>
               <Ionicons name="close" size={20} color={c.mutedForeground} />
@@ -1028,7 +1023,7 @@ export default function Chat() {
               placeholder={t("typeMessage")}
               placeholderTextColor={c.mutedForeground}
               multiline
-              style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10, minHeight: 44, maxHeight: 100, color: "#FFF", fontSize: 15, textAlign: lang === "ar" ? "right" : "left" }}
+              style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10, minHeight: 44, maxHeight: 100, color: "#FFF", fontSize: 15 }}
             />
             {(input.trim() || pendingImage) && (
               <Pressable onPress={() => send(input, pendingImage ?? undefined)} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: c.primary, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}>
@@ -1049,9 +1044,8 @@ export default function Chat() {
               </Pressable>
             </View>
 
-            {/* Big PTT button — English only */}
-            {lang !== "ar" ? (
-              <View style={{ alignItems: "center", gap: 4 }}>
+            {/* Big PTT button */}
+            <View style={{ alignItems: "center", gap: 4 }}>
                 {isRecording && <Waveform active />}
                 <View style={{ alignItems: "center", justifyContent: "center" }}>
                   <PulseRing active={isRecording} />
@@ -1091,9 +1085,6 @@ export default function Chat() {
                   </Text>
                 )}
               </View>
-            ) : (
-              <View style={{ width: 88 }} />
-            )}
 
             {/* Balance spacer */}
             <View style={{ width: 44 + 10 + 44 }} />

@@ -9,17 +9,14 @@ import { SoftCard } from "@/components/SoftCard";
 import { curriculum, lessonTitle, unitTitle } from "@/constants/curriculum";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
-import { useLang } from "@/hooks/useT";
 
 export default function AdventureMap() {
   const c = useColors();
   const router = useRouter();
   const { language } = useLocalSearchParams<{ language: string }>();
-  const lang = useLang();
   const { progress } = useApp();
 
-  const curr =
-    language === "arabic" ? curriculum.arabic : curriculum.english;
+  const curr = curriculum.english;
 
   const grouped = useMemo(() => {
     const map = new Map<string, typeof curr>();
@@ -34,9 +31,6 @@ export default function AdventureMap() {
   const completed = curr.filter((l) =>
     progress.lessonsCompleted.includes(l.id),
   ).length;
-
-  const titleEn = language === "arabic" ? "Arabic Adventure" : "English Adventure";
-  const titleAr = language === "arabic" ? "مغامرة العربية" : "مغامرة الإنجليزية";
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
@@ -64,16 +58,13 @@ export default function AdventureMap() {
             <Ionicons name="chevron-back" size={20} color={c.text} />
           </Pressable>
           <Text style={{ fontWeight: "800", fontSize: 22, color: c.text, flex: 1 }}>
-            {language === "arabic" ? "🇸🇦 " : "🇬🇧 "}
-            {lang === "ar" ? titleAr : titleEn}
+            🇬🇧 English Adventure
           </Text>
         </View>
 
         <SoftCard>
           <Text style={{ fontWeight: "700", color: c.text }}>
-            {lang === "ar"
-              ? `أكملت ${completed} من ${curr.length} درس`
-              : `Completed ${completed} of ${curr.length} lessons`}
+            Completed {completed} of {curr.length} lessons
           </Text>
           <View style={{ marginTop: 8 }}>
             <ProgressBar value={completed / curr.length} />
@@ -90,7 +81,7 @@ export default function AdventureMap() {
                 marginTop: 8,
               }}
             >
-              {lang === "ar" ? "الوحدة" : "Unit"} {i + 1}: {unitTitle(unit[0]!, lang)}
+              Unit {i + 1}: {unitTitle(unit[0]!)}
             </Text>
             {unit.map((lesson, idx) => {
               const isDone = progress.lessonsCompleted.includes(lesson.id);
@@ -131,7 +122,7 @@ export default function AdventureMap() {
                           color: isDone ? "#FFF" : c.text,
                         }}
                       >
-                        {lessonTitle(lesson, lang)}
+                        {lessonTitle(lesson)}
                       </Text>
                       <Text
                         style={{
@@ -141,7 +132,7 @@ export default function AdventureMap() {
                           marginTop: 2,
                         }}
                       >
-                        {lesson.words.length} {lang === "ar" ? "كلمة" : "words"}
+                        {lesson.words.length} words
                       </Text>
                     </View>
                     <Text style={{ fontSize: 24 }}>{isDone ? "⭐" : "▶️"}</Text>

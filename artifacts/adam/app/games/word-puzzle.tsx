@@ -10,7 +10,7 @@ import { SoftCard } from "@/components/SoftCard";
 import { puzzleWords } from "@/constants/games-data";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
-import { useLang, useT } from "@/hooks/useT";
+import { useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
 import {
   preloadMathAudio,
@@ -32,7 +32,6 @@ export default function WordPuzzle() {
   const c = useColors();
   const router = useRouter();
   const t = useT();
-  const lang = useLang();
   const { width } = useWindowDimensions();
   const { profile, saveProgress, addPoints } = useApp();
   const voice = profile?.hero === "girl" ? "nova" : "echo";
@@ -42,7 +41,7 @@ export default function WordPuzzle() {
   const [picked, setPicked] = useState<number[]>([]);
   const [done, setDone] = useState(false);
 
-  const pool = puzzleWords[lang];
+  const pool = puzzleWords;
   const item = pool[round % pool.length]!;
   const target = item.word.replace(/\s+/g, "");
   const letters = useMemo(() => shuffle(target.split("")), [target, round]);
@@ -53,9 +52,9 @@ export default function WordPuzzle() {
   const fontSize = tileSize > 44 ? 22 : tileSize > 36 ? 18 : 15;
 
   useEffect(() => {
-    preloadMathAudio(lang);
+    preloadMathAudio();
     return () => { stopPreloaded(); stopAudio(); };
-  }, [lang]);
+  }, []);
 
   // Speak just the word after a short delay so the UI settles first
   useEffect(() => {
@@ -71,8 +70,8 @@ export default function WordPuzzle() {
       if (current === target) {
         setScore((s) => s + 1);
         const variant = Math.floor(Math.random() * 5);
-        playPreloaded(mathCorrectPath(variant, lang), () =>
-          speak(lang === "ar" ? "ممتاز!" : "Correct!", voice)
+        playPreloaded(mathCorrectPath(variant), () =>
+          speak("Correct!", voice)
         ).catch(() => {});
         setTimeout(() => {
           if (round + 1 >= 10) setDone(true);
@@ -82,7 +81,7 @@ export default function WordPuzzle() {
         setTimeout(() => setPicked([]), 600);
       }
     }
-  }, [current, target, round, lang, voice]);
+  }, [current, target, round, voice]);
 
   const finish = () => {
     saveProgress((p) => ({ ...p, gamesPlayed: p.gamesPlayed + 1, starsTotal: p.starsTotal + score }));

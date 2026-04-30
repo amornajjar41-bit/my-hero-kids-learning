@@ -31,28 +31,28 @@ const _audioCache = new Map<string, string>();
 const _preloaded = new Set<string>();
 
 // ── Path builders ─────────────────────────────────────────────────────────────
-export function wordPath(lessonId: string, wordIndex: number, type: "pronunciation" | "hint" | "reveal", lang: "en" | "ar"): string {
-  return `lesson/${lessonId}/${wordIndex}/${type}-${lang}`;
+export function wordPath(lessonId: string, wordIndex: number, type: "pronunciation" | "hint" | "reveal"): string {
+  return `lesson/${lessonId}/${wordIndex}/${type}-en`;
 }
 
-export function mathNumPath(n: number, lang: "en" | "ar"): string {
-  return `games/math/num-${n}-${lang}`;
+export function mathNumPath(n: number): string {
+  return `games/math/num-${n}-en`;
 }
 
-export function mathOpPath(op: "plus" | "minus" | "times" | "div" | "equals", lang: "en" | "ar"): string {
-  return `games/math/op-${op}-${lang}`;
+export function mathOpPath(op: "plus" | "minus" | "times" | "div" | "equals"): string {
+  return `games/math/op-${op}-en`;
 }
 
-export function mathCorrectPath(variant: number, lang: "en" | "ar"): string {
-  return `games/math/correct-${variant}-${lang}`;
+export function mathCorrectPath(variant: number): string {
+  return `games/math/correct-${variant}-en`;
 }
 
-export function letterCelebratePath(variant: number, lang: "en" | "ar"): string {
-  return `games/letter/celebrate-${variant}-${lang}`;
+export function letterCelebratePath(variant: number): string {
+  return `games/letter/celebrate-${variant}-en`;
 }
 
-export function jigsawFunFactPath(id: string, lang: "en" | "ar"): string {
-  return `games/jigsaw/${id}-${lang}`;
+export function jigsawFunFactPath(id: string): string {
+  return `games/jigsaw/${id}-en`;
 }
 
 export function storyPath(storyId: string, sentenceIndex: number): string {
@@ -88,7 +88,6 @@ async function batchFetch(paths: string[]): Promise<void> {
 export async function preloadLesson(
   lessonId: string,
   wordCount: number,
-  lang: "en" | "ar",
 ): Promise<void> {
   const key = `lesson:${lessonId}`;
   if (_preloaded.has(key)) return;
@@ -96,10 +95,9 @@ export async function preloadLesson(
 
   const paths: string[] = [];
   for (let i = 0; i < wordCount; i++) {
-    paths.push(wordPath(lessonId, i, "pronunciation", "en"));
-    paths.push(wordPath(lessonId, i, "pronunciation", "ar"));
-    paths.push(wordPath(lessonId, i, "hint", lang));
-    paths.push(wordPath(lessonId, i, "reveal", lang));
+    paths.push(wordPath(lessonId, i, "pronunciation"));
+    paths.push(wordPath(lessonId, i, "hint"));
+    paths.push(wordPath(lessonId, i, "reveal"));
   }
   await batchFetch(paths);
 }
@@ -107,43 +105,43 @@ export async function preloadLesson(
 /**
  * Preload math blast audio (numbers 0–100, operators, confirmations).
  */
-export async function preloadMathAudio(lang: "en" | "ar"): Promise<void> {
-  const key = `math:${lang}`;
+export async function preloadMathAudio(): Promise<void> {
+  const key = "math:en";
   if (_preloaded.has(key)) return;
   _preloaded.add(key);
 
   const paths: string[] = [];
-  for (let n = 0; n <= 100; n++) paths.push(mathNumPath(n, lang));
+  for (let n = 0; n <= 100; n++) paths.push(mathNumPath(n));
   for (const op of ["plus", "minus", "times", "div", "equals"] as const) {
-    paths.push(mathOpPath(op, lang));
+    paths.push(mathOpPath(op));
   }
-  for (let i = 0; i < 5; i++) paths.push(mathCorrectPath(i, lang));
+  for (let i = 0; i < 5; i++) paths.push(mathCorrectPath(i));
   await batchFetch(paths);
 }
 
 /**
  * Preload letter match celebration phrases.
  */
-export async function preloadLetterAudio(lang: "en" | "ar"): Promise<void> {
-  const key = `letter:${lang}`;
+export async function preloadLetterAudio(): Promise<void> {
+  const key = "letter:en";
   if (_preloaded.has(key)) return;
   _preloaded.add(key);
 
   const paths: string[] = [];
-  for (let i = 0; i < 5; i++) paths.push(letterCelebratePath(i, lang));
+  for (let i = 0; i < 5; i++) paths.push(letterCelebratePath(i));
   await batchFetch(paths);
 }
 
 /**
  * Preload jigsaw fun fact audio for all 6 puzzles.
  */
-export async function preloadJigsawAudio(lang: "en" | "ar"): Promise<void> {
-  const key = `jigsaw:${lang}`;
+export async function preloadJigsawAudio(): Promise<void> {
+  const key = "jigsaw:en";
   if (_preloaded.has(key)) return;
   _preloaded.add(key);
 
   const ids = ["solar", "world", "abc", "ocean", "jungle", "space"];
-  const paths = ids.map((id) => jigsawFunFactPath(id, lang));
+  const paths = ids.map((id) => jigsawFunFactPath(id));
   await batchFetch(paths);
 }
 

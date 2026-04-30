@@ -5,7 +5,6 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useApp } from "@/contexts/AppContext";
-import { useLang } from "@/hooks/useT";
 import { playChime } from "@/lib/chime";
 import { speak } from "@/lib/audio";
 
@@ -23,7 +22,6 @@ function shuffle<T>(a: T[]): T[] { return [...a].sort(() => Math.random() - 0.5)
 
 export default function SpellRace() {
   const router = useRouter();
-  const lang = useLang();
   const { addPoints, saveProgress } = useApp();
 
   const TOTAL = 6;
@@ -83,16 +81,16 @@ export default function SpellRace() {
       <View style={{ flex: 1 }}>
         <LinearGradient colors={["#1A0A1A", "#3D0A0A"]} style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 30, gap: 20 }}>
           <Text style={{ fontSize: 80 }}>⚡</Text>
-          <Text style={{ color: "#FCA5A5", fontWeight: "900", fontSize: 28, textAlign: "center" }}>{lang === "ar" ? "عظيم!" : "Lightning Fast!"}</Text>
-          <Text style={{ color: "#FFF", fontSize: 18 }}>{score}/{TOTAL} {lang === "ar" ? "صحيح" : "correct"}</Text>
+          <Text style={{ color: "#FCA5A5", fontWeight: "900", fontSize: 28, textAlign: "center" }}>Lightning Fast!</Text>
+          <Text style={{ color: "#FFF", fontSize: 18 }}>{score}/{TOTAL} correct</Text>
           <Pressable
             onPress={() => { setCurrent(0); setScore(0); setFinished(false); setTyped([]); setResult(null); }}
             style={{ backgroundColor: "#DC2626", borderRadius: 20, paddingHorizontal: 32, paddingVertical: 14 }}
           >
-            <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 16 }}>{lang === "ar" ? "العب مجدداً" : "Play Again"}</Text>
+            <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 16 }}>Play Again</Text>
           </Pressable>
           <Pressable onPress={() => router.back()}>
-            <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>{lang === "ar" ? "رجوع" : "Back"}</Text>
+            <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Back</Text>
           </Pressable>
         </LinearGradient>
       </View>
@@ -109,7 +107,7 @@ export default function SpellRace() {
             <Ionicons name="arrow-back" size={20} color="#FFF" />
           </Pressable>
           <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 20, flex: 1 }}>
-            ⚡ {lang === "ar" ? "سباق الهجاء" : "Spell Race"}
+            ⚡ Spell Race
           </Text>
           <View style={{ backgroundColor: "rgba(252,165,165,0.2)", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
             <Text style={{ color: "#FCA5A5", fontWeight: "800", fontSize: 13 }}>⭐ {score}</Text>
@@ -137,7 +135,7 @@ export default function SpellRace() {
             >
               <Ionicons name="volume-high" size={18} color="#FCA5A5" />
               <Text style={{ color: "#FCA5A5", fontWeight: "700", fontSize: 14 }}>
-                {lang === "ar" ? "استمع مجدداً" : "Hear Again"}
+                Hear Again
               </Text>
             </Pressable>
           </View>
@@ -170,7 +168,7 @@ export default function SpellRace() {
 
           {result === "wrong" && (
             <Text style={{ color: "#FCA5A5", fontSize: 14 }}>
-              {lang === "ar" ? `الصحيح: ${w.en}` : `Correct: ${w.en}`}
+              Correct: {w.en}
             </Text>
           )}
 
@@ -204,7 +202,7 @@ export default function SpellRace() {
           >
             <Ionicons name="backspace" size={18} color="rgba(255,255,255,0.6)" />
             <Text style={{ color: "rgba(255,255,255,0.5)", fontWeight: "700" }}>
-              {lang === "ar" ? "حذف" : "Delete"}
+              Delete
             </Text>
           </Pressable>
 

@@ -736,9 +736,9 @@ export const curriculum: Record<"english" | "arabic", Lesson[]> = {
   arabic: arabicLessons,
 };
 
-export function lessonTitle(lesson: Lesson, lang: Lang): string {
-  return lang === "ar" ? lesson.titleAr : lesson.titleEn;
+export function lessonTitle(lesson: Lesson): string {
+  return lesson.titleEn;
 }
-export function unitTitle(lesson: Lesson, lang: Lang): string {
-  return lang === "ar" ? lesson.unitTitleAr : lesson.unitTitleEn;
+export function unitTitle(lesson: Lesson): string {
+  return lesson.unitTitleEn;
 }

@@ -13,7 +13,7 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { curriculum, lessonTitle } from "@/constants/curriculum";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
-import { useLang, useT } from "@/hooks/useT";
+import { useT } from "@/hooks/useT";
 import { speak, stop, stopAll } from "@/lib/audio";
 import {
   preloadLesson,
@@ -28,21 +28,17 @@ export default function LessonPlayer() {
   const c = useColors();
   const router = useRouter();
   const t = useT();
-  const lang = useLang();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile, progress, saveProgress, addPoints } = useApp();
 
   const lesson = useMemo(
     () =>
       curriculum.english.find((l) => l.id === id) ??
-      curriculum.arabic.find((l) => l.id === id) ??
       curriculum.english[0],
     [id],
   );
 
-  const isArabicLesson = lesson.id.startsWith("ar-");
   const voice = profile?.hero === "girl" ? "nova" : "echo";
-  const lessonLang: "en" | "ar" = isArabicLesson ? "ar" : "en";
 
   // Build step list
   const steps: { type: StepType; data?: any }[] = useMemo(() => {
@@ -68,41 +64,33 @@ export default function LessonPlayer() {
 
   // Preload all lesson audio on mount
   useEffect(() => {
-    preloadLesson(lesson.id, lesson.words.length, lessonLang);
+    preloadLesson(lesson.id, lesson.words.length);
     return () => {
       stopPreloaded();
       stopAll();
     };
-  }, [lesson.id, lesson.words.length, lessonLang]);
+  }, [lesson.id, lesson.words.length]);
 
-  // Stop both audio players then auto-play the new step's audio.
-  // A single effect (not two) guarantees only one audio call fires per step change.
   const step = steps[stepIdx];
   useEffect(() => {
-    // Kill any audio still playing from the previous step — both players
     stopPreloaded();
     stop();
 
     if (!step) return;
 
-    // Small hardware-flush delay so the stop fully takes effect before the next play
     const tid = setTimeout(() => {
       if (step.type === "introduce" && step.data) {
-        const wordIdx = lesson.words.findIndex((w) => w.en === step.data.en || w.ar === step.data.ar);
+        const wordIdx = lesson.words.findIndex((w) => w.en === step.data.en);
         const realIdx = wordIdx >= 0 ? wordIdx : 0;
-        const path = wordPath(lesson.id, realIdx, "pronunciation", lessonLang);
-        const fallbackText = isArabicLesson ? step.data.ar : step.data.en;
-        playPreloaded(path, () => speak(fallbackText, voice));
+        const path = wordPath(lesson.id, realIdx, "pronunciation");
+        playPreloaded(path, () => speak(step.data.en, voice));
       }
 
       if (step.type === "challenge" && step.data) {
         const wordIdx = lesson.words.findIndex((w) => w.en === step.data.correct.en);
         const realIdx = wordIdx >= 0 ? wordIdx : 0;
-        const path = wordPath(lesson.id, realIdx, "hint", lessonLang);
-        const fallbackText = lang === "ar"
-          ? `هل يمكنك إيجاد ${step.data.correct.ar}؟`
-          : `Can you find ${step.data.correct.en}?`;
-        playPreloaded(path, () => speak(fallbackText, voice));
+        const path = wordPath(lesson.id, realIdx, "hint");
+        playPreloaded(path, () => speak(`Can you find ${step.data.correct.en}?`, voice));
       }
     }, 150);
 
@@ -116,13 +104,11 @@ export default function LessonPlayer() {
     if (chosenIdx === correctIdx) {
       setFeedback("ok");
       setStars((s) => s + 1);
-      // Play reveal audio then advance AFTER it finishes — prevents overlap with next step
       if (step2?.type === "challenge" && step2.data) {
         const wordIdx = lesson.words.findIndex((w) => w.en === step2.data.correct.en);
         const realIdx = wordIdx >= 0 ? wordIdx : 0;
-        const path = wordPath(lesson.id, realIdx, "reveal", lessonLang);
-        const fallbackText = lang === "ar" ? "رائع! أحسنت!" : "Excellent! Great job!";
-        playPreloaded(path, () => speak(fallbackText, voice)).then(() => {
+        const path = wordPath(lesson.id, realIdx, "reveal");
+        playPreloaded(path, () => speak("Excellent! Great job!", voice)).then(() => {
           setFeedback("");
           setStepIdx((i) => i + 1);
         });
@@ -148,13 +134,12 @@ export default function LessonPlayer() {
         lessonsCompleted,
         starsTotal: p.starsTotal + stars,
         wordsLearned: p.wordsLearned + lesson.words.length,
-        englishLessons: isArabicLesson || alreadyDone ? p.englishLessons : p.englishLessons + 1,
-        arabicLessons: !isArabicLesson || alreadyDone ? p.arabicLessons : p.arabicLessons + 1,
+        englishLessons: alreadyDone ? p.englishLessons : p.englishLessons + 1,
         weekly: p.weekly.map((v, i) => i === new Date().getDay() ? v + 1 : v),
       };
     });
     if (!alreadyDoneCheck) addPoints(25);
-    router.replace(`/learn/${isArabicLesson ? "arabic" : "english"}` as any);
+    router.replace("/learn/english" as any);
   };
 
   return (
@@ -178,7 +163,7 @@ export default function LessonPlayer() {
 
       <ScrollView contentContainerStyle={{ padding: 18, gap: 14, flexGrow: 1 }}>
         <Text style={{ fontSize: 12, fontWeight: "700", color: c.mutedForeground, letterSpacing: 1 }}>
-          {lessonTitle(lesson, lang).toUpperCase()} · {t("step")} {stepIdx + 1} {t("of")} {steps.length}
+          {lessonTitle(lesson).toUpperCase()} · {t("step")} {stepIdx + 1} {t("of")} {steps.length}
         </Text>
 
         <Animated.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(150)} key={stepIdx}>
@@ -186,10 +171,10 @@ export default function LessonPlayer() {
             <SoftCard color={c.yellow}>
               <Text style={{ fontWeight: "800", fontSize: 13, color: "#5B3700" }}>✨ {t("funFact")}</Text>
               <Text style={{ fontSize: 22, fontWeight: "800", color: "#5B3700", marginTop: 8 }}>
-                {lang === "ar" ? lesson.funFactAr : lesson.funFactEn}
+                {lesson.funFactEn}
               </Text>
               <View style={{ marginTop: 12 }}>
-                <SpeakButton text={lang === "ar" ? lesson.funFactAr : lesson.funFactEn} voice={voice} />
+                <SpeakButton text={lesson.funFactEn} voice={voice} />
               </View>
             </SoftCard>
           )}
@@ -200,13 +185,10 @@ export default function LessonPlayer() {
               <View style={{ alignItems: "center", paddingVertical: 18, gap: 10 }}>
                 <Text style={{ fontSize: 100 }}>{step2.data.emoji}</Text>
                 <Text style={{ fontSize: 36, fontWeight: "800", color: c.primary }}>
-                  {isArabicLesson ? step2.data.ar : step2.data.en}
-                </Text>
-                <Text style={{ fontSize: 16, color: c.mutedForeground }}>
-                  {isArabicLesson ? step2.data.en : step2.data.ar}
+                  {step2.data.en}
                 </Text>
                 <SpeakButton
-                  text={isArabicLesson ? step2.data.ar : step2.data.en}
+                  text={step2.data.en}
                   voice={voice}
                   size={56}
                 />
@@ -217,15 +199,15 @@ export default function LessonPlayer() {
           {step2?.type === "see" && (
             <SoftCard>
               <Text style={{ fontWeight: "800", fontSize: 16, color: c.text }}>
-                👀 {lang === "ar" ? "كل الكلمات اللي تعلمناها!" : "All the words we learned!"}
+                👀 All the words we learned!
               </Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 12 }}>
                 {lesson.words.map((w, idx) => (
                   <Pressable
                     key={w.en}
                     onPress={() => {
-                      const path = wordPath(lesson.id, idx, "pronunciation", lessonLang);
-                      playPreloaded(path, () => speak(isArabicLesson ? w.ar : w.en, voice));
+                      const path = wordPath(lesson.id, idx, "pronunciation");
+                      playPreloaded(path, () => speak(w.en, voice));
                     }}
                     style={({ pressed }) => ({
                       width: 90, backgroundColor: c.muted, borderRadius: 14,
@@ -234,7 +216,7 @@ export default function LessonPlayer() {
                   >
                     <Text style={{ fontSize: 36 }}>{w.emoji}</Text>
                     <Text style={{ fontWeight: "700", color: c.text, fontSize: 12, marginTop: 4, textAlign: "center" }}>
-                      {isArabicLesson ? w.ar : w.en}
+                      {w.en}
                     </Text>
                   </Pressable>
                 ))}
@@ -246,11 +228,11 @@ export default function LessonPlayer() {
             <SoftCard>
               <Text style={{ color: c.mutedForeground, fontWeight: "700", fontSize: 12 }}>🎯 {t("miniChallenge")}</Text>
               <Text style={{ fontSize: 22, fontWeight: "800", color: c.text, marginTop: 8, textAlign: "center" }}>
-                {lang === "ar" ? "وين" : "Find"}{" "}
+                Find{" "}
                 <Text style={{ color: c.primary }}>
-                  {isArabicLesson ? step2.data.correct.ar : step2.data.correct.en}
+                  {step2.data.correct.en}
                 </Text>
-                {lang === "ar" ? "؟" : "?"}
+                !
               </Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center", marginTop: 16 }}>
                 {step2.data.options.map((opt: any, idx: number) => (

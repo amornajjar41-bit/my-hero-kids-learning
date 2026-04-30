@@ -21,12 +21,9 @@ import type { Profile, AgeGroup } from "@/lib/storage";
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const MONTHS_EN = ["January","February","March","April","May","June",
                    "July","August","September","October","November","December"];
-const MONTHS_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو",
-                   "يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 
 const currentYear = new Date().getFullYear();
-// Valid years for ages 3–15
-const YEARS = Array.from({ length: 13 }, (_, i) => currentYear - 3 - i); // newest first
+const YEARS = Array.from({ length: 13 }, (_, i) => currentYear - 3 - i);
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 
 function calcAgeGroup(year: number, month: number, day: number): "4-6" | "7-9" | "10-12" | "13-14" {
@@ -50,14 +47,12 @@ function DropdownPicker({
   value,
   options,
   onSelect,
-  isAr,
   c,
 }: {
   label: string;
   value: string;
   options: { label: string; value: number }[];
   onSelect: (v: number) => void;
-  isAr: boolean;
   c: ReturnType<typeof useColors>;
 }) {
   const [open, setOpen] = useState(false);
@@ -103,7 +98,6 @@ function DropdownPicker({
               maxHeight: 420,
               paddingBottom: 32,
             }}>
-              {/* Handle + title */}
               <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
                 <View style={{ width: 40, height: 4, backgroundColor: c.muted, borderRadius: 2, marginBottom: 12 }} />
                 <Text style={{ fontWeight: "800", fontSize: 16, color: c.text }}>{label}</Text>
@@ -131,7 +125,7 @@ function DropdownPicker({
                         backgroundColor: isSelected ? c.primary + "20" : "transparent",
                         borderLeftWidth: isSelected ? 4 : 0,
                         borderLeftColor: c.primary,
-                        flexDirection: isAr ? "row-reverse" : "row",
+                        flexDirection: "row",
                         alignItems: "center",
                         opacity: pressed ? 0.7 : 1,
                       })}
@@ -141,7 +135,6 @@ function DropdownPicker({
                         fontWeight: isSelected ? "800" : "500",
                         color: isSelected ? c.primary : c.text,
                         flex: 1,
-                        textAlign: isAr ? "right" : "left",
                       }}>
                         {opt.label}
                       </Text>
@@ -166,7 +159,7 @@ export default function ChildInfo() {
   const router = useRouter();
   const { saveProfile } = useApp();
   const params = useLocalSearchParams<{
-    lang: "en" | "ar";
+    lang: string;
     hero: "boy" | "girl";
     parentName: string;
     parentEmail: string;
@@ -176,20 +169,16 @@ export default function ChildInfo() {
     currencySymbol: string;
     currencyRate: string;
   }>();
-  const isAr = params.lang === "ar";
-  const months = isAr ? MONTHS_AR : MONTHS_EN;
 
   const [name, setName] = useState("");
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null); // 0-based
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
-  // How many days are valid for the chosen month/year
   const maxDays = selectedYear && selectedMonth !== null
     ? daysInMonth(selectedYear, selectedMonth)
     : 31;
 
-  // If day was 31 and month only has 30, reset
   const effectiveDay = selectedDay && selectedDay > maxDays ? maxDays : selectedDay;
 
   const hasFullDate = effectiveDay !== null && selectedMonth !== null && selectedYear !== null;
@@ -207,20 +196,18 @@ export default function ChildInfo() {
     ? `${selectedYear}-${pad(selectedMonth! + 1)}-${pad(effectiveDay!)}`
     : "";
 
-  // Build picker option arrays
   const dayOptions = Array.from({ length: maxDays }, (_, i) => ({
     label: String(i + 1),
     value: i + 1,
   }));
 
-  const monthOptions = months.map((m, i) => ({ label: m, value: i }));
-
+  const monthOptions = MONTHS_EN.map((m, i) => ({ label: m, value: i }));
   const yearOptions = YEARS.map(y => ({ label: String(y), value: y }));
 
   async function handleContinue() {
     if (!canContinue) return;
     const profile: Profile = {
-      language: params.lang,
+      language: "en",
       hero: params.hero,
       childName: name,
       ageGroup: ageGroup! as AgeGroup,
@@ -236,7 +223,7 @@ export default function ChildInfo() {
     router.replace({
       pathname: "/onboarding/done",
       params: {
-        lang: params.lang,
+        lang: "en",
         hero: params.hero,
         parentEmail: params.parentEmail,
         password: params.password,
@@ -257,18 +244,17 @@ export default function ChildInfo() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={{ padding: 24, gap: 18 }} keyboardShouldPersistTaps="handled">
           <Text style={{ fontSize: 28, fontWeight: "800", color: c.text, textAlign: "center" }}>
-            {isAr ? "احكيلي عن طفلك" : "Tell me about your child"}
+            Tell me about your child
           </Text>
 
-          {/* Child name */}
           <SoftCard>
-            <Text style={{ fontWeight: "700", marginBottom: 6, color: c.text, textAlign: isAr ? "right" : "left" }}>
-              {isAr ? "اسم الطفل" : "Child's name"}
+            <Text style={{ fontWeight: "700", marginBottom: 6, color: c.text }}>
+              Child's name
             </Text>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder={isAr ? "مثال: عمر" : "e.g. Omar"}
+              placeholder="e.g. Omar"
               placeholderTextColor={c.mutedForeground}
               style={{
                 backgroundColor: c.input,
@@ -276,86 +262,75 @@ export default function ChildInfo() {
                 borderRadius: 14,
                 color: c.text,
                 fontSize: 16,
-                textAlign: isAr ? "right" : "left",
               }}
             />
           </SoftCard>
 
-          {/* Date of birth — 3 dropdown pickers */}
           <SoftCard>
-            <Text style={{ fontWeight: "700", marginBottom: 10, color: c.text, textAlign: isAr ? "right" : "left" }}>
-              {isAr ? "تاريخ الميلاد" : "Date of birth"}
+            <Text style={{ fontWeight: "700", marginBottom: 10, color: c.text }}>
+              Date of birth
             </Text>
 
-            <View style={{ flexDirection: isAr ? "row-reverse" : "row", gap: 8 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
               <DropdownPicker
-                label={isAr ? "اليوم" : "Day"}
+                label="Day"
                 value={effectiveDay ? String(effectiveDay) : ""}
                 options={dayOptions}
                 onSelect={setSelectedDay}
-                isAr={isAr}
                 c={c}
               />
               <View style={{ flex: 1.6 }}>
                 <DropdownPicker
-                  label={isAr ? "الشهر" : "Month"}
-                  value={selectedMonth !== null ? months[selectedMonth] : ""}
+                  label="Month"
+                  value={selectedMonth !== null ? MONTHS_EN[selectedMonth] : ""}
                   options={monthOptions}
                   onSelect={setSelectedMonth}
-                  isAr={isAr}
                   c={c}
                 />
               </View>
               <DropdownPicker
-                label={isAr ? "السنة" : "Year"}
+                label="Year"
                 value={selectedYear ? String(selectedYear) : ""}
                 options={yearOptions}
                 onSelect={setSelectedYear}
-                isAr={isAr}
                 c={c}
               />
             </View>
 
-            {/* Age feedback */}
             <View style={{ marginTop: 10, minHeight: 20 }}>
               {!hasFullDate ? (
-                <Text style={{ color: c.mutedForeground, fontSize: 13, textAlign: isAr ? "right" : "left" }}>
-                  {isAr ? "اختر يوم، شهر، وسنة الميلاد" : "Tap each box to pick day, month, and year"}
+                <Text style={{ color: c.mutedForeground, fontSize: 13 }}>
+                  Tap each box to pick day, month, and year
                 </Text>
               ) : !ageInRange ? (
-                <Text style={{ color: "#EF4444", fontSize: 13, fontWeight: "700", textAlign: isAr ? "right" : "left" }}>
-                  ⚠️ {isAr
-                    ? `عمر الطفل يجب أن يكون بين 4 و14 سنة (العمر المحسوب: ${actualAge} سنة)`
-                    : `Child must be 4–14 years old (calculated age: ${actualAge})`}
+                <Text style={{ color: "#EF4444", fontSize: 13, fontWeight: "700" }}>
+                  ⚠️ Child must be 4–14 years old (calculated age: {actualAge})
                 </Text>
               ) : (
-                <Text style={{ color: "#22C55E", fontSize: 13, fontWeight: "700", textAlign: isAr ? "right" : "left" }}>
-                  ✓ {isAr ? `الفئة العمرية: ${ageGroup} سنوات` : `Age group: ${ageGroup} years`}
+                <Text style={{ color: "#22C55E", fontSize: 13, fontWeight: "700" }}>
+                  ✓ Age group: {ageGroup} years
                 </Text>
               )}
             </View>
           </SoftCard>
 
-          {/* Hero reminder */}
           <View style={{
             backgroundColor: c.muted,
             borderRadius: 16,
             padding: 14,
-            flexDirection: isAr ? "row-reverse" : "row",
+            flexDirection: "row",
             gap: 10,
             alignItems: "center",
           }}>
             <Text style={{ fontSize: 28 }}>{params.hero === "girl" ? "🦸‍♀️" : "🦸‍♂️"}</Text>
-            <Text style={{ flex: 1, color: c.mutedForeground, fontSize: 13, textAlign: isAr ? "right" : "left" }}>
-              {isAr
-                ? `بطلك هو ${params.hero === "girl" ? "لولو" : "آدم"} — يمكنك تغييره لاحقاً`
-                : `Your hero is ${params.hero === "girl" ? "Sara" : "Adam"} — you can change later`}
+            <Text style={{ flex: 1, color: c.mutedForeground, fontSize: 13 }}>
+              Your hero is {params.hero === "girl" ? "Sara" : "Adam"} — you can change later
             </Text>
           </View>
 
           <View style={{ marginTop: 6 }}>
             <PrimaryButton
-              title={isAr ? "متابعة" : "Continue"}
+              title="Continue"
               fullWidth
               disabled={!canContinue}
               onPress={handleContinue}

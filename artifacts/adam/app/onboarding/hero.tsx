@@ -12,7 +12,7 @@ const saraImg = require("@/assets/images/lulu-girl.png");
 export default function HeroPick() {
   const c = useColors();
   const router = useRouter();
-  const { lang } = useLocalSearchParams<{ lang: "en" | "ar" }>();
+  const { lang } = useLocalSearchParams<{ lang: string }>();
   const [hero, setHero] = useState<"boy" | "girl">("boy");
 
   return (

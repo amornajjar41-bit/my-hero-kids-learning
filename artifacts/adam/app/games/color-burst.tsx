@@ -5,29 +5,28 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Animated, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useApp } from "@/contexts/AppContext";
-import { useLang } from "@/hooks/useT";
 import { playChime } from "@/lib/chime";
 import { speakText } from "@/lib/tts";
 
 const PRAISE = ["Great job!", "Well done!", "Amazing!", "Fantastic!", "Super!"];
 
 type ColorQ = {
-  label: { en: string; ar: string };
+  label: string;
   hex: string;
-  choices: { label: { en: string; ar: string }; hex: string }[];
+  choices: { label: string; hex: string }[];
 };
 
 const COLORS = [
-  { label: { en: "Red", ar: "أحمر" }, hex: "#EF4444" },
-  { label: { en: "Blue", ar: "أزرق" }, hex: "#3B82F6" },
-  { label: { en: "Green", ar: "أخضر" }, hex: "#10B981" },
-  { label: { en: "Yellow", ar: "أصفر" }, hex: "#FCD34D" },
-  { label: { en: "Purple", ar: "بنفسجي" }, hex: "#8B5CF6" },
-  { label: { en: "Orange", ar: "برتقالي" }, hex: "#F97316" },
-  { label: { en: "Pink", ar: "وردي" }, hex: "#EC4899" },
-  { label: { en: "Brown", ar: "بني" }, hex: "#92400E" },
-  { label: { en: "Black", ar: "أسود" }, hex: "#1F2937" },
-  { label: { en: "White", ar: "أبيض" }, hex: "#F9FAFB" },
+  { label: "Red", hex: "#EF4444" },
+  { label: "Blue", hex: "#3B82F6" },
+  { label: "Green", hex: "#10B981" },
+  { label: "Yellow", hex: "#FCD34D" },
+  { label: "Purple", hex: "#8B5CF6" },
+  { label: "Orange", hex: "#F97316" },
+  { label: "Pink", hex: "#EC4899" },
+  { label: "Brown", hex: "#92400E" },
+  { label: "Black", hex: "#1F2937" },
+  { label: "White", hex: "#F9FAFB" },
 ];
 
 function makeQuestion(): ColorQ {
@@ -39,7 +38,6 @@ function makeQuestion(): ColorQ {
 
 export default function ColorBurst() {
   const router = useRouter();
-  const lang = useLang();
   const { addPoints, saveProgress, profile } = useApp();
   const voice = profile?.hero === "girl" ? "nova" : "echo";
 
@@ -120,16 +118,16 @@ export default function ColorBurst() {
       <View style={{ flex: 1 }}>
         <LinearGradient colors={["#1A0A3F", "#2D1B69"]} style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 30, gap: 20 }}>
           <Text style={{ fontSize: 80 }}>🎨</Text>
-          <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 28, textAlign: "center" }}>{lang === "ar" ? "رائع!" : "Awesome!"}</Text>
-          <Text style={{ color: "#FFF", fontSize: 18 }}>{score}/{TOTAL} {lang === "ar" ? "صحيح" : "correct"}</Text>
+          <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 28, textAlign: "center" }}>Awesome!</Text>
+          <Text style={{ color: "#FFF", fontSize: 18 }}>{score}/{TOTAL} correct</Text>
           <Pressable
             onPress={() => { setCurrent(0); setScore(0); setFinished(false); setSelected(null); setQ(makeQuestion()); }}
             style={{ backgroundColor: "#F59E0B", borderRadius: 20, paddingHorizontal: 32, paddingVertical: 14 }}
           >
-            <Text style={{ color: "#000", fontWeight: "900", fontSize: 16 }}>{lang === "ar" ? "العب مجدداً" : "Play Again"}</Text>
+            <Text style={{ color: "#000", fontWeight: "900", fontSize: 16 }}>Play Again</Text>
           </Pressable>
           <Pressable onPress={() => router.back()}>
-            <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>{lang === "ar" ? "رجوع" : "Back"}</Text>
+            <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Back</Text>
           </Pressable>
         </LinearGradient>
       </View>
@@ -146,7 +144,7 @@ export default function ColorBurst() {
             <Ionicons name="arrow-back" size={20} color="#FFF" />
           </Pressable>
           <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 20, flex: 1 }}>
-            🎨 {lang === "ar" ? "انفجار الألوان" : "Color Burst"}
+            🎨 Color Burst
           </Text>
           <View style={{ backgroundColor: "rgba(253,230,138,0.2)", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
             <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 13 }}>⭐ {score}</Text>
@@ -161,11 +159,11 @@ export default function ColorBurst() {
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20, gap: 24 }}>
           {/* Question */}
           <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 18, textAlign: "center" }}>
-            {lang === "ar" ? "أين اللون" : "Tap"}{" "}
+            Tap{" "}
             <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 22 }}>
-              {lang === "ar" ? q.label.ar : q.label.en}
+              {q.label}
             </Text>
-            {lang === "en" ? "?" : "؟"}
+            ?
           </Text>
 
           {/* Timer circle */}

@@ -11,7 +11,7 @@ import { SoftCard } from "@/components/SoftCard";
 import { jigsawImages } from "@/constants/games-data";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
-import { useLang, useT } from "@/hooks/useT";
+import { useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
 import {
   preloadJigsawAudio,
@@ -39,7 +39,6 @@ export default function Jigsaw() {
   const c = useColors();
   const router = useRouter();
   const t = useT();
-  const lang = useLang();
   const { profile, saveProgress, addPoints } = useApp();
   const voice = profile?.hero === "girl" ? "nova" : "echo";
 
@@ -53,12 +52,12 @@ export default function Jigsaw() {
   const palette = PALETTES[round % PALETTES.length]!;
 
   useEffect(() => {
-    preloadJigsawAudio(lang);
+    preloadJigsawAudio();
     return () => {
       stopPreloaded();
       stopAudio();
     };
-  }, [lang]);
+  }, []);
 
   useEffect(() => {
     setTiles(shuffle([0, 1, 2, 3]));
@@ -69,8 +68,7 @@ export default function Jigsaw() {
   // Speak the puzzle title when a new round starts — short and clear
   useEffect(() => {
     const timer = setTimeout(() => {
-      const title = lang === "ar" ? item.titleAr : item.titleEn;
-      speak(title, voice).catch(() => {});
+      speak(item.title, voice).catch(() => {});
     }, 500);
     return () => clearTimeout(timer);
   }, [round]);
@@ -89,9 +87,9 @@ export default function Jigsaw() {
         if (isSolved) {
           setDone(true);
           // Play fun fact from preloaded cache, fall back to short celebration
-          const path = jigsawFunFactPath(item.id, lang);
+          const path = jigsawFunFactPath(item.id);
           playPreloaded(path, () =>
-            speak(lang === "ar" ? "رائع! حللت اللغز!" : "Amazing! You solved it!", voice)
+            speak("Amazing! You solved it!", voice)
           ).catch(() => {});
           setTimeout(() => {
             if (round + 1 >= jigsawImages.length) setSolvedAll(true);
@@ -160,12 +158,12 @@ export default function Jigsaw() {
       ) : (
         <View style={{ flex: 1, padding: 18, gap: 16, alignItems: "center" }}>
           <Text style={{ fontSize: 22, fontWeight: "800", color: c.text }}>
-            {lang === "ar" ? item.titleAr : item.titleEn}
+            {item.title}
           </Text>
 
           {selectedIdx !== null && (
             <Text style={{ fontSize: 13, color: c.mutedForeground, fontWeight: "600" }}>
-              {lang === "ar" ? "الآن اضغط على مكان آخر للتبديل 🔄" : "Now tap another tile to swap 🔄"}
+              Now tap another tile to swap 🔄
             </Text>
           )}
 
@@ -215,7 +213,7 @@ export default function Jigsaw() {
           <SoftCard color={c.yellow} style={{ width: "100%" }}>
             <Text style={{ fontWeight: "800", color: "#5B3700" }}>💡 {t("funFact")}</Text>
             <Text style={{ color: "#5B3700", marginTop: 6, fontSize: 14, lineHeight: 20 }}>
-              {lang === "ar" ? item.funAr : item.funEn}
+              {item.fun}
             </Text>
           </SoftCard>
 

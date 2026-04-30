@@ -19,7 +19,7 @@ import { allBadges } from "@/constants/badges";
 import { curriculum, lessonTitle } from "@/constants/curriculum";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
-import { useT, useLang } from "@/hooks/useT";
+import { useT } from "@/hooks/useT";
 import { isBirthdayToday, todayISO, trialDaysLeft } from "@/lib/utils";
 
 // Floating sparkle that twinkles
@@ -56,7 +56,6 @@ export default function Home() {
   const c = useColors();
   const router = useRouter();
   const t = useT();
-  const lang = useLang();
   const { profile, progress, saveProgress, addPoints, isScreenBlocked } = useApp();
 
   const { showTour, completeTour } = useTour();
@@ -102,10 +101,10 @@ export default function Home() {
   );
 
   const suggestion = useMemo(() => {
-    const lessons = lang === "ar" ? curriculum.arabic : curriculum.english;
+    const lessons = curriculum.english;
     const next = lessons.find((l) => !progress.lessonsCompleted.includes(l.id)) ?? lessons[0];
     return next;
-  }, [lang, progress.lessonsCompleted]);
+  }, [progress.lessonsCompleted]);
 
   const trialDays = profile ? trialDaysLeft(profile.trialStartedAt) : 3;
   const trialEnded = profile && !profile.isPaid && trialDays <= 0;
@@ -188,7 +187,7 @@ export default function Home() {
           {!trialEnded && (
             <TodaySuggestion
               emoji={suggestion.emoji}
-              title={lessonTitle(suggestion, lang)}
+              title={lessonTitle(suggestion)}
               subtitle={
                 progress.lessonsCompleted.includes(suggestion.id)
                   ? t("continueWhereLeftOff")
@@ -259,10 +258,10 @@ export default function Home() {
               <Text style={{ fontSize: 38 }}>🌙</Text>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 17 }}>
-                  {lang === "ar" ? "قصص وقت النوم" : "Bedtime Stories"}
+                  Bedtime Stories
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, marginTop: 2 }}>
-                  {progress.storiesListened} {lang === "ar" ? "قصة مسموعة" : "stories listened"}
+                  {progress.storiesListened} stories listened
                 </Text>
               </View>
               <View style={{ backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 }}>
@@ -287,7 +286,7 @@ export default function Home() {
             <View style={{ flex: 1 }}>
               <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 17 }}>{t("learnEnglish")}</Text>
               <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, marginTop: 2 }}>
-                {progress.lessonsCompleted.length} {lang === "ar" ? "درس مكتمل" : "lessons completed"}
+                {progress.lessonsCompleted.length} lessons completed
               </Text>
             </View>
             <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 24 }}>›</Text>
@@ -318,7 +317,7 @@ export default function Home() {
                 </View>
                 <View style={{ backgroundColor: "#F59E0B", borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 }}>
                   <Text style={{ color: "#000", fontWeight: "900", fontSize: 12 }}>
-                    {lang === "ar" ? "افتح" : "Open"}
+                    Open
                   </Text>
                 </View>
               </View>
@@ -333,10 +332,10 @@ export default function Home() {
               </View>
               <Text style={{ fontSize: 34, marginBottom: 8 }}>🏅</Text>
               <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 18, marginBottom: 4 }}>
-                {lang === "ar" ? "مسابقات التعلم" : "Learning Competitions"}
+                Learning Competitions
               </Text>
               <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, lineHeight: 18 }}>
-                {lang === "ar" ? "تحدّ أصدقاءك في مسابقات ممتعة! 🥇" : "Challenge friends in fun learning contests! 🥇"}
+                Challenge friends in fun learning contests! 🥇
               </Text>
               <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: 22, backgroundColor: "rgba(0,0,0,0.32)", alignItems: "center", justifyContent: "center" }}>
                 <Text style={{ fontSize: 40 }}>🔒</Text>

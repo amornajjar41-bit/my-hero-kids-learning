@@ -18,7 +18,6 @@ import ParentPin from "./pin";
 export type { SafetyAlert };
 
 const dayLabelsEn = ["S", "M", "T", "W", "T", "F", "S"];
-const dayLabelsAr = ["ح", "ن", "ث", "ر", "خ", "ج", "س"];
 
 function getApiBase(): string {
   if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
@@ -397,9 +396,9 @@ export default function ParentDashboard() {
           </Text>
           <View style={{ flexDirection: "row", gap: 10 }}>
             {([
-              { val: "boy" as const, emoji: "👦", enLabel: "Adam", arLabel: "آدم", color: "#3B82F6" },
-              { val: "girl" as const, emoji: "👧", enLabel: "Sara", arLabel: "Sara", color: "#EC4899" },
-            ] as const).map(({ val, emoji, enLabel, arLabel, color }) => {
+              { val: "boy" as const, emoji: "👦", enLabel: "Adam", color: "#3B82F6" },
+              { val: "girl" as const, emoji: "👧", enLabel: "Sara", color: "#EC4899" },
+            ] as const).map(({ val, emoji, enLabel, color }) => {
               const sel = profile?.hero === val;
               return (
                 <Pressable

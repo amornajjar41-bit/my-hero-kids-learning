@@ -29,7 +29,6 @@ const PAD = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
 export default function ParentPin({ onSuccess, onBack }: Props) {
   const c = useColors();
   const { profile } = useApp();
-  const lang = profile?.language ?? "en";
   const hero = profile?.hero ?? "boy";
 
   const [mode, setMode] = useState<"loading" | "setup" | "setup2" | "verify" | "verify-temp">("loading");
@@ -56,18 +55,13 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
   };
 
   const handleDigit = async (d: string) => {
-    if (d === "⌫") {
-      setPin((p) => p.slice(0, -1));
-      return;
-    }
+    if (d === "⌫") { setPin((p) => p.slice(0, -1)); return; }
     if (d === "" || pin.length >= 4) return;
 
     const next = pin + d;
     setPin(next);
-
     if (next.length < 4) return;
 
-    // PIN complete — check mode
     if (mode === "setup") {
       setFirstPin(next);
       setPin("");
@@ -85,15 +79,11 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
         setPin("");
         setMode("setup");
         setFirstPin("");
-        Alert.alert(
-          lang === "ar" ? "لا تتطابق" : "PINs don't match",
-          lang === "ar" ? "حاول مجدداً" : "Please try again",
-        );
+        Alert.alert("PINs don't match", "Please try again");
       }
       return;
     }
 
-    // verify-temp mode — check against server-side temp PIN
     if (mode === "verify-temp") {
       const email = profile?.parentEmail ?? "";
       try {
@@ -105,7 +95,6 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
         });
         const { valid } = await res.json() as { valid: boolean };
         if (valid) {
-          // Clear the stored PIN and let user create a new one
           await setJSON(STORAGE_KEYS.parentPin, null);
           setPin("");
           setMode("setup");
@@ -120,7 +109,6 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
       return;
     }
 
-    // verify mode
     const stored = await getJSON<string>(STORAGE_KEYS.parentPin);
     if (next === stored) {
       setPin("");
@@ -134,19 +122,14 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
   const handleForgot = () => {
     const email = profile?.parentEmail ?? "";
     Alert.alert(
-      lang === "ar" ? "نسيت الرقم السري?" : "Forgot PIN?",
-      lang === "ar"
-        ? `سنرسل رقم PIN مؤقت إلى: ${email}`
-        : `We'll email a temporary 4-digit PIN to:\n${email}`,
+      "Forgot PIN?",
+      `We'll email a temporary 4-digit PIN to:\n${email}`,
       [
-        { text: lang === "ar" ? "إلغاء" : "Cancel", style: "cancel" },
+        { text: "Cancel", style: "cancel" },
         {
-          text: lang === "ar" ? "أرسل" : "Send",
+          text: "Send",
           onPress: async () => {
-            if (!email) {
-              Alert.alert(lang === "ar" ? "لا يوجد بريد" : "No email on file");
-              return;
-            }
+            if (!email) { Alert.alert("No email on file"); return; }
             setForgotSending(true);
             try {
               const base = process.env.EXPO_PUBLIC_API_URL ?? (process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "https://myheroapp.org");
@@ -155,7 +138,7 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email }),
               });
-            } catch { /* ignore, always proceed */ } finally {
+            } catch { } finally {
               setForgotSending(false);
             }
             setPin("");
@@ -168,12 +151,12 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
 
   const resetPin = async () => {
     Alert.alert(
-      lang === "ar" ? "إعادة تعيين الرقم السري" : "Reset PIN",
-      lang === "ar" ? "هل أنت متأكد؟" : "Are you sure?",
+      "Reset PIN",
+      "Are you sure?",
       [
-        { text: lang === "ar" ? "إلغاء" : "Cancel", style: "cancel" },
+        { text: "Cancel", style: "cancel" },
         {
-          text: lang === "ar" ? "نعم" : "Yes",
+          text: "Yes",
           style: "destructive",
           onPress: async () => {
             await setJSON(STORAGE_KEYS.parentPin, null);
@@ -187,23 +170,21 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
   };
 
   if (mode === "loading") {
-    return (
-      <LinearGradient colors={["#7C3AED", "#4F46E5"]} style={{ flex: 1 }} />
-    );
+    return <LinearGradient colors={["#7C3AED", "#4F46E5"]} style={{ flex: 1 }} />;
   }
 
   const title = {
-    setup: lang === "ar" ? "أنشئ رقمك السري" : "Create your PIN",
-    setup2: lang === "ar" ? "أكّد الرقم السري" : "Confirm your PIN",
-    verify: lang === "ar" ? "أدخل الرقم السري" : "Enter parent PIN",
-    "verify-temp": lang === "ar" ? "أدخل الرقم المؤقت" : "Enter temporary PIN",
+    setup: "Create your PIN",
+    setup2: "Confirm your PIN",
+    verify: "Enter parent PIN",
+    "verify-temp": "Enter temporary PIN",
   }[mode];
 
   const subtitle = {
-    setup: lang === "ar" ? "4 أرقام لحماية لوحة التحكم" : "4 digits to protect the parent dashboard",
-    setup2: lang === "ar" ? "أدخل الرقم مجدداً للتأكيد" : "Enter the PIN again to confirm",
-    verify: lang === "ar" ? "للوصول إلى إعدادات الوالدين" : "To access parent settings",
-    "verify-temp": lang === "ar" ? "تحقق من بريدك الإلكتروني للرقم المؤقت" : "Check your email for the 4-digit code",
+    setup: "4 digits to protect the parent dashboard",
+    setup2: "Enter the PIN again to confirm",
+    verify: "To access parent settings",
+    "verify-temp": "Check your email for the 4-digit code",
   }[mode];
 
   return (
@@ -227,10 +208,9 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
 
         <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "space-between" }}>
 
-          {/* Header */}
           <View style={{ alignItems: "center", gap: 10 }}>
             <Text style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", fontWeight: "600" }}>
-              👨‍👩‍👧 {lang === "ar" ? "لوحة تحكم الوالدين" : "Parent Dashboard"}
+              👨‍👩‍👧 Parent Dashboard
             </Text>
             <AdamCharacter hero={hero} size={90} />
             <Text style={{ fontSize: 22, fontWeight: "800", color: "#FFF", textAlign: "center" }}>
@@ -241,7 +221,6 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
             </Text>
           </View>
 
-          {/* Dots */}
           <Animated.View style={{
             flexDirection: "row", gap: 16, justifyContent: "center",
             transform: [{ translateX: shake }],
@@ -255,7 +234,6 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
             ))}
           </Animated.View>
 
-          {/* Number pad */}
           <View style={{ width: "100%" }}>
             <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 12 }}>
               {PAD.map((d, i) => (
@@ -269,27 +247,24 @@ export default function ParentPin({ onSuccess, onBack }: Props) {
                   })}
                   disabled={d === ""}
                 >
-                  <Text style={{ fontSize: d === "⌫" ? 22 : 28, color: "#FFF", fontWeight: "700" }}>
-                    {d}
-                  </Text>
+                  <Text style={{ fontSize: d === "⌫" ? 22 : 28, color: "#FFF", fontWeight: "700" }}>{d}</Text>
                 </Pressable>
               ))}
             </View>
           </View>
 
-          {/* Forgot / Reset */}
           <View style={{ gap: 8, alignItems: "center" }}>
             {mode === "verify" && (
               <Pressable onPress={handleForgot}>
                 <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: "600" }}>
-                  {lang === "ar" ? "نسيت الرقم السري؟" : "Forgot PIN?"}
+                  Forgot PIN?
                 </Text>
               </Pressable>
             )}
             {mode === "verify" && (
               <Pressable onPress={resetPin}>
                 <Text style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>
-                  {lang === "ar" ? "إعادة تعيين الرقم" : "Reset PIN"}
+                  Reset PIN
                 </Text>
               </Pressable>
             )}

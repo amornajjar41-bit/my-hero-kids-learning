@@ -167,7 +167,7 @@ function PulseDot() {
   );
 }
 
-function GameCard({ game, lang, onPress }: { game: GameDef; lang: "en" | "ar"; onPress: () => void }) {
+function GameCard({ game, lang, onPress }: { game: GameDef; lang: string; onPress: () => void }) {
   const isLeft = game.side === "left";
   const bounce = useRef(new Animated.Value(0)).current;
 
@@ -251,7 +251,7 @@ export default function Games() {
   const router = useRouter();
   const t = useT();
   const { progress, profile } = useApp();
-  const lang = (profile?.language ?? "en") as "en" | "ar";
+  const lang = profile?.language ?? "en";
 
   return (
     <View style={{ flex: 1 }}>

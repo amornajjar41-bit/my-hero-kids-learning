@@ -6,7 +6,6 @@ import { Animated, Easing, Pressable, ScrollView, Text, View } from "react-nativ
 import { allBadges, badgeName } from "@/constants/badges";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
-import { useLang } from "@/hooks/useT";
 
 // Sparkling star animation for earned badges
 function SparkBadge({ earned, emoji, name }: { earned: boolean; emoji: string; name: string }) {
@@ -89,7 +88,6 @@ function SparkBadge({ earned, emoji, name }: { earned: boolean; emoji: string; n
 
 export function BadgeShelf() {
   const { progress } = useApp();
-  const lang = useLang();
   const router = useRouter();
 
   const earnedCount = allBadges.filter((b) =>
@@ -117,12 +115,10 @@ export function BadgeShelf() {
       >
         <View>
           <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 18 }}>
-            {lang === "ar" ? "🏆 قاعة الجوائز" : "🏆 Trophy Room"}
+            🏆 Trophy Room
           </Text>
           <Text style={{ color: "#a78bfa", fontSize: 12, marginTop: 2 }}>
-            {lang === "ar"
-              ? `${earnedCount} من ${allBadges.length} جوائز محققة`
-              : `${earnedCount} of ${allBadges.length} trophies earned`}
+            {earnedCount} of {allBadges.length} trophies earned
           </Text>
         </View>
         <View style={{ alignItems: "flex-end", gap: 4 }}>
@@ -133,7 +129,7 @@ export function BadgeShelf() {
           </View>
           {todayPts > 0 && (
             <Text style={{ color: "#6ee7b7", fontSize: 10, fontWeight: "700" }}>
-              +{todayPts} {lang === "ar" ? "اليوم" : "today"}
+              +{todayPts} today
             </Text>
           )}
         </View>
@@ -181,7 +177,7 @@ export function BadgeShelf() {
             pointsTotal: progress.pointsTotal ?? 0,
           });
           return (
-            <SparkBadge key={b.id} earned={earned} emoji={b.emoji} name={badgeName(b, lang)} />
+            <SparkBadge key={b.id} earned={earned} emoji={b.emoji} name={badgeName(b)} />
           );
         })}
       </ScrollView>
@@ -197,14 +193,14 @@ export function BadgeShelf() {
         })}
       >
         <Text style={{ color: "#a78bfa", fontWeight: "800", fontSize: 13 }}>
-          {lang === "ar" ? "🛒 اعرض الجوائز والمتجر" : "🛒 View Rewards & Shop"}
+          🛒 View Rewards & Shop
         </Text>
       </Pressable>
 
       {earnedCount === 0 && (
         <View style={{ paddingBottom: 8, alignItems: "center" }}>
           <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
-            {lang === "ar" ? "أكمل دروساً وألعاباً لفتح الجوائز! 🚀" : "Complete lessons & games to unlock trophies! 🚀"}
+            Complete lessons & games to unlock trophies! 🚀
           </Text>
         </View>
       )}

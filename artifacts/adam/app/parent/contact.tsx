@@ -1,6 +1,5 @@
 /**
  * Contact Us — parent dashboard support form.
- * Change 3 — contact form with email confirmation.
  */
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -30,21 +29,16 @@ function getApiBase(): string {
   return "https://myheroapp.org";
 }
 
-const SUBJECTS_EN = ["Suggestion", "Complaint", "Technical Issue", "Billing", "Other"] as const;
-const SUBJECTS_AR = ["اقتراح", "شكوى", "مشكلة تقنية", "الفواتير", "أخرى"] as const;
+const SUBJECTS = ["Suggestion", "Complaint", "Technical Issue", "Billing", "Other"] as const;
 
 export default function ContactUs() {
   const c = useColors();
   const router = useRouter();
   const { profile } = useApp();
-  const lang = profile?.language ?? "en";
-  const isAr = lang === "ar";
-
-  const subjects = isAr ? SUBJECTS_AR : SUBJECTS_EN;
 
   const [name, setName] = useState(profile?.parentName ?? "");
   const [email, setEmail] = useState(profile?.parentEmail ?? "");
-  const [subject, setSubject] = useState<string>(subjects[0]);
+  const [subject, setSubject] = useState<string>(SUBJECTS[0]);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
@@ -63,16 +57,10 @@ export default function ContactUs() {
       if (res.ok) {
         setDone(true);
       } else {
-        Alert.alert(
-          isAr ? "حدث خطأ" : "Error",
-          isAr ? "حاول مجدداً لاحقاً" : "Please try again later"
-        );
+        Alert.alert("Error", "Please try again later");
       }
     } catch {
-      Alert.alert(
-        isAr ? "لا يوجد اتصال" : "Connection error",
-        isAr ? "تحقق من اتصالك بالإنترنت" : "Check your internet connection"
-      );
+      Alert.alert("Connection error", "Check your internet connection");
     } finally {
       setSending(false);
     }
@@ -84,7 +72,6 @@ export default function ContactUs() {
     borderRadius: 14,
     color: c.text,
     fontSize: 15,
-    textAlign: (isAr ? "right" : "left") as "right" | "left",
   };
 
   const labelStyle = {
@@ -92,15 +79,13 @@ export default function ContactUs() {
     color: c.text,
     marginBottom: 6,
     fontSize: 13,
-    textAlign: (isAr ? "right" : "left") as "right" | "left",
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
 
-        {/* Header */}
-        <View style={{ padding: 14, flexDirection: isAr ? "row-reverse" : "row", alignItems: "center", gap: 10 }}>
+        <View style={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Pressable
             onPress={() => router.back()}
             style={({ pressed }) => ({
@@ -109,36 +94,33 @@ export default function ContactUs() {
               opacity: pressed ? 0.7 : 1,
             })}
           >
-            <Ionicons name={isAr ? "chevron-forward" : "chevron-back"} size={20} color={c.text} />
+            <Ionicons name="chevron-back" size={20} color={c.text} />
           </Pressable>
-          <Text style={{ fontWeight: "800", fontSize: 20, color: c.text, flex: 1, textAlign: isAr ? "right" : "left" }}>
-            💙 {isAr ? "تواصل معنا" : "Contact Us"}
+          <Text style={{ fontWeight: "800", fontSize: 20, color: c.text, flex: 1 }}>
+            💙 Contact Us
           </Text>
         </View>
 
         <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
 
           {done ? (
-            /* Success State */
             <View style={{ flex: 1, alignItems: "center", paddingTop: 40, gap: 16 }}>
               <Text style={{ fontSize: 72, textAlign: "center" }}>💙</Text>
               <Text style={{ fontSize: 22, fontWeight: "800", color: c.text, textAlign: "center" }}>
-                {isAr ? "شكراً لك!" : "Thank you!"}
+                Thank you!
               </Text>
               <Text style={{ fontSize: 15, color: c.mutedForeground, textAlign: "center", lineHeight: 24, maxWidth: 300 }}>
-                {isAr
-                  ? "سنرد عليك خلال 24 ساعة 💙"
-                  : "We'll get back to you within 24 hours 💙"}
+                We'll get back to you within 24 hours 💙
               </Text>
               <SoftCard style={{ alignItems: "center", gap: 6, width: "100%" }}>
                 <Text style={{ color: c.mutedForeground, fontSize: 13 }}>
-                  {isAr ? "يمكنك أيضاً التواصل عبر" : "Or reach us directly at"}
+                  Or reach us directly at
                 </Text>
                 <Text style={{ color: c.primary, fontWeight: "700", fontSize: 14 }}>
                   {SUPPORT_EMAIL}
                 </Text>
                 <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
-                  {isAr ? "نرد خلال يوم عمل واحد" : "Response within 1 business day"}
+                  Response within 1 business day
                 </Text>
               </SoftCard>
               <Pressable
@@ -149,35 +131,31 @@ export default function ContactUs() {
                 })}
               >
                 <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 15 }}>
-                  {isAr ? "رجوع" : "Go Back"}
+                  Go Back
                 </Text>
               </Pressable>
             </View>
           ) : (
             <>
               <SoftCard>
-                <Text style={{ color: c.mutedForeground, fontSize: 13, lineHeight: 20, textAlign: isAr ? "right" : "left" }}>
-                  {isAr
-                    ? `نحن هنا للمساعدة! أرسل رسالتك وسنرد خلال 24 ساعة. يمكنك أيضاً مراسلتنا على ${SUPPORT_EMAIL}`
-                    : `We're here to help! Send us a message and we'll reply within 24 hours. You can also email us at ${SUPPORT_EMAIL}`}
+                <Text style={{ color: c.mutedForeground, fontSize: 13, lineHeight: 20 }}>
+                  {`We're here to help! Send us a message and we'll reply within 24 hours. You can also email us at ${SUPPORT_EMAIL}`}
                 </Text>
               </SoftCard>
 
-              {/* Name */}
               <SoftCard style={{ gap: 6 }}>
-                <Text style={labelStyle}>{isAr ? "الاسم" : "Name"}</Text>
+                <Text style={labelStyle}>Name</Text>
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  placeholder={isAr ? "اسمك" : "Your name"}
+                  placeholder="Your name"
                   placeholderTextColor={c.mutedForeground}
                   style={inputStyle}
                 />
               </SoftCard>
 
-              {/* Email */}
               <SoftCard style={{ gap: 6 }}>
-                <Text style={labelStyle}>{isAr ? "البريد الإلكتروني" : "Email"}</Text>
+                <Text style={labelStyle}>Email</Text>
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
@@ -189,11 +167,10 @@ export default function ContactUs() {
                 />
               </SoftCard>
 
-              {/* Subject */}
               <SoftCard style={{ gap: 6 }}>
-                <Text style={labelStyle}>{isAr ? "الموضوع" : "Subject"}</Text>
+                <Text style={labelStyle}>Subject</Text>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                  {subjects.map((s) => {
+                  {SUBJECTS.map((s) => {
                     const sel = s === subject;
                     return (
                       <Pressable
@@ -215,13 +192,12 @@ export default function ContactUs() {
                 </View>
               </SoftCard>
 
-              {/* Message */}
               <SoftCard style={{ gap: 6 }}>
-                <Text style={labelStyle}>{isAr ? "رسالتك" : "Message"}</Text>
+                <Text style={labelStyle}>Message</Text>
                 <TextInput
                   value={message}
                   onChangeText={setMessage}
-                  placeholder={isAr ? "اكتب رسالتك هنا..." : "Write your message here..."}
+                  placeholder="Write your message here..."
                   placeholderTextColor={c.mutedForeground}
                   multiline
                   numberOfLines={5}
@@ -230,15 +206,13 @@ export default function ContactUs() {
                 />
                 {message.length > 0 && message.trim().length < 10 && (
                   <Text style={{ color: "#EF4444", fontSize: 12 }}>
-                    {isAr ? "* الرسالة قصيرة جداً (10 حروف على الأقل)" : "* Message too short (at least 10 characters)"}
+                    * Message too short (at least 10 characters)
                   </Text>
                 )}
               </SoftCard>
 
               <PrimaryButton
-                title={sending
-                  ? (isAr ? "جاري الإرسال…" : "Sending…")
-                  : (isAr ? "إرسال الرسالة" : "Send Message")}
+                title={sending ? "Sending…" : "Send Message"}
                 fullWidth
                 disabled={!canSend}
                 loading={sending}

@@ -23,64 +23,46 @@ const { width } = Dimensions.get("window");
 
 type TourStep = {
   icon: string;
-  title_en: string;
-  title_ar: string;
-  desc_en: string;
-  desc_ar: string;
-  speech_en: string;
-  speech_ar: string;
+  title: string;
+  desc: string;
+  speech: string;
   bg: string;
 };
 
 const STEPS: TourStep[] = [
   {
     icon: "🎒",
-    title_en: "Homework Helper",
-    title_ar: "مساعد الواجبات",
-    desc_en: "I help with ANY homework! Maths, science, English — just ask!",
-    desc_ar: "بساعدك بأي واجب! رياضيات، علوم، إنجليزي — بس اسأل!",
-    speech_en: "I help with any homework! Maths, science, English! Just ask me anything!",
-    speech_ar: "أنا بساعدك بأي واجب! رياضيات وعلوم وإنجليزي! بس اسأل!",
+    title: "Homework Helper",
+    desc: "I help with ANY homework! Maths, science, English — just ask!",
+    speech: "I help with any homework! Maths, science, English! Just ask me anything!",
     bg: "#7C3AED",
   },
   {
     icon: "🎮",
-    title_en: "Learning Games",
-    title_ar: "ألعاب تعليمية",
-    desc_en: "Amazing learning games that make school super fun!",
-    desc_ar: "ألعاب تعليمية رائعة تخلي المدرسة ممتعة جداً!",
-    speech_en: "Amazing learning games that make school super fun!",
-    speech_ar: "ألعاب تعليمية رائعة تخلي المدرسة ممتعة جداً!",
+    title: "Learning Games",
+    desc: "Amazing learning games that make school super fun!",
+    speech: "Amazing learning games that make school super fun!",
     bg: "#DB2777",
   },
   {
     icon: "📚",
-    title_en: "English Lessons",
-    title_ar: "دروس الإنجليزي",
-    desc_en: "Learn English from zero — step by step, lesson by lesson!",
-    desc_ar: "تعلم الإنجليزي من الصفر — خطوة بخطوة، درس بعد درس!",
-    speech_en: "Learn English from zero, step by step, lesson by lesson!",
-    speech_ar: "تعلم الإنجليزي من الصفر، خطوة بخطوة، درس بعد درس!",
+    title: "English Lessons",
+    desc: "Learn English from zero — step by step, lesson by lesson!",
+    speech: "Learn English from zero, step by step, lesson by lesson!",
     bg: "#0891B2",
   },
   {
     icon: "🌙",
-    title_en: "Bedtime Stories",
-    title_ar: "قصص قبل النوم",
-    desc_en: "Cozy bedtime stories every night — narrated with a warm AI voice!",
-    desc_ar: "قصص دافئة قبل النوم كل ليلة — أحلام سعيدة!",
-    speech_en: "Cozy bedtime stories every night. Sweet dreams!",
-    speech_ar: "قصص دافئة قبل النوم كل ليلة. أحلام سعيدة!",
+    title: "Bedtime Stories",
+    desc: "Cozy bedtime stories every night — narrated with a warm AI voice!",
+    speech: "Cozy bedtime stories every night. Sweet dreams!",
     bg: "#7C3AED",
   },
   {
     icon: "🏆",
-    title_en: "Rewards & Badges",
-    title_ar: "مكافآت وشارات",
-    desc_en: "Earn points and badges as you learn — become a true champion!",
-    desc_ar: "اكسب نقاط وشارات وأنت تتعلم — كن بطلاً حقيقياً!",
-    speech_en: "Earn points and badges as you learn. Become a true champion!",
-    speech_ar: "اكسب نقاط وشارات وأنت تتعلم. كن بطلاً حقيقياً!",
+    title: "Rewards & Badges",
+    desc: "Earn points and badges as you learn — become a true champion!",
+    speech: "Earn points and badges as you learn. Become a true champion!",
     bg: "#D97706",
   },
 ];
@@ -93,7 +75,6 @@ type Props = {
 export function Tour({ visible, onDone }: Props) {
   const c = useColors();
   const { profile } = useApp();
-  const lang = profile?.language ?? "en";
   const hero = profile?.hero ?? "boy";
   const voice = hero === "girl" ? "nova" : "echo";
 
@@ -103,7 +84,6 @@ export function Tour({ visible, onDone }: Props) {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
-  // Entrance animation
   useEffect(() => {
     if (!visible) return;
     Animated.parallel([
@@ -114,17 +94,13 @@ export function Tour({ visible, onDone }: Props) {
 
   const speakStep = useCallback((s: TourStep) => {
     stop();
-    const text = lang === "ar" ? s.speech_ar : s.speech_en;
-    speak(text, voice).catch(() => {});
-  }, [lang, voice]);
+    speak(s.speech, voice).catch(() => {});
+  }, [voice]);
 
   const speakWelcome = useCallback(() => {
     stop();
-    const text = lang === "ar"
-      ? `مرحباً يا ${profile?.childName ?? "بطل"}! هل تريد جولة سريعة؟`
-      : `Welcome to My Hero, ${profile?.childName ?? "hero"}! Want a quick tour?`;
-    speak(text, voice).catch(() => {});
-  }, [lang, voice, profile]);
+    speak(`Welcome to My Hero, ${profile?.childName ?? "hero"}! Want a quick tour?`, voice).catch(() => {});
+  }, [voice, profile]);
 
   useEffect(() => {
     if (visible && phase === "welcome") {
@@ -151,10 +127,7 @@ export function Tour({ visible, onDone }: Props) {
 
   const handleFinish = () => {
     stop();
-    const text = lang === "ar"
-      ? "يلا نبدأ مغامرتك! أنت بطل حقيقي!"
-      : "Let's start your adventure! You are a true hero!";
-    speak(text, voice).catch(() => {});
+    speak("Let's start your adventure! You are a true hero!", voice).catch(() => {});
     setShowConfetti(true);
     setPhase("done");
     setTimeout(() => {
@@ -199,12 +172,10 @@ export function Tour({ visible, onDone }: Props) {
               <Text style={{ fontSize: 36 }}>👋</Text>
               <AdamCharacter hero={hero} size={130} pose="happy" />
               <Text style={{ fontWeight: "900", fontSize: 24, color: c.text, textAlign: "center" }}>
-                {lang === "ar"
-                  ? `مرحباً يا ${profile?.childName ?? "بطل"}!`
-                  : `Welcome to My Hero!`}
+                Welcome to My Hero!
               </Text>
               <Text style={{ color: c.mutedForeground, fontSize: 16, textAlign: "center" }}>
-                {lang === "ar" ? "تريد جولة سريعة؟" : "Want a quick tour?"}
+                Want a quick tour?
               </Text>
               <View style={{ flexDirection: "row", gap: 12, width: "100%", marginTop: 8 }}>
                 <Pressable
@@ -215,7 +186,7 @@ export function Tour({ visible, onDone }: Props) {
                   })}
                 >
                   <Text style={{ fontWeight: "700", color: c.mutedForeground, fontSize: 16 }}>
-                    {lang === "ar" ? "تخطي" : "Skip"}
+                    Skip
                   </Text>
                 </Pressable>
                 <Pressable
@@ -226,7 +197,7 @@ export function Tour({ visible, onDone }: Props) {
                   })}
                 >
                   <Text style={{ fontWeight: "800", color: "#FFF", fontSize: 16 }}>
-                    {lang === "ar" ? "يلا نبدأ! 🎉" : "Let's go! 🎉"}
+                    Let's go! 🎉
                   </Text>
                 </Pressable>
               </View>
@@ -236,7 +207,6 @@ export function Tour({ visible, onDone }: Props) {
           {/* ── Step phase ── */}
           {phase === "steps" && (
             <View style={{ gap: 16 }}>
-              {/* Progress dots */}
               <View style={{ flexDirection: "row", gap: 6, justifyContent: "center" }}>
                 {STEPS.map((_, i) => (
                   <View key={i} style={{
@@ -246,40 +216,27 @@ export function Tour({ visible, onDone }: Props) {
                 ))}
               </View>
 
-              {/* Icon card */}
               <View style={{
-                backgroundColor: current.bg,
-                borderRadius: 28,
-                padding: 28,
-                alignItems: "center",
-                shadowColor: current.bg,
-                shadowOpacity: 0.4,
-                shadowRadius: 20,
-                shadowOffset: { width: 0, height: 8 },
-                elevation: 10,
+                backgroundColor: current.bg, borderRadius: 28, padding: 28, alignItems: "center",
+                shadowColor: current.bg, shadowOpacity: 0.4, shadowRadius: 20,
+                shadowOffset: { width: 0, height: 8 }, elevation: 10,
               }}>
                 <Text style={{ fontSize: 64, marginBottom: 8 }}>{current.icon}</Text>
                 <AdamCharacter hero={hero} size={80} pose="excited" />
               </View>
 
-              {/* Title */}
               <Text style={{ fontWeight: "900", fontSize: 24, color: c.text, textAlign: "center" }}>
-                {lang === "ar" ? current.title_ar : current.title_en}
+                {current.title}
               </Text>
 
-              {/* Description */}
               <Text style={{ color: c.mutedForeground, fontSize: 16, textAlign: "center", lineHeight: 24 }}>
-                {lang === "ar" ? current.desc_ar : current.desc_en}
+                {current.desc}
               </Text>
 
-              {/* Step counter */}
               <Text style={{ textAlign: "center", color: c.mutedForeground, fontSize: 12 }}>
-                {lang === "ar"
-                  ? `${step + 1} من ${STEPS.length}`
-                  : `${step + 1} of ${STEPS.length}`}
+                {step + 1} of {STEPS.length}
               </Text>
 
-              {/* Buttons */}
               <View style={{ flexDirection: "row", gap: 12, marginTop: 4 }}>
                 <Pressable
                   onPress={handleSkip}
@@ -289,7 +246,7 @@ export function Tour({ visible, onDone }: Props) {
                   })}
                 >
                   <Text style={{ fontWeight: "700", color: c.mutedForeground, fontSize: 15 }}>
-                    {lang === "ar" ? "تخطي" : "Skip"}
+                    Skip
                   </Text>
                 </Pressable>
                 <Pressable
@@ -300,9 +257,7 @@ export function Tour({ visible, onDone }: Props) {
                   })}
                 >
                   <Text style={{ fontWeight: "800", color: "#FFF", fontSize: 15 }}>
-                    {step < STEPS.length - 1
-                      ? (lang === "ar" ? "التالي →" : "Next →")
-                      : (lang === "ar" ? "انطلق! 🚀" : "Let's start! 🚀")}
+                    {step < STEPS.length - 1 ? "Next →" : "Let's start! 🚀"}
                   </Text>
                 </Pressable>
               </View>
@@ -315,12 +270,10 @@ export function Tour({ visible, onDone }: Props) {
               <Text style={{ fontSize: 64 }}>🚀</Text>
               <AdamCharacter hero={hero} size={120} pose="excited" />
               <Text style={{ fontWeight: "900", fontSize: 26, color: c.text, textAlign: "center" }}>
-                {lang === "ar" ? "يلا نبدأ المغامرة! 🚀" : "Let's start your adventure! 🚀"}
+                Let's start your adventure! 🚀
               </Text>
               <Text style={{ color: c.mutedForeground, fontSize: 16, textAlign: "center" }}>
-                {lang === "ar"
-                  ? "أنت جاهز تكون بطلاً حقيقياً!"
-                  : "You're ready to become a true hero!"}
+                You're ready to become a true hero!
               </Text>
             </View>
           )}
@@ -330,7 +283,6 @@ export function Tour({ visible, onDone }: Props) {
   );
 }
 
-// Hook to manage tour state
 export function useTour() {
   const [showTour, setShowTour] = useState(false);
   const [checked, setChecked] = useState(false);

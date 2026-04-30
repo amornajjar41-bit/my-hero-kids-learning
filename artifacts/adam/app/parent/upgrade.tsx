@@ -8,14 +8,14 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 
 const BENEFITS = [
-  { emoji: "📚", en: "Unlimited homework help & AI tutor", ar: "مساعدة غير محدودة في الواجبات" },
-  { emoji: "🎤", en: "Voice chat with your hero character", ar: "محادثة صوتية مع بطلك" },
-  { emoji: "📷", en: "Photo homework upload & explain", ar: "تصوير الواجب وشرحه" },
-  { emoji: "🌍", en: "Full English & Arabic curriculum", ar: "منهج كامل بالإنجليزية والعربية" },
-  { emoji: "🎮", en: "All 7 educational games unlocked", ar: "جميع الألعاب التعليمية السبع" },
-  { emoji: "🌙", en: "20+ bedtime stories with audio", ar: "+٢٠ قصة مع صوت احترافي" },
-  { emoji: "⏱️", en: "Parent controls & screen time limits", ar: "تحكم أولياء الأمور بوقت الشاشة" },
-  { emoji: "🏆", en: "Rewards, badges & achievement shop", ar: "مكافآت وشارات ومتجر الإنجازات" },
+  { emoji: "📚", label: "Unlimited homework help & AI tutor" },
+  { emoji: "🎤", label: "Voice chat with your hero character" },
+  { emoji: "📷", label: "Photo homework upload & explain" },
+  { emoji: "🌍", label: "Full English curriculum — vocab, grammar & more" },
+  { emoji: "🎮", label: "All 7 educational games unlocked" },
+  { emoji: "🌙", label: "20+ bedtime stories with audio" },
+  { emoji: "⏱️", label: "Parent controls & screen time limits" },
+  { emoji: "🏆", label: "Rewards, badges & achievement shop" },
 ];
 
 const SOCIAL_PROOF = [
@@ -33,15 +33,7 @@ function formatPrice(usd: number, currency: string): string {
   const c = RATES[currency] ?? RATES.USD!;
   const amount = usd * c.rate;
   const rounded = amount >= 100 ? Math.round(amount) : Math.round(amount * 10) / 10;
-  const raw = String(rounded);
-  let numStr = "";
-  for (let i = 0; i < raw.length; i++) {
-    const code = raw.charCodeAt(i);
-    if (code >= 0x0660 && code <= 0x0669) numStr += String.fromCharCode(code - 0x0660 + 0x30);
-    else if (code >= 0x06F0 && code <= 0x06F9) numStr += String.fromCharCode(code - 0x06F0 + 0x30);
-    else numStr += raw[i];
-  }
-  return `${c.symbol}\u200E${numStr}`;
+  return `${c.symbol}${rounded}`;
 }
 
 export default function Upgrade() {
@@ -52,7 +44,6 @@ export default function Upgrade() {
   const [chosen, setChosen] = useState<"monthly" | "6months" | "yearly">("yearly");
 
   const currency = profile?.currency ?? "USD";
-  const lang = (profile?.language ?? "en") as "en" | "ar";
 
   const subscribe = async () => {
     setLoading(true);
@@ -75,7 +66,6 @@ export default function Upgrade() {
       />
 
       <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
-        {/* Header */}
         <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, flexDirection: "row", alignItems: "center" }}>
           <Pressable
             onPress={() => router.back()}
@@ -90,7 +80,7 @@ export default function Upgrade() {
           <View style={{ flex: 1, alignItems: "center" }}>
             <View style={{ backgroundColor: "#F59E0B", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 5 }}>
               <Text style={{ color: "#000", fontWeight: "900", fontSize: 11 }}>
-                🏅 {lang === "ar" ? "رقم ١ في تعليم الأطفال" : "#1 PARENT-APPROVED APP"}
+                🏅 #1 PARENT-APPROVED APP
               </Text>
             </View>
           </View>
@@ -99,36 +89,31 @@ export default function Upgrade() {
 
         <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
 
-          {/* Hero section */}
           <View style={{ alignItems: "center", gap: 8, paddingVertical: 10 }}>
             <Text style={{ fontSize: 72 }}>🦸</Text>
             <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 26, textAlign: "center", lineHeight: 32 }}>
-              {lang === "ar" ? "أطلق قوى بطلك الكاملة" : "Unlock Your Hero's\nFull Powers"}
+              {"Unlock Your Hero's\nFull Powers"}
             </Text>
             <Text style={{ color: "rgba(167,139,250,0.9)", fontSize: 14, textAlign: "center", lineHeight: 20 }}>
-              {lang === "ar"
-                ? "تعلّم لا حدود له، آمن وممتع كل يوم"
-                : "Safe, fun & unlimited learning — every single day"}
+              Safe, fun & unlimited learning — every single day
             </Text>
           </View>
 
-          {/* Benefits grid */}
           <View style={{ backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 24, padding: 18, borderWidth: 1, borderColor: "rgba(167,139,250,0.2)", gap: 10 }}>
             <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 14, marginBottom: 4 }}>
-              {lang === "ar" ? "✦ كل شيء مشمول" : "✦ Everything included"}
+              ✦ Everything included
             </Text>
             {BENEFITS.map((b) => (
-              <View key={b.en} style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+              <View key={b.label} style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
                 <Text style={{ fontSize: 20, width: 26, textAlign: "center" }}>{b.emoji}</Text>
                 <Text style={{ flex: 1, color: "rgba(255,255,255,0.85)", fontSize: 13, lineHeight: 20 }}>
-                  {lang === "ar" ? b.ar : b.en}
+                  {b.label}
                 </Text>
                 <Text style={{ color: "#10B981", fontSize: 16 }}>✓</Text>
               </View>
             ))}
           </View>
 
-          {/* Social proof */}
           <View style={{ gap: 10 }}>
             {SOCIAL_PROOF.map((r, i) => (
               <View key={i} style={{
@@ -142,9 +127,8 @@ export default function Upgrade() {
             ))}
           </View>
 
-          {/* Plan selector */}
           <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 14, textAlign: "center" }}>
-            {lang === "ar" ? "اختر خطتك" : "Choose your plan"}
+            Choose your plan
           </Text>
 
           {/* Monthly */}
@@ -154,23 +138,16 @@ export default function Upgrade() {
               borderRadius: 20, borderWidth: 2.5,
               borderColor: chosen === "monthly" ? "#A78BFA" : "rgba(255,255,255,0.12)",
               backgroundColor: chosen === "monthly" ? "rgba(124,58,237,0.2)" : "rgba(255,255,255,0.04)",
-              padding: 18,
-              flexDirection: "row", alignItems: "center",
+              padding: 18, flexDirection: "row", alignItems: "center",
             }}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 17 }}>
-                {lang === "ar" ? "شهري" : "Monthly"}
-              </Text>
-              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2 }}>
-                {lang === "ar" ? "ألغِ في أي وقت" : "Cancel anytime"}
-              </Text>
+              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 17 }}>Monthly</Text>
+              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2 }}>Cancel anytime</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 22, writingDirection: "ltr" }}>{monthly}</Text>
-              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>
-                {lang === "ar" ? "/شهر" : "/month"}
-              </Text>
+              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 22 }}>{monthly}</Text>
+              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>/month</Text>
             </View>
             <View style={{
               width: 24, height: 24, borderRadius: 12, borderWidth: 2,
@@ -189,30 +166,23 @@ export default function Upgrade() {
               borderRadius: 20, borderWidth: 2.5,
               borderColor: chosen === "6months" ? "#A78BFA" : "rgba(255,255,255,0.12)",
               backgroundColor: chosen === "6months" ? "rgba(124,58,237,0.2)" : "rgba(255,255,255,0.04)",
-              padding: 18,
-              flexDirection: "row", alignItems: "center",
+              padding: 18, flexDirection: "row", alignItems: "center",
             }}
           >
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: "row", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 17 }}>
-                  {lang === "ar" ? "٦ أشهر" : "6 Months"}
-                </Text>
+                <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 17 }}>6 Months</Text>
                 <View style={{ backgroundColor: "rgba(245,158,11,0.3)", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-                  <Text style={{ color: "#FDE68A", fontSize: 10, fontWeight: "800" }}>
-                    {lang === "ar" ? "وفّر ١٠%" : "SAVE 10%"}
-                  </Text>
+                  <Text style={{ color: "#FDE68A", fontSize: 10, fontWeight: "800" }}>SAVE 10%</Text>
                 </View>
               </View>
-              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2, writingDirection: "ltr" }}>
-                {sixPerMonth}{lang === "ar" ? "/شهر" : "/mo"}
+              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2 }}>
+                {sixPerMonth}/mo
               </Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 22, writingDirection: "ltr" }}>{sixMonths}</Text>
-              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>
-                {lang === "ar" ? "مرة واحدة" : "one time"}
-              </Text>
+              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 22 }}>{sixMonths}</Text>
+              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>one time</Text>
             </View>
             <View style={{
               width: 24, height: 24, borderRadius: 12, borderWidth: 2,
@@ -224,41 +194,31 @@ export default function Upgrade() {
             </View>
           </Pressable>
 
-          {/* Yearly — highlighted */}
+          {/* Yearly */}
           <Pressable
             onPress={() => setChosen("yearly")}
             style={{
-              borderRadius: 20, borderWidth: 2.5,
-              borderColor: "#FDE68A",
+              borderRadius: 20, borderWidth: 2.5, borderColor: "#FDE68A",
               backgroundColor: chosen === "yearly" ? "rgba(253,230,138,0.1)" : "rgba(253,230,138,0.05)",
-              padding: 18,
-              flexDirection: "row", alignItems: "center",
+              padding: 18, flexDirection: "row", alignItems: "center",
               shadowColor: "#FDE68A", shadowOpacity: chosen === "yearly" ? 0.25 : 0, shadowRadius: 12, elevation: chosen === "yearly" ? 6 : 0,
             }}
           >
-            {/* BEST VALUE badge */}
             <View style={{ position: "absolute", top: -12, right: 16, backgroundColor: "#F59E0B", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
-              <Text style={{ color: "#000", fontWeight: "900", fontSize: 10 }}>
-                {lang === "ar" ? "⭐ الأفضل قيمة · وفّر ٢١%" : "⭐ BEST VALUE · SAVE 21%"}
-              </Text>
+              <Text style={{ color: "#000", fontWeight: "900", fontSize: 10 }}>⭐ BEST VALUE · SAVE 21%</Text>
             </View>
             <View style={{ flex: 1, marginTop: 4 }}>
-              <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 17 }}>
-                {lang === "ar" ? "سنوي" : "Yearly"}
-              </Text>
-              <Text style={{ color: "rgba(253,230,138,0.6)", fontSize: 12, marginTop: 2, writingDirection: "ltr" }}>
-                {yearlyPerMonth}{lang === "ar" ? "/شهر" : "/mo"}
+              <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 17 }}>Yearly</Text>
+              <Text style={{ color: "rgba(253,230,138,0.6)", fontSize: 12, marginTop: 2 }}>
+                {yearlyPerMonth}/mo
               </Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 22, writingDirection: "ltr" }}>{yearly}</Text>
-              <Text style={{ color: "rgba(253,230,138,0.6)", fontSize: 11 }}>
-                {lang === "ar" ? "مرة واحدة" : "one time"}
-              </Text>
+              <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 22 }}>{yearly}</Text>
+              <Text style={{ color: "rgba(253,230,138,0.6)", fontSize: 11 }}>one time</Text>
             </View>
             <View style={{
-              width: 24, height: 24, borderRadius: 12, borderWidth: 2,
-              borderColor: "#FDE68A",
+              width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: "#FDE68A",
               backgroundColor: chosen === "yearly" ? "#F59E0B" : "transparent",
               alignItems: "center", justifyContent: "center", marginLeft: 12,
             }}>
@@ -281,15 +241,13 @@ export default function Upgrade() {
               <ActivityIndicator color="#000" />
             ) : (
               <Text style={{ color: "#000", fontWeight: "900", fontSize: 17 }}>
-                {lang === "ar" ? "🚀 ابدأ رحلة التعلم" : "🚀 Start Learning Journey"}
+                🚀 Start Learning Journey
               </Text>
             )}
           </Pressable>
 
           <Text style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", fontSize: 11, lineHeight: 18 }}>
-            {lang === "ar"
-              ? "لا رسوم خفية. إلغاء في أي وقت. بيانات طفلك آمنة دائماً."
-              : "No hidden fees · Cancel anytime · Your child's data is always safe"}
+            No hidden fees · Cancel anytime · Your child's data is always safe
           </Text>
         </ScrollView>
       </SafeAreaView>

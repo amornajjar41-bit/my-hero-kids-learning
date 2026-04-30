@@ -101,7 +101,7 @@ export default function MathBlast() {
   }, [levelIdx]);
 
   useEffect(() => {
-    preloadMathAudio(lang);
+    preloadMathAudio();
     return () => {
       stopPreloaded();
       stopAudio();
@@ -109,10 +109,6 @@ export default function MathBlast() {
   }, [lang]);
 
   const opWord = (op: string): string => {
-    if (lang === "ar") {
-      const ar: Record<string, string> = { "+": "زائد", "-": "ناقص", "×": "ضرب", "÷": "قسمة" };
-      return ar[op] ?? op;
-    }
     const en: Record<string, string> = { "+": "plus", "-": "minus", "×": "times", "÷": "divided by" };
     return en[op] ?? op;
   };
@@ -123,9 +119,9 @@ export default function MathBlast() {
     const timer = setTimeout(async () => {
       if (cancelled) return;
       const opKey = (q.op === "+" ? "plus" : q.op === "-" ? "minus" : q.op === "×" ? "times" : "div") as Parameters<typeof mathOpPath>[0];
-      const aPath = mathNumPath(q.a, lang);
-      const opPath = mathOpPath(opKey, lang);
-      const bPath = mathNumPath(q.b, lang);
+      const aPath = mathNumPath(q.a);
+      const opPath = mathOpPath(opKey);
+      const bPath = mathNumPath(q.b);
 
       // Try preloaded path: play a → op → b with short gaps
       const hitA = await playPreloaded(aPath);
@@ -151,8 +147,8 @@ export default function MathBlast() {
       setScore((s) => s + 1);
       setFeedback("ok");
       const variant = Math.floor(Math.random() * 5);
-      playPreloaded(mathCorrectPath(variant, lang), () =>
-        speak(lang === "ar" ? "ممتاز!" : "Correct!", voice)
+      playPreloaded(mathCorrectPath(variant), () =>
+        speak("Correct!", voice)
       ).catch(() => {});
       setTimeout(() => {
         setFeedback("");
@@ -178,7 +174,7 @@ export default function MathBlast() {
     }
   }, [done]);
 
-  const levelLabel = lang === "ar" ? currentLevel.labelAr : currentLevel.labelEn;
+  const levelLabel = currentLevel.label;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
@@ -203,10 +199,10 @@ export default function MathBlast() {
           <SoftCard color={c.primary}>
             <Text style={{ fontSize: 64, textAlign: "center" }}>🏆</Text>
             <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 24, textAlign: "center", marginTop: 8 }}>
-              {lang === "ar" ? "أنت بطل الرياضيات!" : "Math Champion!"}
+              Math Champion!
             </Text>
             <Text style={{ color: "#FFF", fontWeight: "700", textAlign: "center", marginTop: 6 }}>
-              ⭐ {score} / {totalQuestions} {lang === "ar" ? "إجابة صحيحة" : "correct"}
+              ⭐ {score} / {totalQuestions} correct
             </Text>
           </SoftCard>
           <PrimaryButton title={t("done")} fullWidth onPress={() => router.back()} />
@@ -252,7 +248,7 @@ export default function MathBlast() {
           )}
           {feedback === "no" && (
             <Text style={{ textAlign: "center", color: c.destructive, fontWeight: "800" }}>
-              {t("oops")} — {lang === "ar" ? "حاول مرة ثانية" : "try again!"}
+              {t("oops")} — try again!
             </Text>
           )}
         </View>

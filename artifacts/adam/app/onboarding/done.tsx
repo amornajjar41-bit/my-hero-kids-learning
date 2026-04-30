@@ -33,7 +33,7 @@ export default function Done() {
   const router = useRouter();
   const { profile } = useApp();
   const params = useLocalSearchParams<{
-    lang: "en" | "ar";
+    lang: string;
     hero: "boy" | "girl";
     parentEmail: string;
     password: string;
@@ -47,11 +47,10 @@ export default function Done() {
     dob: string;
   }>();
 
-  const isAr = (params.lang ?? profile?.language) === "ar";
   const symbol = params.currencySymbol ?? "$";
   const rate = parseFloat(params.currencyRate ?? "1") || 1;
   const heroName = (params.hero ?? profile?.hero) === "girl" ? "Sara" : "Adam";
-  const childName = params.name || profile?.childName || (isAr ? "طفلك" : "your child");
+  const childName = params.name || profile?.childName || "your child";
 
   const [loading, setLoading] = useState(false);
 
@@ -68,12 +67,12 @@ export default function Done() {
           parentName: params.parentName ?? "",
           country: params.country ?? "US",
           currency: params.currency ?? "USD",
-          language: params.lang ?? "en",
+          language: "en",
           childName: params.name ?? profile?.childName ?? "",
           childGender: (params.hero ?? profile?.hero ?? "boy") as "boy" | "girl",
           childDob: params.dob ?? "",
           characterChoice: (params.hero ?? profile?.hero ?? "boy") as "boy" | "girl",
-          languagePreference: (params.lang ?? profile?.language ?? "en") as "en" | "ar",
+          languagePreference: "en",
         });
         if (result.sessionToken) {
           await saveSessionToken(result.sessionToken);
@@ -93,7 +92,6 @@ export default function Done() {
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
       <ScrollView contentContainerStyle={{ padding: 22, paddingBottom: 60, gap: 20 }}>
 
-        {/* ── Section 1: Emotional Headline ───────────────────────────────── */}
         <LinearGradient
           colors={["#1A0F3F", "#2D1B69"]}
           style={{ borderRadius: 24, padding: 28, alignItems: "center", gap: 12 }}
@@ -102,37 +100,29 @@ export default function Done() {
           <Text style={{
             color: "#FFF", fontWeight: "900", fontSize: 24, textAlign: "center", lineHeight: 32,
           }}>
-            {isAr
-              ? `أعطِ ${childName} الرفيق التعليمي الأذكى 🦸`
-              : `Give ${childName} the smartest learning companion 🦸`}
+            Give {childName} the smartest learning companion 🦸
           </Text>
           <Text style={{
             color: "rgba(255,255,255,0.8)", fontSize: 14, textAlign: "center", lineHeight: 22,
           }}>
-            {isAr
-              ? "انضم إلى آلاف العائلات التي تساعد أطفالها على التعلم والنمو وحب المدرسة"
-              : "Join thousands of families helping their children learn, grow, and love school"}
+            Join thousands of families helping their children learn, grow, and love school
           </Text>
           <View style={{
             backgroundColor: "rgba(255,255,255,0.15)",
             borderRadius: 16, paddingHorizontal: 18, paddingVertical: 8, marginTop: 4,
           }}>
             <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14 }}>
-              {isAr ? `${heroName} جاهز لمساعدة ${childName}! 🚀` : `${heroName} is ready to help ${childName}! 🚀`}
+              {heroName} is ready to help {childName}! 🚀
             </Text>
           </View>
         </LinearGradient>
 
-        {/* ── Section 2: 6 Key Benefits ───────────────────────────────────── */}
         <View style={{ backgroundColor: c.card, borderRadius: 20, padding: 20, gap: 12 }}>
-          <Text style={{ fontWeight: "900", fontSize: 18, color: c.text, textAlign: isAr ? "right" : "left" }}>
-            {isAr ? "ماذا يحصل طفلك؟" : "What your child gets:"}
+          <Text style={{ fontWeight: "900", fontSize: 18, color: c.text }}>
+            What your child gets:
           </Text>
           {BENEFITS_EN.map((b, i) => (
-            <View key={i} style={{
-              flexDirection: isAr ? "row-reverse" : "row",
-              alignItems: "flex-start", gap: 12,
-            }}>
+            <View key={i} style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
               <View style={{
                 width: 24, height: 24, borderRadius: 12,
                 backgroundColor: "#10B981", alignItems: "center", justifyContent: "center",
@@ -140,17 +130,13 @@ export default function Done() {
               }}>
                 <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 13 }}>✓</Text>
               </View>
-              <Text style={{
-                flex: 1, color: c.text, fontSize: 14, lineHeight: 22,
-                textAlign: isAr ? "right" : "left",
-              }}>{b}</Text>
+              <Text style={{ flex: 1, color: c.text, fontSize: 14, lineHeight: 22 }}>{b}</Text>
             </View>
           ))}
         </View>
 
-        {/* ── Section 3: Pricing Plans ─────────────────────────────────────── */}
-        <Text style={{ fontWeight: "900", fontSize: 18, color: c.text, textAlign: isAr ? "right" : "left" }}>
-          {isAr ? "اختر خطتك:" : "Choose your plan:"}
+        <Text style={{ fontWeight: "900", fontSize: 18, color: c.text }}>
+          Choose your plan:
         </Text>
 
         {/* FREE TRIAL */}
@@ -158,28 +144,22 @@ export default function Done() {
           backgroundColor: "#ECFDF5", borderRadius: 20, padding: 20,
           borderWidth: 2, borderColor: "#10B981", gap: 10,
         }}>
-          <View style={{ flexDirection: isAr ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center" }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
             <View style={{ gap: 2 }}>
-              <Text style={{ fontWeight: "900", fontSize: 18, color: "#065F46" }}>
-                {isAr ? "تجربة مجانية" : "Free Trial"}
-              </Text>
+              <Text style={{ fontWeight: "900", fontSize: 18, color: "#065F46" }}>Free Trial</Text>
               <Text style={{ color: "#059669", fontWeight: "700", fontSize: 13 }}>
-                {isAr ? "٣ أيام · لا بطاقة مطلوبة" : "3 days · No credit card needed"}
+                3 days · No credit card needed
               </Text>
             </View>
             <View style={{
               backgroundColor: "#10B981", borderRadius: 20,
               paddingHorizontal: 14, paddingVertical: 6,
             }}>
-              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 16 }}>
-                {isAr ? "مجاني" : "FREE"}
-              </Text>
+              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 16 }}>FREE</Text>
             </View>
           </View>
-          <Text style={{ color: "#065F46", fontSize: 12, lineHeight: 18, textAlign: isAr ? "right" : "left" }}>
-            {isAr
-              ? "كل المميزات مع حدود يومية — اكتشف التجربة كاملة"
-              : "All features with daily limits — discover the full experience"}
+          <Text style={{ color: "#065F46", fontSize: 12, lineHeight: 18 }}>
+            All features with daily limits — discover the full experience
           </Text>
           <Pressable
             onPress={() => handleStart("free")}
@@ -192,7 +172,7 @@ export default function Done() {
           >
             {loading ? <ActivityIndicator color="#FFF" /> : (
               <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 16 }}>
-                {isAr ? "ابدأ التجربة المجانية 🚀" : "Start Free Trial 🚀"}
+                Start Free Trial 🚀
               </Text>
             )}
           </Pressable>
@@ -203,18 +183,16 @@ export default function Done() {
           backgroundColor: c.card, borderRadius: 20, padding: 20,
           borderWidth: 1, borderColor: c.border, gap: 10,
         }}>
-          <View style={{ flexDirection: isAr ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center" }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
             <View style={{ gap: 2 }}>
-              <Text style={{ fontWeight: "800", fontSize: 17, color: c.text }}>
-                {isAr ? "شهري" : "Monthly"}
-              </Text>
+              <Text style={{ fontWeight: "800", fontSize: 17, color: c.text }}>Monthly</Text>
               <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
-                {isAr ? "وصول كامل غير محدود · إلغاء في أي وقت" : "Full unlimited access · Cancel anytime"}
+                Full unlimited access · Cancel anytime
               </Text>
             </View>
-            <View style={{ alignItems: isAr ? "flex-start" : "flex-end" }}>
+            <View style={{ alignItems: "flex-end" }}>
               <Text style={{ fontWeight: "900", fontSize: 22, color: c.text }}>{planPrice("monthly")}</Text>
-              <Text style={{ color: c.mutedForeground, fontSize: 11 }}>{isAr ? "/شهر" : "/month"}</Text>
+              <Text style={{ color: c.mutedForeground, fontSize: 11 }}>/month</Text>
             </View>
           </View>
           <Pressable
@@ -228,7 +206,7 @@ export default function Done() {
           >
             {loading ? <ActivityIndicator color="#FFF" /> : (
               <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 15 }}>
-                {isAr ? "اختر الشهري" : "Choose Monthly"}
+                Choose Monthly
               </Text>
             )}
           </Pressable>
@@ -244,26 +222,20 @@ export default function Done() {
               backgroundColor: "#5B21B6", borderRadius: 20,
               paddingHorizontal: 14, paddingVertical: 4,
             }}>
-              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12 }}>
-                {isAr ? "🔥 وفّر ١٠٪" : "🔥 SAVE 10%"}
-              </Text>
+              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12 }}>🔥 SAVE 10%</Text>
             </View>
           </View>
-          <View style={{ flexDirection: isAr ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
             <View style={{ gap: 2 }}>
-              <Text style={{ fontWeight: "800", fontSize: 17, color: "#FFF" }}>
-                {isAr ? "٦ أشهر" : "6 Months"}
-              </Text>
+              <Text style={{ fontWeight: "800", fontSize: 17, color: "#FFF" }}>6 Months</Text>
               <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12 }}>
-                {isAr ? "أفضل للمتعلمين الجادين" : "Best for committed learners"}
+                Best for committed learners
               </Text>
             </View>
-            <View style={{ alignItems: isAr ? "flex-start" : "flex-end" }}>
+            <View style={{ alignItems: "flex-end" }}>
               <Text style={{ fontWeight: "900", fontSize: 22, color: "#FFF" }}>{planPrice("biannual")}</Text>
               <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11 }}>
-                {isAr
-                  ? `${convertPrice(PLANS_USD.biannual.usd / 6, rate, symbol)}/شهر`
-                  : `${convertPrice(PLANS_USD.biannual.usd / 6, rate, symbol)}/mo`}
+                {convertPrice(PLANS_USD.biannual.usd / 6, rate, symbol)}/mo
               </Text>
             </View>
           </View>
@@ -279,13 +251,13 @@ export default function Done() {
           >
             {loading ? <ActivityIndicator color="#FFF" /> : (
               <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 15 }}>
-                {isAr ? "اختر ٦ أشهر" : "Choose 6 Months"}
+                Choose 6 Months
               </Text>
             )}
           </Pressable>
         </LinearGradient>
 
-        {/* YEARLY — Most Popular */}
+        {/* YEARLY */}
         <LinearGradient
           colors={["#FF6B35", "#FFA76A"]}
           style={{ borderRadius: 20, padding: 20, gap: 10 }}
@@ -296,25 +268,21 @@ export default function Done() {
               paddingHorizontal: 14, paddingVertical: 4,
             }}>
               <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12 }}>
-                {isAr ? "⭐ الأكثر شعبية · وفّر ٢١٪" : "⭐ MOST POPULAR · SAVE 21%"}
+                ⭐ MOST POPULAR · SAVE 21%
               </Text>
             </View>
           </View>
-          <View style={{ flexDirection: isAr ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
             <View style={{ gap: 2 }}>
-              <Text style={{ fontWeight: "800", fontSize: 17, color: "#FFF" }}>
-                {isAr ? "سنوي" : "Yearly"}
-              </Text>
+              <Text style={{ fontWeight: "800", fontSize: 17, color: "#FFF" }}>Yearly</Text>
               <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 12 }}>
-                {isAr ? "أفضل قيمة — ادفع مرة كل عام" : "Best value — pay once a year"}
+                Best value — pay once a year
               </Text>
             </View>
-            <View style={{ alignItems: isAr ? "flex-start" : "flex-end" }}>
+            <View style={{ alignItems: "flex-end" }}>
               <Text style={{ fontWeight: "900", fontSize: 22, color: "#FFF" }}>{planPrice("yearly")}</Text>
               <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 11 }}>
-                {isAr
-                  ? `${convertPrice(PLANS_USD.yearly.usd / 12, rate, symbol)}/شهر`
-                  : `${convertPrice(PLANS_USD.yearly.usd / 12, rate, symbol)}/mo`}
+                {convertPrice(PLANS_USD.yearly.usd / 12, rate, symbol)}/mo
               </Text>
             </View>
           </View>
@@ -330,17 +298,14 @@ export default function Done() {
           >
             {loading ? <ActivityIndicator color="#FF6B35" /> : (
               <Text style={{ color: "#FF6B35", fontWeight: "900", fontSize: 15 }}>
-                {isAr ? "اختر السنوي ⭐" : "Choose Yearly ⭐"}
+                Choose Yearly ⭐
               </Text>
             )}
           </Pressable>
         </LinearGradient>
 
-        {/* Reassurance */}
         <Text style={{ color: c.mutedForeground, fontSize: 12, textAlign: "center", lineHeight: 20 }}>
-          {isAr
-            ? "لا رسوم خفية. إلغاء في أي وقت. بيانات طفلك آمنة وخاصة دائماً."
-            : "No hidden fees. Cancel anytime. Your child's data is always safe and private."}
+          No hidden fees. Cancel anytime. Your child's data is always safe and private.
         </Text>
       </ScrollView>
     </SafeAreaView>

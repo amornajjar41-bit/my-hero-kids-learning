@@ -23,8 +23,7 @@ import { COUNTRIES } from "@/constants/countries";
 export default function ParentInfo() {
   const c = useColors();
   const router = useRouter();
-  const { lang, hero } = useLocalSearchParams<{ lang: "en" | "ar"; hero: "boy" | "girl" }>();
-  const isAr = lang === "ar";
+  const { lang, hero } = useLocalSearchParams<{ lang: string; hero: "boy" | "girl" }>();
 
   const [parentName, setParentName] = useState("");
   const [parentEmail, setParentEmail] = useState("");
@@ -45,7 +44,6 @@ export default function ParentInfo() {
       ? COUNTRIES.filter(
           (c) =>
             c.name.toLowerCase().includes(q) ||
-            c.nameAr.includes(q) ||
             c.code.toLowerCase().includes(q)
         )
       : COUNTRIES;
@@ -57,7 +55,7 @@ export default function ParentInfo() {
     router.push({
       pathname: "/onboarding/child",
       params: {
-        lang,
+        lang: "en",
         hero,
         parentName,
         parentEmail,
@@ -76,14 +74,12 @@ export default function ParentInfo() {
     borderRadius: 14,
     color: c.text,
     fontSize: 16,
-    textAlign: (isAr ? "right" : "left") as "right" | "left",
   };
 
   const labelStyle = {
     fontWeight: "700" as const,
     color: c.text,
     marginBottom: 6,
-    textAlign: (isAr ? "right" : "left") as "right" | "left",
   };
 
   return (
@@ -91,27 +87,25 @@ export default function ParentInfo() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={{ padding: 24, gap: 18 }} keyboardShouldPersistTaps="handled">
           <Text style={{ fontSize: 28, fontWeight: "800", color: c.text, textAlign: "center" }}>
-            {isAr ? "بيانات ولي الأمر" : "Parent details"}
+            Parent details
           </Text>
           <Text style={{ fontSize: 14, color: c.mutedForeground, textAlign: "center" }}>
             My Hero sends a free weekly progress report 📬
           </Text>
 
-          {/* Parent Name */}
           <SoftCard>
-            <Text style={labelStyle}>{isAr ? "اسمك (اختياري)" : "Your name (optional)"}</Text>
+            <Text style={labelStyle}>Your name (optional)</Text>
             <TextInput
               value={parentName}
               onChangeText={setParentName}
-              placeholder={isAr ? "مثال: ليلى" : "e.g. Sara"}
+              placeholder="e.g. Sara"
               placeholderTextColor={c.mutedForeground}
               style={inputStyle}
             />
           </SoftCard>
 
-          {/* Email */}
           <SoftCard>
-            <Text style={labelStyle}>{isAr ? "البريد الإلكتروني" : "Parent email"}</Text>
+            <Text style={labelStyle}>Parent email</Text>
             <TextInput
               value={parentEmail}
               onChangeText={setParentEmail}
@@ -123,14 +117,13 @@ export default function ParentInfo() {
             />
           </SoftCard>
 
-          {/* Password */}
           <SoftCard>
-            <Text style={labelStyle}>{isAr ? "كلمة المرور" : "Password"}</Text>
+            <Text style={labelStyle}>Password</Text>
             <View style={{ position: "relative" }}>
               <TextInput
                 value={password}
                 onChangeText={setPassword}
-                placeholder={isAr ? "٦ أحرف على الأقل" : "8+ chars with a number"}
+                placeholder="8+ chars with a number"
                 placeholderTextColor={c.mutedForeground}
                 secureTextEntry={!showPassword}
                 style={[inputStyle, { paddingRight: 48 }]}
@@ -144,28 +137,27 @@ export default function ParentInfo() {
             </View>
             {password.length > 0 && !validPassword && (
               <Text style={{ color: "#EF4444", fontSize: 12, marginTop: 4 }}>
-                {isAr ? "* كلمة المرور قصيرة جداً" : "* Needs 8+ chars and 1 number"}
+                * Needs 8+ chars and 1 number
               </Text>
             )}
           </SoftCard>
 
-          {/* Country */}
           <SoftCard>
-            <Text style={labelStyle}>{isAr ? "البلد" : "Country"}</Text>
+            <Text style={labelStyle}>Country</Text>
             <Pressable
               onPress={() => setShowCountryPicker(true)}
               style={{
                 backgroundColor: c.input,
                 padding: 14,
                 borderRadius: 14,
-                flexDirection: isAr ? "row-reverse" : "row",
+                flexDirection: "row",
                 alignItems: "center",
                 gap: 10,
               }}
             >
               <Text style={{ fontSize: 24 }}>{selectedCountry.flag}</Text>
               <Text style={{ flex: 1, color: c.text, fontSize: 16 }}>
-                {isAr ? selectedCountry.nameAr : selectedCountry.name}
+                {selectedCountry.name}
               </Text>
               <Text style={{ color: c.mutedForeground, fontSize: 13 }}>
                 {selectedCountry.currency}
@@ -174,10 +166,9 @@ export default function ParentInfo() {
             </Pressable>
           </SoftCard>
 
-          {/* Terms */}
           <Pressable
             onPress={() => setTermsAccepted(!termsAccepted)}
-            style={{ flexDirection: isAr ? "row-reverse" : "row", alignItems: "flex-start", gap: 12, paddingVertical: 4 }}
+            style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 4 }}
           >
             <View
               style={{
@@ -190,19 +181,19 @@ export default function ParentInfo() {
               {termsAccepted && <Text style={{ color: "#FFF", fontSize: 14, fontWeight: "800" }}>✓</Text>}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: c.text, fontSize: 14, lineHeight: 20, textAlign: isAr ? "right" : "left" }}>
-                {isAr ? "أوافق على " : "I agree to the "}
+              <Text style={{ color: c.text, fontSize: 14, lineHeight: 20 }}>
+                I agree to the{" "}
                 <Text
                   onPress={() => router.push("/terms" as any)}
                   style={{ color: c.primary, fontWeight: "700", textDecorationLine: "underline" }}
                 >
-                  {isAr ? "الشروط والأحكام" : "Terms & Conditions"}
+                  Terms & Conditions
                 </Text>
-                {isAr ? " وسياسة الخصوصية لـ My Hero" : " and Privacy Policy of My Hero"}
+                {" "}and Privacy Policy of My Hero
               </Text>
               {!termsAccepted && (
                 <Text style={{ color: "#EF4444", fontSize: 11, marginTop: 4 }}>
-                  {isAr ? "* مطلوب للمتابعة" : "* Required to continue"}
+                  * Required to continue
                 </Text>
               )}
             </View>
@@ -210,7 +201,7 @@ export default function ParentInfo() {
 
           <View style={{ marginTop: 4 }}>
             <PrimaryButton
-              title={isAr ? "متابعة" : "Continue"}
+              title="Continue"
               fullWidth
               disabled={!canContinue}
               onPress={handleContinue}
@@ -219,7 +210,6 @@ export default function ParentInfo() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Country Picker Modal */}
       <Modal visible={showCountryPicker} animationType="slide" transparent>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
           <View style={{ backgroundColor: c.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "75%", paddingBottom: 20 }}>
@@ -230,7 +220,7 @@ export default function ParentInfo() {
               <TextInput
                 value={countrySearch}
                 onChangeText={setCountrySearch}
-                placeholder={isAr ? "ابحث عن بلدك..." : "Search country..."}
+                placeholder="Search country..."
                 placeholderTextColor={c.mutedForeground}
                 style={{ flex: 1, backgroundColor: c.input, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: c.text, fontSize: 15 }}
                 autoFocus
@@ -243,7 +233,7 @@ export default function ParentInfo() {
                 <Pressable
                   onPress={() => { setSelectedCountry(item); setShowCountryPicker(false); setCountrySearch(""); }}
                   style={({ pressed }) => ({
-                    flexDirection: isAr ? "row-reverse" : "row",
+                    flexDirection: "row",
                     alignItems: "center",
                     paddingHorizontal: 20,
                     paddingVertical: 14,
@@ -255,7 +245,7 @@ export default function ParentInfo() {
                   <Text style={{ fontSize: 26 }}>{item.flag}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: c.text, fontWeight: "600", fontSize: 15 }}>
-                      {isAr ? item.nameAr : item.name}
+                      {item.name}
                     </Text>
                     <Text style={{ color: c.mutedForeground, fontSize: 12 }}>{item.currency} · {item.symbol}</Text>
                   </View>

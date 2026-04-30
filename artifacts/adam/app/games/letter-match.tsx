@@ -10,7 +10,7 @@ import { SoftCard } from "@/components/SoftCard";
 import { letterMatchPairs } from "@/constants/games-data";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
-import { useLang, useT } from "@/hooks/useT";
+import { useT } from "@/hooks/useT";
 import { speak, stopAll as stopAudio } from "@/lib/audio";
 import {
   preloadLetterAudio,
@@ -23,7 +23,6 @@ export default function LetterMatch() {
   const c = useColors();
   const router = useRouter();
   const t = useT();
-  const lang = useLang();
   const { profile, saveProgress, addPoints } = useApp();
   const voice = profile?.hero === "girl" ? "nova" : "echo";
 
@@ -32,7 +31,7 @@ export default function LetterMatch() {
   const [feedback, setFeedback] = useState<"" | "ok" | "no">("");
   const [done, setDone] = useState(false);
 
-  const pool = letterMatchPairs[lang];
+  const pool = letterMatchPairs;
 
   const data = useMemo(() => {
     const correct = pool[round % pool.length]!;
@@ -45,12 +44,12 @@ export default function LetterMatch() {
   }, [round, pool]);
 
   useEffect(() => {
-    preloadLetterAudio(lang);
+    preloadLetterAudio();
     return () => {
       stopPreloaded();
       stopAudio();
     };
-  }, [lang]);
+  }, []);
 
   // Speak just the letter after a short delay so the screen renders first
   useEffect(() => {
@@ -66,9 +65,9 @@ export default function LetterMatch() {
       setFeedback("ok");
       // Play a random pre-generated celebration phrase; fall back to short phrase
       const variant = Math.floor(Math.random() * 5);
-      const path = letterCelebratePath(variant, lang);
+      const path = letterCelebratePath(variant);
       playPreloaded(path, () =>
-        speak(lang === "ar" ? "ممتاز!" : "Great!", voice)
+        speak("Great!", voice)
       ).catch(() => {});
       setTimeout(() => {
         setFeedback("");
@@ -126,7 +125,7 @@ export default function LetterMatch() {
           </Text>
           <SoftCard>
             <Text style={{ color: c.mutedForeground, fontWeight: "700", fontSize: 12, marginBottom: 8 }}>
-              {lang === "ar" ? "ما هو الحرف الأول لهذه الصورة؟" : "What letter does this start with?"}
+              {"What letter does this start with?"}
             </Text>
             <Text style={{ fontSize: 90, textAlign: "center", marginVertical: 10 }}>
               {data.correct.emoji}

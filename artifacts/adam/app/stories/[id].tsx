@@ -15,7 +15,6 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { AudioStatusBadge } from "@/components/AudioStatusBadge";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
-import { useLang } from "@/hooks/useT";
 
 import { STORIES } from "@/constants/stories";
 import { preloadStory, storyPath, playPreloaded, stopPreloaded, cacheAudio } from "@/lib/lessonAudio";
@@ -52,7 +51,6 @@ export default function StoryReader() {
   const c = useColors();
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
-  const lang = useLang();
   const { profile, saveProgress, addPoints } = useApp();
 
   const rawParam = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -71,7 +69,6 @@ export default function StoryReader() {
 
   const totalSentences = story.sentences.length;
   const voice = "nova" as const;
-  const storyLang: "en" | "ar" = story.id.startsWith("ar") ? "ar" : "en";
 
   useEffect(() => {
     preloadStory(story.id, totalSentences).then(() => setLoaded(true));
@@ -105,7 +102,7 @@ export default function StoryReader() {
           storyId: story.id,
           sentenceIndex: idx,
           text,
-          lang: storyLang,
+          lang: "en",
         });
         if (result?.audioBase64) {
           cacheAudio(path, result.audioBase64);
@@ -134,7 +131,6 @@ export default function StoryReader() {
     setIsPlaying(false);
   };
 
-  const isArabic = lang === "ar";
   const progress = totalSentences > 0 ? (sentenceIdx / totalSentences) * 100 : 0;
 
   return (
@@ -265,11 +261,11 @@ export default function StoryReader() {
                 <Text
                   style={{
                     color: "#F3F0FF",
-                    fontSize: isArabic ? 23 : 21,
+                    fontSize: 21,
                     fontWeight: "700",
-                    lineHeight: isArabic ? 40 : 34,
-                    textAlign: isArabic ? "right" : "left",
-                    writingDirection: isArabic ? "rtl" : "ltr",
+                    lineHeight: 34,
+                    textAlign: "left",
+                    writingDirection: "ltr",
                     paddingHorizontal: 8,
                   }}
                 >
@@ -353,8 +349,8 @@ export default function StoryReader() {
                       color: i === sentenceIdx ? "#C4B5FD" : i < sentenceIdx ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.7)",
                       fontWeight: i === sentenceIdx ? "700" : "400",
                       fontSize: 13, lineHeight: 21,
-                      textAlign: isArabic ? "right" : "left",
-                      writingDirection: isArabic ? "rtl" : "ltr",
+                      textAlign: "left",
+                      writingDirection: "ltr",
                     }}
                   >
                     {i === sentenceIdx ? "▶ " : ""}{sentence}

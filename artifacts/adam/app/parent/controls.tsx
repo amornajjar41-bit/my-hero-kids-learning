@@ -10,11 +10,11 @@ import { useApp } from "@/contexts/AppContext";
 import { useT } from "@/hooks/useT";
 import type { ScreenLimit } from "@/lib/storage";
 
-const limits: { value: ScreenLimit; en: string; ar: string }[] = [
-  { value: 2, en: "2 hours / day", ar: "ساعتان يومياً" },
-  { value: 4, en: "4 hours / day", ar: "٤ ساعات يومياً" },
-  { value: 6, en: "6 hours / day", ar: "٦ ساعات يومياً" },
-  { value: 0, en: "Unlimited", ar: "غير محدود" },
+const limits: { value: ScreenLimit; en: string }[] = [
+  { value: 2, en: "2 hours / day" },
+  { value: 4, en: "4 hours / day" },
+  { value: 6, en: "6 hours / day" },
+  { value: 0, en: "Unlimited" },
 ];
 
 export default function Controls() {
@@ -23,7 +23,6 @@ export default function Controls() {
   const t = useT();
   const { profile, patchProfile } = useApp();
   if (!profile) return null;
-  const lang = profile.language;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>

@@ -57,7 +57,7 @@ export default function SignIn() {
       const c = result.child as Record<string, unknown> | null | undefined;
 
       const profile: Profile = {
-        language: ((u?.language as string) === "ar" ? "ar" : "en"),
+        language: "en",
         hero: (((c?.characterChoice ?? c?.gender) as string) === "girl" ? "girl" : "boy") as Hero,
         childName: (c?.childName as string) ?? "",
         ageGroup: ((c?.ageGroup as string) ?? "7-9") as AgeGroup,

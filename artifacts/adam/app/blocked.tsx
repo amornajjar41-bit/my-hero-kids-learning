@@ -8,16 +8,9 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import { timeUntilMidnight } from "@/lib/utils";
 
-// 4B – Sleeping messages: no interaction allowed
-const SLEEP_MESSAGES: Record<string, Record<string, string>> = {
-  en: {
-    boy: "Woah! We did SO much today! Even superheroes need to sleep! See you tomorrow champion! 😴",
-    girl: "Amazing day superstar! Time to rest! I will be here tomorrow! 😴",
-  },
-  ar: {
-    boy: "ياه! شو عملنا اليوم! حتى الأبطال لازم ينامو! أشوفك بكرا يا بطل! 😴",
-    girl: "يوم رائع يا بطلة! وقت الراحة! رح أكون هون بكرا! 😴",
-  },
+const SLEEP_MESSAGES: Record<string, string> = {
+  boy: "Woah! We did SO much today! Even superheroes need to sleep! See you tomorrow champion! 😴",
+  girl: "Amazing day superstar! Time to rest! I will be here tomorrow! 😴",
 };
 
 export default function Blocked() {
@@ -30,35 +23,23 @@ export default function Blocked() {
     return () => clearInterval(id);
   }, []);
 
-  const lang = profile?.language ?? "en";
   const hero = profile?.hero ?? "boy";
-  const msg = SLEEP_MESSAGES[lang]?.[hero] ?? SLEEP_MESSAGES.en.boy;
+  const msg = SLEEP_MESSAGES[hero] ?? SLEEP_MESSAGES.boy!;
   const childName = profile?.childName ?? "";
-
-  const resetLabel = lang === "ar"
-    ? "⏰ يرجع بكرا"
-    : "⏰ Back tomorrow";
-
-  const countdownLabel = lang === "ar"
-    ? "الوقت المتبقي حتى منتصف الليل"
-    : "Time until midnight reset";
 
   return (
     <LinearGradient colors={["#7C3AED", "#4F46E5", "#2563EB"]} style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ flex: 1, padding: 28, justifyContent: "center", alignItems: "center" }}>
 
-          {/* Stars decoration */}
           <View style={{ flexDirection: "row", gap: 8, marginBottom: 16, opacity: 0.7 }}>
             {["⭐", "🌙", "✨", "🌙", "⭐"].map((s, i) => (
               <Text key={i} style={{ fontSize: 20 }}>{s}</Text>
             ))}
           </View>
 
-          {/* Sleeping character */}
           <View style={{ position: "relative", marginBottom: 8 }}>
             <AdamCharacter hero={profile?.hero} size={180} pose="happy" />
-            {/* ZZZ floaters */}
             <View style={{ position: "absolute", top: -10, right: -10 }}>
               <Text style={{ fontSize: 18, color: "#FFF", fontWeight: "800", opacity: 0.9 }}>z</Text>
             </View>
@@ -70,53 +51,37 @@ export default function Blocked() {
             </View>
           </View>
 
-          {/* Child name */}
           {!!childName && (
             <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 22, marginBottom: 4, opacity: 0.9 }}>
               {childName}
             </Text>
           )}
 
-          {/* Main message */}
           <Text style={{
-            color: "#FFF",
-            fontWeight: "800",
-            fontSize: 20,
-            textAlign: "center",
-            marginTop: 16,
-            lineHeight: 30,
-            paddingHorizontal: 8,
+            color: "#FFF", fontWeight: "800", fontSize: 20,
+            textAlign: "center", marginTop: 16, lineHeight: 30, paddingHorizontal: 8,
           }}>
             {msg}
           </Text>
 
-          {/* Divider */}
           <View style={{ width: 60, height: 2, backgroundColor: "rgba(255,255,255,0.4)", borderRadius: 2, marginVertical: 28 }} />
 
-          {/* Countdown */}
           <Text style={{ color: "#FFF", opacity: 0.8, fontSize: 13, textAlign: "center", marginBottom: 8 }}>
-            {countdownLabel}
+            Time until midnight reset
           </Text>
           <Text style={{
-            color: "#FFF",
-            fontSize: 44,
-            fontWeight: "900",
-            fontVariant: ["tabular-nums"],
-            letterSpacing: 2,
+            color: "#FFF", fontSize: 44, fontWeight: "900",
+            fontVariant: ["tabular-nums"], letterSpacing: 2,
           }}>
             {time}
           </Text>
 
-          {/* Reset indicator */}
           <View style={{
-            marginTop: 24,
-            backgroundColor: "rgba(255,255,255,0.15)",
-            paddingHorizontal: 20,
-            paddingVertical: 10,
-            borderRadius: 20,
+            marginTop: 24, backgroundColor: "rgba(255,255,255,0.15)",
+            paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20,
           }}>
             <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 14 }}>
-              {resetLabel}
+              ⏰ Back tomorrow
             </Text>
           </View>
 
