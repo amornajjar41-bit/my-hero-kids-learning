@@ -20,6 +20,7 @@ import { useApp } from "@/contexts/AppContext";
 type PlanKey = "free" | "monthly" | "biannual" | "yearly";
 
 const BENEFITS_EN = [
+  "18 Technology & AI lessons — robots, coding, cybersecurity & the future 🤖",
   "Homework help in Math, English, Science and more",
   "Learns at your child's pace — adapts from age 4 to 14",
   "AI voice chat — your child speaks, their hero listens and teaches",
@@ -134,6 +135,40 @@ export default function Done() {
             </View>
           ))}
         </View>
+
+        {/* Tech & AI feature block */}
+        <LinearGradient
+          colors={["#050B1A", "#0A1628", "#0D2347"]}
+          style={{ borderRadius: 24, padding: 20, borderWidth: 1.5, borderColor: "rgba(59,130,246,0.35)" }}
+        >
+          <View style={{
+            flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12,
+          }}>
+            <Text style={{ fontSize: 32 }}>🤖</Text>
+            <View>
+              <Text style={{ color: "#60A5FA", fontSize: 11, fontWeight: "800", letterSpacing: 1 }}>
+                EXCLUSIVE NEW FEATURE
+              </Text>
+              <Text style={{ color: "#FFF", fontSize: 17, fontWeight: "900" }}>
+                Technology & AI for Kids
+              </Text>
+            </View>
+          </View>
+          <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, lineHeight: 21, marginBottom: 14 }}>
+            18 engaging lessons covering computers, robots, AI, coding, cybersecurity and the future of technology — adapted for every age from 5 to 14.
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+            {["🖥️ Computers", "🤖 Robots", "💻 Coding", "🧠 How AI Thinks", "🔐 Cybersecurity", "🚀 The Future"].map((t) => (
+              <View key={t} style={{
+                backgroundColor: "rgba(96,165,250,0.15)",
+                borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
+                borderWidth: 1, borderColor: "rgba(96,165,250,0.25)",
+              }}>
+                <Text style={{ color: "#93C5FD", fontSize: 11, fontWeight: "600" }}>{t}</Text>
+              </View>
+            ))}
+          </View>
+        </LinearGradient>
 
         <Text style={{ fontWeight: "900", fontSize: 18, color: c.text }}>
           Choose your plan:

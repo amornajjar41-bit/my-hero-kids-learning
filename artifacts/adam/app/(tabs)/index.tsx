@@ -278,6 +278,56 @@ export default function Home() {
             </LinearGradient>
           </Pressable>
 
+          {/* Technology & AI — new section */}
+          <Pressable
+            onPress={() => { playChime("tap"); router.push("/tech" as any); }}
+            style={({ pressed }) => ({ borderRadius: 24, overflow: "hidden", opacity: pressed ? 0.88 : 1 })}
+          >
+            <LinearGradient
+              colors={["#0A1628", "#0D2347", "#0E3A6E"]}
+              style={{ padding: 20, borderWidth: 1.5, borderColor: "rgba(59,130,246,0.35)", borderRadius: 24 }}
+            >
+              {/* Glow dots */}
+              <View style={{ position: "absolute", top: 10, right: 10, width: 60, height: 60, borderRadius: 30, backgroundColor: "#3B82F6", opacity: 0.12 }} />
+              <View style={{ position: "absolute", bottom: 8, right: 50, width: 40, height: 40, borderRadius: 20, backgroundColor: "#8B5CF6", opacity: 0.1 }} />
+              <Star style={{ position: "absolute", top: 14, right: 22, fontSize: 9, color: "#60A5FA" }} />
+              <Star style={{ position: "absolute", top: 36, right: 52, fontSize: 7, color: "#A78BFA" }} />
+              <Star style={{ position: "absolute", bottom: 16, right: 30, fontSize: 10, color: "#60A5FA" }} />
+
+              {/* NEW badge */}
+              <View style={{
+                position: "absolute", top: 14, right: 14,
+                backgroundColor: "#3B82F6",
+                borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4,
+              }}>
+                <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 11 }}>NEW 🤖</Text>
+              </View>
+
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 14, marginTop: 4 }}>
+                <Text style={{ fontSize: 44 }}>🤖</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 19, marginBottom: 3 }}>
+                    Technology & AI
+                  </Text>
+                  <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, lineHeight: 18 }}>
+                    18 lessons · Robots, coding, AI & the future 🚀
+                  </Text>
+                  <View style={{ marginTop: 10, flexDirection: "row", gap: 6 }}>
+                    {["🖥️","🤖","💻","🔐","🚗","⚖️"].map((e, i) => (
+                      <Text key={i} style={{ fontSize: 16 }}>{e}</Text>
+                    ))}
+                  </View>
+                </View>
+                <View style={{
+                  backgroundColor: "#3B82F6",
+                  borderRadius: 16, paddingHorizontal: 14, paddingVertical: 9,
+                }}>
+                  <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 13 }}>Explore →</Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </Pressable>
+
           {/* Trophy Room — single entry via BadgeShelf */}
           <BadgeShelf />
 

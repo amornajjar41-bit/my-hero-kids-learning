@@ -8,11 +8,12 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 
 const BENEFITS = [
+  { emoji: "🤖", label: "18 Technology & AI lessons — robots, coding, cybersecurity & more" },
   { emoji: "📚", label: "Unlimited homework help & AI tutor" },
   { emoji: "🎤", label: "Voice chat with your hero character" },
   { emoji: "📷", label: "Photo homework upload & explain" },
   { emoji: "🌍", label: "Full English curriculum — vocab, grammar & more" },
-  { emoji: "🎮", label: "All 7 educational games unlocked" },
+  { emoji: "🎮", label: "All 8 educational games unlocked" },
   { emoji: "🌙", label: "20+ bedtime stories with audio" },
   { emoji: "⏱️", label: "Parent controls & screen time limits" },
   { emoji: "🏆", label: "Rewards, badges & achievement shop" },
@@ -98,6 +99,54 @@ export default function Upgrade() {
               Safe, fun & unlimited learning — every single day
             </Text>
           </View>
+
+          {/* Tech & AI feature banner */}
+          <LinearGradient
+            colors={["#050F20", "#0A1E3D", "#0D2A5A"]}
+            style={{
+              borderRadius: 24, padding: 20,
+              borderWidth: 1.5, borderColor: "rgba(59,130,246,0.4)",
+            }}
+          >
+            <View style={{
+              position: "absolute", top: -1, right: -1,
+              backgroundColor: "#3B82F6", borderTopRightRadius: 23, borderBottomLeftRadius: 16,
+              paddingHorizontal: 12, paddingVertical: 5,
+            }}>
+              <Text style={{ color: "#FFF", fontSize: 11, fontWeight: "900" }}>✨ NEW</Text>
+            </View>
+            <Text style={{ color: "#60A5FA", fontSize: 12, fontWeight: "800", letterSpacing: 1.5, marginBottom: 8 }}>
+              🤖 TECHNOLOGY & AI LESSONS
+            </Text>
+            <Text style={{ color: "#FFF", fontSize: 19, fontWeight: "900", marginBottom: 6 }}>
+              18 Exclusive Tech Lessons
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, lineHeight: 22, marginBottom: 14 }}>
+              Your child will explore computers, robots, artificial intelligence, coding, cybersecurity, and the future — in a way that's fun and engaging for ages 5 to 14.
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {[
+                { e: "🖥️", t: "Computers" },
+                { e: "🤖", t: "Robots" },
+                { e: "🧠", t: "How AI Thinks" },
+                { e: "💻", t: "Coding" },
+                { e: "🔐", t: "Cybersecurity" },
+                { e: "🚗", t: "Self-Driving" },
+                { e: "🏥", t: "AI in Medicine" },
+                { e: "⚖️", t: "AI Ethics" },
+              ].map((item) => (
+                <View key={item.t} style={{
+                  backgroundColor: "rgba(59,130,246,0.15)",
+                  borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
+                  flexDirection: "row", alignItems: "center", gap: 5,
+                  borderWidth: 1, borderColor: "rgba(59,130,246,0.3)",
+                }}>
+                  <Text style={{ fontSize: 13 }}>{item.e}</Text>
+                  <Text style={{ color: "#93C5FD", fontSize: 11, fontWeight: "600" }}>{item.t}</Text>
+                </View>
+              ))}
+            </View>
+          </LinearGradient>
 
           <View style={{ backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 24, padding: 18, borderWidth: 1, borderColor: "rgba(167,139,250,0.2)", gap: 10 }}>
             <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 14, marginBottom: 4 }}>

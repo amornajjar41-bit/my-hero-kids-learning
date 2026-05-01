@@ -59,6 +59,10 @@ export function storyPath(storyId: string, sentenceIndex: number): string {
   return `story-${storyId}/sentence-${sentenceIndex}`;
 }
 
+export function techSlidePath(lessonId: string, slideIndex: number): string {
+  return `tech/${lessonId}/slide-${slideIndex}-en`;
+}
+
 // ── Batch fetch from server ───────────────────────────────────────────────────
 async function batchFetch(paths: string[]): Promise<void> {
   if (paths.length === 0) return;
@@ -98,6 +102,25 @@ export async function preloadLesson(
     paths.push(wordPath(lessonId, i, "pronunciation"));
     paths.push(wordPath(lessonId, i, "hint"));
     paths.push(wordPath(lessonId, i, "reveal"));
+  }
+  await batchFetch(paths);
+}
+
+/**
+ * Preload all audio for a tech lesson's slides.
+ * Call on tech lesson screen mount. Non-blocking — returns void Promise.
+ */
+export async function preloadTechLesson(
+  lessonId: string,
+  slideCount: number,
+): Promise<void> {
+  const key = `tech:${lessonId}`;
+  if (_preloaded.has(key)) return;
+  _preloaded.add(key);
+
+  const paths: string[] = [];
+  for (let i = 0; i < slideCount; i++) {
+    paths.push(techSlidePath(lessonId, i));
   }
   await batchFetch(paths);
 }

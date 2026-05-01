@@ -91,6 +91,7 @@ export type Progress = {
   todayPoints: number;     // points earned today (reset daily)
   todayPointsDate: string; // YYYY-MM-DD of last reset
   rewardsUnlocked: string[]; // reward item ids unlocked from shop
+  techLessons: string[];    // completed tech lesson ids
 };
 
 export type SafetyAlert = {
@@ -174,4 +175,5 @@ export const defaultProgress: Progress = {
   todayPoints: 0,
   todayPointsDate: "",
   rewardsUnlocked: [],
+  techLessons: [],
 };
