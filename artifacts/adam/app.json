@@ -31,7 +31,7 @@
     },
     "android": {
       "package": "com.myheroapp.kids",
-      "versionCode": 1,
+      "versionCode": 2,
       "compileSdkVersion": 34,
       "targetSdkVersion": 34,
       "minSdkVersion": 24,
