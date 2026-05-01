@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>My Hero — Sara Character</title>
+<script src="https://unpkg.com/@rive-app/canvas@2.23.9/rive.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Nunito',sans-serif;overflow-x:hidden}
+body{
+  display:flex;flex-direction:column;align-items:center;
+  background:radial-gradient(ellipse 100% 55% at 18% 5%,#0A1A50 0%,transparent 55%),
+             radial-gradient(ellipse 80% 50% at 82% 92%,#1A0845 0%,transparent 55%),
+             #060910;
+  padding-bottom:20px;
+}
+header{text-align:center;padding:14px 12px 4px}
+.pill{display:inline-flex;background:linear-gradient(135deg,#6D28D9,#DB2777);
+  border-radius:99px;padding:5px 18px;margin-bottom:8px}
+.pill span{color:#fff;font-size:10px;font-weight:900;letter-spacing:2px}
+h1{color:#fff;font-size:22px;font-weight:900;margin-bottom:2px}
+.sub{color:rgba(255,255,255,0.35);font-size:11px}
+
+.canvas-wrap{
+  width:360px;height:360px;border-radius:22px;overflow:hidden;position:relative;
+  background:radial-gradient(ellipse at 50% 30%,#2D0A5A 0%,#04020C 100%);
+  border:1.5px solid rgba(255,255,255,0.12);
+  box-shadow:0 8px 40px rgba(109,40,217,0.4);
+  margin:10px 0;
+}
+canvas{width:100%;height:100%;display:block}
+
+.spin-wrap{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:10px;
+  background:rgba(4,2,12,0.95);transition:opacity .5s;z-index:2;pointer-events:none
+}
+.ring{width:40px;height:40px;border-radius:50%;
+  border:3px solid rgba(255,255,255,.1);border-top-color:#A855F7;
+  animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lt{color:rgba(255,255,255,.5);font-size:11px;font-weight:800}
+
+.ntag{
+  display:inline-flex;align-items:center;gap:6px;border-radius:99px;
+  padding:7px 22px;font-size:13px;font-weight:900;color:#fff;
+  background:linear-gradient(135deg,#4C1D95,#BE185D);
+  box-shadow:0 2px 14px rgba(190,24,93,.4);margin-bottom:8px
+}
+
+.ctrl{width:100%;max-width:380px;padding:0 10px;display:flex;flex-direction:column;gap:10px}
+.slabel{color:rgba(255,255,255,.3);font-size:9px;font-weight:900;
+  letter-spacing:2px;text-align:center;margin-bottom:2px}
+.brow{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+
+.abtn{
+  background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);
+  border-radius:12px;color:rgba(255,255,255,.7);
+  font-size:11.5px;font-weight:800;font-family:inherit;
+  padding:9px 14px;cursor:pointer;transition:all .17s;white-space:nowrap
+}
+.abtn:hover{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(168,85,247,.5)}
+.abtn.on{
+  background:linear-gradient(135deg,#4C1D95,#BE185D);
+  border-color:rgba(190,24,93,.5);color:#fff;
+  box-shadow:0 2px 10px rgba(190,24,93,.35)
+}
+
+.info{
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;padding:10px 14px;max-width:360px;width:calc(100% - 20px);
+  margin:0 10px
+}
+.info p{color:rgba(255,255,255,.45);font-size:10px;line-height:1.7}
+.info strong{color:rgba(255,255,255,.75)}
+
+.anim-grid{display:none;width:100%;max-width:380px;padding:0 10px}
+.sm-grid{display:none;width:100%;max-width:380px;padding:0 10px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="pill"><span>🌟 MY HERO — CHARACTER PREVIEW</span></div>
+  <h1>Sara / Lulu</h1>
+  <p class="sub">Rive character · Tap to animate</p>
+</header>
+
+<div class="canvas-wrap">
+  <canvas id="rc"></canvas>
+  <div class="spin-wrap" id="spinner">
+    <div class="ring"></div>
+    <span class="lt">Loading Sara…</span>
+  </div>
+</div>
+
+<div class="ntag">🌟 SARA / LULU</div>
+
+<!-- Quick action buttons (pre-mapped to likely state machine inputs) -->
+<div class="ctrl">
+  <div class="slabel">ANIMATIONS</div>
+  <div class="brow" id="quick"></div>
+</div>
+
+<!-- Auto-discovered linear animations -->
+<div class="anim-grid" id="anim-section">
+  <div class="slabel" style="margin-top:4px">ALL ANIMATIONS</div>
+  <div class="brow" id="anim-btns"></div>
+</div>
+
+<!-- Auto-discovered state machine inputs -->
+<div class="sm-grid" id="sm-section">
+  <div class="slabel" style="margin-top:4px">STATE MACHINE INPUTS</div>
+  <div class="brow" id="sm-btns"></div>
+</div>
+
+<div class="info" id="info">
+  <p><strong>Loading…</strong> Connecting to Sara's Rive character engine.</p>
+</div>
+
+<script>
+const canvas = document.getElementById('rc');
+const spinner = document.getElementById('spinner');
+const infoEl  = document.getElementById('info').querySelector('p');
+
+function info(html){ infoEl.innerHTML = html; }
+
+const QUICK_ACTIONS = [
+  { label:'👁 Blink',     keys:['blink','Blink','eye','Eye'] },
+  { label:'🤔 Think',     keys:['think','Think','idle','Idle','wondering'] },
+  { label:'💃 Dance',     keys:['dance','Dance','groove'] },
+  { label:'🎉 Celebrate', keys:['celebrat','Celebrat','cheer','victory','win','happy'] },
+  { label:'👋 Wave',      keys:['wave','Wave','hello','Hello'] },
+  { label:'👍 Thumbs Up', keys:['thumb','Thumb','like'] },
+  { label:'😄 Happy',     keys:['happy','Happy','smile','joy'] },
+  { label:'😢 Sad',       keys:['sad','Sad','cry','unhappy'] },
+  { label:'😮 Surprised', keys:['surpris','shock','wow'] },
+  { label:'🏃 Run',       keys:['run','Run'] },
+  { label:'🚶 Walk',      keys:['walk','Walk'] },
+  { label:'✌️ Peace',     keys:['peace','victory','win'] },
+];
+
+let riveInst = null;
+let smName   = null;
+
+const r = new rive.Rive({
+  src: './sara-char.riv',
+  canvas: canvas,
+  artboard: 'home',
+  stateMachines: 'State Machine 1',
+  autoplay: true,
+
+  onLoad: () => {
+    // Hide spinner
+    spinner.style.opacity = '0';
+    setTimeout(() => { spinner.style.display = 'none'; }, 500);
+    riveInst = r;
+
+    const artboards = r.artboardNames  || [];
+    const anims     = r.animationNames || [];
+    const sms       = r.stateMachineNames || [];
+    smName = sms[0] || 'State Machine 1';
+
+    // Get state machine inputs
+    let inputs = [];
+    try { inputs = r.stateMachineInputs(smName) || []; } catch(e){}
+
+    info(`<strong>Sara loaded!</strong> ${artboards.length} artboard(s) · ${anims.length} animation(s) · ${sms.length} state machine(s) · ${inputs.length} input(s)`);
+
+    console.log('Artboards:', artboards);
+    console.log('Animations:', anims);
+    console.log('State Machines:', sms);
+    console.log('Inputs:', inputs.map(i => ({ name: i.name, type: i.type })));
+
+    // Build quick buttons — match against animations AND state machine inputs
+    const allNames = [...anims, ...inputs.map(i => i.name)];
+    const quickRow = document.getElementById('quick');
+
+    QUICK_ACTIONS.forEach(action => {
+      const btn = document.createElement('button');
+      btn.className = 'abtn';
+      btn.textContent = action.label;
+      btn.onclick = () => {
+        document.querySelectorAll('.abtn').forEach(b => b.classList.remove('on'));
+        btn.classList.add('on');
+        triggerAction(action.keys, anims, inputs);
+      };
+      quickRow.appendChild(btn);
+    });
+
+    // Show ALL linear animations discovered
+    if (anims.length > 0) {
+      document.getElementById('anim-section').style.display = 'block';
+      const ab = document.getElementById('anim-btns');
+      anims.forEach(name => {
+        const btn = document.createElement('button');
+        btn.className = 'abtn';
+        btn.textContent = '▶ ' + name;
+        btn.onclick = () => {
+          document.querySelectorAll('.abtn').forEach(b => b.classList.remove('on'));
+          btn.classList.add('on');
+          try { r.play(name); info(`▶ Playing: <strong>${name}</strong>`); }
+          catch(e) { info(`Error: ${e.message}`); }
+        };
+        ab.appendChild(btn);
+      });
+    }
+
+    // Show ALL state machine inputs
+    if (inputs.length > 0) {
+      document.getElementById('sm-section').style.display = 'block';
+      const sb = document.getElementById('sm-btns');
+      inputs.forEach(input => {
+        const btn = document.createElement('button');
+        btn.className = 'abtn';
+        // Type 56 = trigger, type 59 = bool, type 61 = number
+        const typeLabel = input.type === 56 ? '⚡' : input.type === 59 ? '🔘' : '🔢';
+        btn.textContent = `${typeLabel} ${input.name}`;
+        btn.onclick = () => {
+          document.querySelectorAll('.abtn').forEach(b => b.classList.remove('on'));
+          btn.classList.add('on');
+          fireInput(input);
+          info(`Fired: <strong>${input.name}</strong> (type ${input.type})`);
+        };
+        sb.appendChild(btn);
+      });
+    }
+
+    if (anims.length === 0 && inputs.length === 0) {
+      info('<strong>Character visible</strong> — no named animations found in this artboard. Try a different artboard if character is not animating.');
+    }
+  },
+
+  onLoadError: (err) => {
+    spinner.style.display = 'none';
+    info(`<strong style="color:#F87171">Error loading character.</strong> ${err}`);
+    console.error('Rive error:', err);
+  },
+
+  onStateChange: (ev) => {
+    if (ev?.data) {
+      console.log('State change:', ev.data);
+    }
+  }
+});
+
+function triggerAction(keys, anims, inputs) {
+  // 1. Try state machine inputs first (triggers/booleans)
+  for (const key of keys) {
+    const input = inputs.find(i => i.name.toLowerCase().includes(key.toLowerCase()));
+    if (input) {
+      fireInput(input);
+      info(`⚡ Triggered input: <strong>${input.name}</strong>`);
+      return;
+    }
+  }
+  // 2. Try linear animation
+  for (const key of keys) {
+    const anim = anims.find(a => a.toLowerCase().includes(key.toLowerCase()));
+    if (anim) {
+      try { r.play(anim); info(`▶ Playing: <strong>${anim}</strong>`); } catch(e){}
+      return;
+    }
+  }
+  // 3. Not found
+  const available = [...anims, ...inputs.map(i=>i.name)].slice(0,6).join(', ');
+  info(`<strong>${keys[0]}</strong> not found. Available: ${available || '(none discovered yet)'}`);
+}
+
+function fireInput(input) {
+  try {
+    if (input.type === 56) { // Trigger
+      input.fire();
+    } else if (input.type === 59) { // Boolean — toggle
+      input.value = !input.value;
+    } else if (input.type === 61) { // Number
+      input.value = (input.value || 0) + 1;
+    }
+  } catch(e) { console.warn('Input fire error:', e); }
+}
+</script>
+</body>
+</html>

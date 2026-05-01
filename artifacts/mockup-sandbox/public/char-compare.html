@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>My Hero — Pick Your Character</title>
+<script src="https://unpkg.com/@rive-app/canvas@2.23.9/rive.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Nunito',sans-serif;min-height:100vh;overflow-x:hidden;
+  background:radial-gradient(ellipse 120% 60% at 20% 0%,#0A1A50,transparent 50%),
+             radial-gradient(ellipse 100% 60% at 80% 100%,#1A0845,transparent 55%),#060910;
+  padding:14px 10px 30px;
+}
+header{text-align:center;margin-bottom:16px}
+.pill{display:inline-flex;background:linear-gradient(135deg,#1D4ED8,#7C3AED);border-radius:99px;padding:5px 18px;margin-bottom:8px}
+.pill span{color:#fff;font-size:9px;font-weight:900;letter-spacing:2px}
+h1{color:#fff;font-size:20px;font-weight:900;margin-bottom:3px}
+.sub{color:rgba(255,255,255,.35);font-size:11px}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:700px;margin:0 auto}
+@media(max-width:480px){.grid{grid-template-columns:1fr}}
+
+.card{
+  background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.09);
+  border-radius:18px;overflow:hidden;display:flex;flex-direction:column
+}
+.card.selected{border-color:#7C3AED;box-shadow:0 0 20px rgba(124,58,237,.4)}
+.card-head{
+  padding:10px 12px 6px;display:flex;align-items:center;justify-content:space-between
+}
+.card-title{color:#fff;font-size:13px;font-weight:900}
+.badge{font-size:9px;font-weight:900;padding:3px 9px;border-radius:99px;letter-spacing:1px}
+.badge-girl{background:rgba(219,39,119,.25);color:#F472B6}
+.badge-both{background:rgba(124,58,237,.25);color:#A78BFA}
+.badge-face{background:rgba(16,185,129,.25);color:#6EE7B7}
+.badge-outfit{background:rgba(245,158,11,.25);color:#FCD34D}
+
+.canvas-wrap{
+  width:100%;aspect-ratio:1;position:relative;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 30%,#1A0845,#04020C)
+}
+canvas{width:100%!important;height:100%!important;display:block}
+.spin{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;
+  background:rgba(4,2,12,.9);transition:opacity .4s;z-index:2;pointer-events:none
+}
+.ring{width:30px;height:30px;border-radius:50%;
+  border:3px solid rgba(255,255,255,.1);border-top-color:#A855F7;
+  animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lt{color:rgba(255,255,255,.4);font-size:10px;font-weight:800}
+
+.card-body{padding:10px 12px 12px;flex:1}
+.anim-label{color:rgba(255,255,255,.25);font-size:8px;font-weight:900;letter-spacing:2px;margin-bottom:6px}
+.btns{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.abtn{
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+  border-radius:9px;color:rgba(255,255,255,.6);
+  font-size:10px;font-weight:800;font-family:inherit;
+  padding:5px 10px;cursor:pointer;transition:all .15s
+}
+.abtn:hover{background:rgba(255,255,255,.13);color:#fff}
+.abtn.on{background:linear-gradient(135deg,#4C1D95,#7C3AED);border-color:transparent;color:#fff}
+
+.info{color:rgba(255,255,255,.3);font-size:10px;line-height:1.5;min-height:24px}
+.info strong{color:rgba(255,255,255,.65)}
+
+.select-btn{
+  width:100%;padding:10px;border-radius:12px;border:none;cursor:pointer;
+  font-family:inherit;font-size:12px;font-weight:900;color:#fff;margin-top:8px;
+  background:linear-gradient(135deg,#4C1D95,#7C3AED);
+  box-shadow:0 2px 12px rgba(124,58,237,.4);transition:all .2s
+}
+.select-btn:hover{transform:scale(1.02);box-shadow:0 4px 16px rgba(124,58,237,.6)}
+.select-btn.picked{background:linear-gradient(135deg,#065F46,#059669)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="pill"><span>🌟 MY HERO — PICK YOUR CHARACTER</span></div>
+  <h1>Choose Sara / Lulu</h1>
+  <p class="sub">Each card shows a different character style. Tap animations to preview, then pick your favorite.</p>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const CHARS = [
+  {
+    id: 'yours',
+    file: './character.riv',
+    artboard: 'home',
+    sm: 'State Machine 1',
+    title: 'Your File (Outfit Swap)',
+    badge: 'badge-outfit',
+    badgeText: 'OUTFIT SWAP',
+    note: 'Can change helmet, suit & shoes. No blink/dance animations built in.',
+  },
+  {
+    id: 'facial',
+    file: './char-facial.riv',
+    artboard: 'animation_color',
+    sm: 'State Machine 1',
+    title: 'Facial Expressions',
+    badge: 'badge-face',
+    badgeText: 'EXPRESSIONS',
+    note: 'Character with facial animations — blink, expressions, emotions.',
+  },
+  {
+    id: 'char1',
+    file: './char1.riv',
+    artboard: 'Character Test',
+    sm: 'State Machine',
+    title: 'Interactive Character',
+    badge: 'badge-both',
+    badgeText: 'ANIMATED',
+    note: 'Full animated character with interactive background & movement.',
+  },
+  {
+    id: 'char2',
+    file: './char2.riv',
+    artboard: 'New Artboard',
+    sm: 'State Machine 1',
+    title: 'Character Animation',
+    badge: 'badge-girl',
+    badgeText: 'FULL BODY',
+    note: 'Full body character with multiple animations.',
+  },
+];
+
+const grid = document.getElementById('grid');
+const instances = {};
+
+CHARS.forEach(char => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = 'card-' + char.id;
+  card.innerHTML = `
+    <div class="card-head">
+      <span class="card-title">${char.title}</span>
+      <span class="badge ${char.badge}">${char.badgeText}</span>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="canvas-${char.id}" width="300" height="300"></canvas>
+      <div class="spin" id="spin-${char.id}">
+        <div class="ring"></div><span class="lt">Loading…</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="anim-label">ANIMATIONS</div>
+      <div class="btns" id="btns-${char.id}"></div>
+      <div class="info" id="info-${char.id}">${char.note}</div>
+      <button class="select-btn" id="sel-${char.id}" onclick="selectChar('${char.id}', '${char.title}')">
+        ✨ Use This Character for Sara
+      </button>
+    </div>
+  `;
+  grid.appendChild(card);
+
+  // Load Rive
+  const r = new rive.Rive({
+    src: char.file,
+    canvas: document.getElementById('canvas-' + char.id),
+    artboard: char.artboard,
+    stateMachines: char.sm,
+    autoplay: true,
+    onLoad: () => {
+      const spinner = document.getElementById('spin-' + char.id);
+      spinner.style.opacity = '0';
+      setTimeout(() => spinner.style.display = 'none', 400);
+      instances[char.id] = r;
+
+      const anims = r.animationNames || [];
+      let inputs = [];
+      try { inputs = r.stateMachineInputs(char.sm) || []; } catch(e) {}
+
+      const btns = document.getElementById('btns-' + char.id);
+      const info = document.getElementById('info-' + char.id);
+
+      // Show animations
+      anims.slice(0, 8).forEach(name => {
+        const btn = document.createElement('button');
+        btn.className = 'abtn';
+        btn.textContent = name;
+        btn.onclick = () => {
+          btns.querySelectorAll('.abtn').forEach(b => b.classList.remove('on'));
+          btn.classList.add('on');
+          try { r.play(name); info.innerHTML = `▶ <strong>${name}</strong>`; } catch(e) {}
+        };
+        btns.appendChild(btn);
+      });
+
+      // Show state machine inputs
+      inputs.slice(0, 6).forEach(input => {
+        const btn = document.createElement('button');
+        btn.className = 'abtn';
+        const t = input.type === 56 ? '⚡' : input.type === 59 ? '🔘' : '🔢';
+        btn.textContent = t + ' ' + input.name;
+        btn.onclick = () => {
+          btns.querySelectorAll('.abtn').forEach(b => b.classList.remove('on'));
+          btn.classList.add('on');
+          try {
+            if (input.type === 56) input.fire();
+            else if (input.type === 59) input.value = !input.value;
+            else input.value = (input.value || 0) + 1;
+            info.innerHTML = `⚡ <strong>${input.name}</strong>`;
+          } catch(e) {}
+        };
+        btns.appendChild(btn);
+      });
+
+      if (anims.length === 0 && inputs.length === 0) {
+        info.innerHTML = `<strong>Loaded</strong> — ${char.note}`;
+      } else {
+        const total = anims.length + inputs.length;
+        info.innerHTML = `<strong>${total} controls</strong> — tap to preview · ${char.note}`;
+      }
+    },
+    onLoadError: (e) => {
+      document.getElementById('spin-' + char.id).style.display = 'none';
+      document.getElementById('info-' + char.id).innerHTML = `<strong style="color:#F87171">Could not load</strong>`;
+    }
+  });
+});
+
+let picked = null;
+function selectChar(id, title) {
+  // Visual feedback
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('.select-btn').forEach(b => {
+    b.classList.remove('picked');
+    b.textContent = '✨ Use This Character for Sara';
+  });
+  document.getElementById('card-' + id).classList.add('selected');
+  document.getElementById('sel-' + id).classList.add('picked');
+  document.getElementById('sel-' + id).textContent = '✅ Selected!';
+  picked = id;
+  alert('Great choice! Tell the developer: "Use character: ' + title + ' for Sara/Lulu"');
+}
+</script>
+</body>
+</html>
