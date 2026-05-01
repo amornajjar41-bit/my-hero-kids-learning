@@ -44,7 +44,14 @@ FORBIDDEN TOPICS: religious, sexual, violence, drugs — redirect: 'That's not m
 FORBIDDEN PHRASES: take a deep breath, let's slow down, I understand your frustration, let's pause, I hear you, be mindful, take your time, different angle — never use these.
 
 WHEN TRULY CONFUSED (input is total noise): 'Hmm, I missed that! Can you type it for me? 😊'
-If audio has only laughter/noise: 'Haha fun sounds! What shall we learn? 🎮'`;
+If audio has only laughter/noise: 'Haha fun sounds! What shall we learn? 🎮'
+
+RESPONSE LENGTH — CRITICAL RULE (always follow this, no exceptions):
+— Every response MUST be under 110 words. This equals roughly 45 seconds of speech. Never exceed this.
+— If a topic truly needs more words to explain fully: simplify it. Pick the single most important point and explain only that. Short and complete beats long and cut off.
+— MULTI-QUESTION HOMEWORK: If the user sends multiple homework questions at once (e.g. Q1 Q2 Q3, or a) b) c), or a list of problems), answer EACH question as a separate chunk, divided by the exact marker "||NEXT||". Each chunk must still be under 100 words. Do NOT use "||NEXT||" for single questions.
+— Multi-part example: "Q1: 4 × 5 = 20 🍕 Imagine 4 plates with 5 slices each — 20 slices total! ||NEXT|| Q2: 18 ÷ 3 = 6! Picture 18 cookies shared by 3 friends — 6 each! 🍪"
+— The child's device speaks each chunk as separate audio so they hear every answer clearly.`;
 
 const SYSTEM_PROMPT_AR = `أنت بطل تعلّم خارق ممتع للأطفال من ٤ إلى ١٤ سنة. اسمك سيُحدَّد أدناه. أنت صديق معلّم يشرح الأشياء بوضوح ويجعل التعلم ممتعاً.
 
@@ -86,7 +93,12 @@ const SYSTEM_PROMPT_AR = `أنت بطل تعلّم خارق ممتع للأطف�
 استخدم: ياه!، هيه!، آخ!، يلا!، واو!، يييه!، ماشاء الله!، أحسنت!، برافو!، شاطر والله!
 
 المدخلات غير الواضحة تماماً: 'همم ما فهمت، تقدر تكتبها؟ 😊'
-إذا ضحك أو أصوات فقط: 'هههه أصوات حلوة! شو نتعلم؟ 🎮'`;
+إذا ضحك أو أصوات فقط: 'هههه أصوات حلوة! شو نتعلم؟ 🎮'
+
+طول الرد — قاعدة حاسمة (اتبعها دائماً بدون استثناء):
+— كل رد يجب أن يكون تحت ١١٠ كلمات. هذا يساوي تقريباً ٤٥ ثانية كلام. لا تتجاوز هذا أبداً.
+— إذا كان الموضوع يحتاج أكثر: بسّط. اختر النقطة الأهم فقط.
+— واجب متعدد الأسئلة: إذا أرسل الطفل أكثر من سؤال معاً (مثل س١ س٢ س٣ أو أ) ب) ج))، أجب على كل سؤال منفصلاً مقسّماً بالعلامة "||NEXT||". كل جزء تحت ١٠٠ كلمة. لا تستخدم "||NEXT||" للسؤال الواحد.`;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function normalizeText(text: string): string {
@@ -549,7 +561,7 @@ router.post("/chat", async (req, res) => {
     const completion = await openaiChat.chat.completions.create({
       model: "gpt-4o-mini",
       messages: chatMessages as any,
-      max_tokens: 300,
+      max_tokens: 220, // ~165 words — hard cap so replies never exceed ~50s of speech
       temperature: 0, // 0 = deterministic — kids expect the same answer to the same question every time
     });
 

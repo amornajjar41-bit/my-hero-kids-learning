@@ -670,17 +670,35 @@ export default function Chat() {
       }
 
       Keyboard.dismiss();
-      setMessages((m) => [...m, { role: "assistant", text: reply }]);
+
+      // Split multi-part homework answers on the ||NEXT|| marker
+      const ttsParts = reply
+        .split("||NEXT||")
+        .map((p) => p.trim())
+        .filter(Boolean);
+      const displayText = ttsParts.join("\n\n");
+
+      setMessages((m) => [...m, { role: "assistant", text: displayText }]);
       setAdamPose("talking");
-      speak(capTtsText(reply), voice, 1.0, undefined, profile?.ageGroup)
-        .then(() => {
+
+      // Speak each part sequentially so homework with multiple questions
+      // is fully spoken without any chunk being cut off or skipped
+      (async () => {
+        try {
+          for (let i = 0; i < ttsParts.length; i++) {
+            await speak(capTtsText(ttsParts[i]!), voice, 1.0, undefined, profile?.ageGroup);
+            if (i < ttsParts.length - 1) {
+              // Brief pause between answers so the child can follow
+              await new Promise((r) => setTimeout(r, 1200));
+            }
+          }
           setAdamPose("happy");
           setTimeout(() => setAdamPose("normal"), 1800);
-        })
-        .catch(() => {
+        } catch {
           setAdamPose("happy");
           setTimeout(() => setAdamPose("normal"), 1800);
-        });
+        }
+      })();
       saveProgress((p) => ({
         ...p,
         chatSessions: p.chatSessions + 1,
