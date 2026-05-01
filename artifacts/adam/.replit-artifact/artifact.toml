@@ -18,10 +18,6 @@ localPort = 24421
 [services.development]
 run = "EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN pnpm exec expo start --localhost --port $PORT"
 
-[services.production]
-build = [ "pnpm", "--filter", "@workspace/adam", "run", "build" ]
-run = [ "pnpm", "--filter", "@workspace/adam", "run", "serve" ]
-
 [services.env]
 PORT = "24421"
 BASE_PATH = "/"
