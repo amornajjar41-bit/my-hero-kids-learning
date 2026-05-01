@@ -52,9 +52,11 @@ export default function ParentDashboard() {
   const [lessonGen, setLessonGen] = useState<GenerationState>(GEN_IDLE);
   const [storyGen, setStoryGen] = useState<GenerationState>(GEN_IDLE);
   const [chatPrewarm, setChatPrewarm] = useState<GenerationState>(GEN_IDLE);
+  const [techAudioGen, setTechAudioGen] = useState<GenerationState>(GEN_IDLE);
   const lessonAbortRef = useRef<AbortController | null>(null);
   const storyAbortRef = useRef<AbortController | null>(null);
   const chatAbortRef = useRef<AbortController | null>(null);
+  const techAudioAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     getJSON<SafetyAlert[]>(STORAGE_KEYS.safetyAlerts).then((v) => {
@@ -689,6 +691,52 @@ export default function ParentDashboard() {
               {chatPrewarm.running
                 ? ("Generating…")
                 : ("Start Pre-warming")}
+            </Text>
+          </Pressable>
+        </SoftCard>
+
+        {/* Pre-warm Tech Lesson Audio */}
+        <SoftCard style={{ gap: 10, borderColor: "#3B82F6", borderWidth: 1.5 }}>
+          <Text style={{ fontWeight: "800", color: c.text, fontSize: 15 }}>
+            💻 {"Generate Tech Lesson Audio"}
+          </Text>
+          <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
+            Pre-records all 18 Technology & AI lessons (each ~11 slides) using Google Neural2 TTS and uploads to storage — lessons play instantly with no delay after this.
+          </Text>
+
+          {techAudioGen.running && (
+            <View style={{ gap: 6 }}>
+              <View style={{ height: 8, backgroundColor: c.muted, borderRadius: 4, overflow: "hidden" }}>
+                <View style={{ height: "100%", width: `${techAudioGen.percent}%`, backgroundColor: "#3B82F6", borderRadius: 4 }} />
+              </View>
+              <Text style={{ fontSize: 12, color: c.mutedForeground }} numberOfLines={1}>
+                {techAudioGen.percent}% — {techAudioGen.message}
+              </Text>
+            </View>
+          )}
+
+          {techAudioGen.done && !techAudioGen.running && (
+            <Text style={{ color: "#065F46", fontWeight: "700", fontSize: 13 }}>
+              ✅ {"All 18 tech lessons recorded!"}
+            </Text>
+          )}
+          {techAudioGen.error !== "" && (
+            <Text style={{ color: c.destructive, fontSize: 12 }}>⚠️ {techAudioGen.error}</Text>
+          )}
+
+          <Pressable
+            disabled={techAudioGen.running}
+            onPress={() => runGeneration("/api/admin/prewarm-tech-audio", techAudioAbortRef, setTechAudioGen)}
+            style={({ pressed }) => ({
+              backgroundColor: techAudioGen.running ? c.muted : "#3B82F6",
+              paddingVertical: 12, borderRadius: 12, alignItems: "center",
+              opacity: pressed ? 0.85 : 1,
+            })}
+          >
+            <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14 }}>
+              {techAudioGen.running
+                ? ("Generating…")
+                : ("Start Tech Audio Generation")}
             </Text>
           </Pressable>
         </SoftCard>
