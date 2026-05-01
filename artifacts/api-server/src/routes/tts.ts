@@ -106,6 +106,8 @@ function resolveVoice(text: string, voice: string): VoiceParams {
 }
 
 // ── Text sanitiser ────────────────────────────────────────────────────────────
+// maxChars is Google TTS hard limit. Client always sends ≤800-char chunks so
+// we rarely hit this ceiling, but it protects against oversized direct calls.
 function cleanText(text: string, maxChars = 4500): string {
   const cleaned = text
     .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}]/gu, "")
@@ -113,14 +115,16 @@ function cleanText(text: string, maxChars = 4500): string {
     .replace(/[*_`#]/g, "")
     .trim();
   if (cleaned.length <= maxChars) return cleaned;
-  // Split at sentence boundaries and accumulate until limit
-  const sentences = cleaned.split(/(?<=[.!?])\s+/);
-  let out = "";
-  for (const s of sentences) {
-    if ((out + " " + s).trim().length > maxChars) break;
-    out = (out + " " + s).trim();
+  // Walk backward from the limit to find a clean sentence boundary
+  let cutAt = maxChars;
+  for (let i = maxChars - 1; i > maxChars * 0.5; i--) {
+    const ch = cleaned[i];
+    if ((ch === "." || ch === "!" || ch === "?") && cleaned[i + 1] === " ") {
+      cutAt = i + 1;
+      break;
+    }
   }
-  return out || cleaned.slice(0, maxChars);
+  return cleaned.slice(0, cutAt).trim();
 }
 
 // ── Hard timeout wrapper ──────────────────────────────────────────────────────

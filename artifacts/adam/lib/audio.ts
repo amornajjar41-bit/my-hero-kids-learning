@@ -292,26 +292,44 @@ function _doPlay(base64: string, textForTimeout: string, myGen: number): Promise
 }
 
 // ── Sentence chunker — split long texts into playable pieces ─────────────────
-const CHUNK_MAX = 600; // characters per chunk
+// CHUNK_MAX matches the chat.tsx splitTtsText limit so every speak() call
+// is already a single chunk — no double-splitting, no cache key mismatches.
+const CHUNK_MAX = 800; // characters per chunk (~50 s at 0.9× speaking rate)
 
 function splitChunks(text: string): string[] {
   const cleaned = text.trim();
   if (cleaned.length <= CHUNK_MAX) return [cleaned];
 
-  // Split on sentence-ending punctuation followed by whitespace
-  const sentences = cleaned.split(/(?<=[.!?])\s+/);
   const chunks: string[] = [];
-  let current = "";
+  let remaining = cleaned;
 
-  for (const s of sentences) {
-    if ((current + " " + s).trim().length > CHUNK_MAX && current.length > 0) {
-      chunks.push(current.trim());
-      current = s;
-    } else {
-      current = current ? current + " " + s : s;
+  while (remaining.length > CHUNK_MAX) {
+    const window = remaining.slice(0, CHUNK_MAX);
+
+    // Find the best sentence break — avoid lookbehind (unsupported on older Android)
+    let breakAt = -1;
+    for (let i = window.length - 1; i > CHUNK_MAX * 0.4; i--) {
+      const ch = window[i];
+      const next = window[i + 1];
+      if ((ch === "." || ch === "!" || ch === "?") && (next === " " || next === undefined)) {
+        breakAt = i + 1; // include the punctuation
+        break;
+      }
+      if (ch === "\n") { breakAt = i; break; }
     }
+
+    // Fallback: word boundary
+    if (breakAt < 0) {
+      const lastSpace = window.lastIndexOf(" ");
+      breakAt = lastSpace > CHUNK_MAX * 0.4 ? lastSpace : CHUNK_MAX;
+    }
+
+    const chunk = remaining.slice(0, breakAt).trim();
+    if (chunk) chunks.push(chunk);
+    remaining = remaining.slice(breakAt).trim();
   }
-  if (current.trim()) chunks.push(current.trim());
+
+  if (remaining) chunks.push(remaining);
   return chunks.length > 0 ? chunks : [cleaned.slice(0, CHUNK_MAX)];
 }
 
