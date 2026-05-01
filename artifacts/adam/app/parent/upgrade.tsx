@@ -2,10 +2,34 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useColors } from "@/hooks/useColors";
+
 import { useApp } from "@/contexts/AppContext";
+import { useSubscription } from "@/lib/revenuecat";
+import type { PurchasesPackage } from "react-native-purchases";
+
+// ─── Plan definitions ───────────────────────────────────────────────────────
+const PLAN_KEYS = {
+  monthly:  "$rc_monthly",
+  "6months": "$rc_six_month",
+  yearly:   "$rc_annual",
+} as const;
+
+type PlanKey = keyof typeof PLAN_KEYS;
+
+const FALLBACK_PRICES: Record<PlanKey, string> = {
+  monthly:  "$24.99/mo",
+  "6months": "$135.99",
+  yearly:   "$236.99/yr",
+};
 
 const BENEFITS = [
   { emoji: "🤖", label: "18 Technology & AI lessons — robots, coding, cybersecurity & more" },
@@ -24,40 +48,85 @@ const SOCIAL_PROOF = [
   { stars: "⭐⭐⭐⭐⭐", text: "Best investment for my daughter's learning", name: "Ahmed K." },
 ];
 
-function formatPrice(usd: number, currency: string): string {
-  const RATES: Record<string, { symbol: string; rate: number }> = {
-    USD: { symbol: "$", rate: 1 }, EUR: { symbol: "€", rate: 0.93 },
-    GBP: { symbol: "£", rate: 0.79 }, SAR: { symbol: "SAR ", rate: 3.75 },
-    AED: { symbol: "AED ", rate: 3.67 }, KWD: { symbol: "KWD ", rate: 0.31 },
-    QAR: { symbol: "QAR ", rate: 3.64 }, EGP: { symbol: "EGP ", rate: 30.9 },
-  };
-  const c = RATES[currency] ?? RATES.USD!;
-  const amount = usd * c.rate;
-  const rounded = amount >= 100 ? Math.round(amount) : Math.round(amount * 10) / 10;
-  return `${c.symbol}${rounded}`;
+// ─── Helper: get price string from RC package ───────────────────────────────
+function rcPrice(pkg: PurchasesPackage | undefined, fallback: string): string {
+  if (!pkg) return fallback;
+  return pkg.product.priceString ?? fallback;
 }
 
+// ─── Helper: get RC package for plan ───────────────────────────────────────
+function rcPkg(
+  offerings: import("react-native-purchases").PurchasesOfferings | undefined,
+  plan: PlanKey,
+): PurchasesPackage | undefined {
+  if (!offerings?.current) return undefined;
+  const identifier = PLAN_KEYS[plan];
+  return offerings.current.availablePackages.find(
+    (p) => p.packageType === identifier || p.identifier === identifier,
+  );
+}
+
+// ─── Main screen ────────────────────────────────────────────────────────────
 export default function Upgrade() {
-  const c = useColors();
   const router = useRouter();
   const { profile, patchProfile } = useApp();
-  const [loading, setLoading] = useState(false);
-  const [chosen, setChosen] = useState<"monthly" | "6months" | "yearly">("yearly");
+  const { offerings, purchase, restore, isLoading, isPurchasing, isRestoring, isSubscribed } =
+    useSubscription();
 
-  const currency = profile?.currency ?? "USD";
+  const [chosen, setChosen] = useState<PlanKey>("yearly");
+  const [restoring, setRestoring] = useState(false);
+
+  // If already subscribed, go back
+  React.useEffect(() => {
+    if (isSubscribed) {
+      patchProfile({ isPaid: true });
+      router.back();
+    }
+  }, [isSubscribed]);
+
+  const monthlyPkg  = rcPkg(offerings, "monthly");
+  const sixMonthPkg = rcPkg(offerings, "6months");
+  const yearlyPkg   = rcPkg(offerings, "yearly");
+
+  const monthlyPrice  = rcPrice(monthlyPkg,  "$24.99/mo");
+  const sixMonthPrice = rcPrice(sixMonthPkg, "$135.99");
+  const yearlyPrice   = rcPrice(yearlyPkg,   "$236.99/yr");
 
   const subscribe = async () => {
-    setLoading(true);
-    await patchProfile({ isPaid: true, paidPlan: chosen });
-    setLoading(false);
-    router.back();
+    const targetPkg = rcPkg(offerings, chosen);
+
+    if (!targetPkg) {
+      // RevenueCat not yet connected — dev/admin shortcut
+      await patchProfile({ isPaid: true, paidPlan: chosen });
+      router.back();
+      return;
+    }
+
+    try {
+      await purchase(targetPkg);
+      await patchProfile({ isPaid: true, paidPlan: chosen });
+      router.back();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!msg.includes("userCancelled") && !msg.includes("1")) {
+        Alert.alert("Purchase failed", msg);
+      }
+    }
   };
 
-  const monthly = formatPrice(24.99, currency);
-  const sixMonths = formatPrice(135.99, currency);
-  const sixPerMonth = formatPrice(135.99 / 6, currency);
-  const yearly = formatPrice(236.99, currency);
-  const yearlyPerMonth = formatPrice(236.99 / 12, currency);
+  const handleRestore = async () => {
+    setRestoring(true);
+    try {
+      await restore();
+      Alert.alert("Restored!", "Your subscription has been restored.");
+    } catch {
+      Alert.alert("Restore failed", "No previous purchases found for this account.");
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  const busy = isPurchasing || isRestoring || restoring || isLoading;
 
   return (
     <View style={{ flex: 1 }}>
@@ -67,6 +136,7 @@ export default function Upgrade() {
       />
 
       <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+        {/* Header */}
         <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, flexDirection: "row", alignItems: "center" }}>
           <Pressable
             onPress={() => router.back()}
@@ -90,6 +160,7 @@ export default function Upgrade() {
 
         <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
 
+          {/* Hero */}
           <View style={{ alignItems: "center", gap: 8, paddingVertical: 10 }}>
             <Text style={{ fontSize: 72 }}>🦸</Text>
             <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 26, textAlign: "center", lineHeight: 32 }}>
@@ -126,14 +197,10 @@ export default function Upgrade() {
             </Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {[
-                { e: "🖥️", t: "Computers" },
-                { e: "🤖", t: "Robots" },
-                { e: "🧠", t: "How AI Thinks" },
-                { e: "💻", t: "Coding" },
-                { e: "🔐", t: "Cybersecurity" },
-                { e: "🚗", t: "Self-Driving" },
-                { e: "🏥", t: "AI in Medicine" },
-                { e: "⚖️", t: "AI Ethics" },
+                { e: "🖥️", t: "Computers" }, { e: "🤖", t: "Robots" },
+                { e: "🧠", t: "How AI Thinks" }, { e: "💻", t: "Coding" },
+                { e: "🔐", t: "Cybersecurity" }, { e: "🚗", t: "Self-Driving" },
+                { e: "🏥", t: "AI in Medicine" }, { e: "⚖️", t: "AI Ethics" },
               ].map((item) => (
                 <View key={item.t} style={{
                   backgroundColor: "rgba(59,130,246,0.15)",
@@ -148,6 +215,7 @@ export default function Upgrade() {
             </View>
           </LinearGradient>
 
+          {/* Benefits */}
           <View style={{ backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 24, padding: 18, borderWidth: 1, borderColor: "rgba(167,139,250,0.2)", gap: 10 }}>
             <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 14, marginBottom: 4 }}>
               ✦ Everything included
@@ -163,6 +231,7 @@ export default function Upgrade() {
             ))}
           </View>
 
+          {/* Social proof */}
           <View style={{ gap: 10 }}>
             {SOCIAL_PROOF.map((r, i) => (
               <View key={i} style={{
@@ -195,8 +264,7 @@ export default function Upgrade() {
               <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2 }}>Cancel anytime</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 22 }}>{monthly}</Text>
-              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>/month</Text>
+              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 22 }}>{monthlyPrice}</Text>
             </View>
             <View style={{
               width: 24, height: 24, borderRadius: 12, borderWidth: 2,
@@ -225,13 +293,10 @@ export default function Upgrade() {
                   <Text style={{ color: "#FDE68A", fontSize: 10, fontWeight: "800" }}>SAVE 10%</Text>
                 </View>
               </View>
-              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2 }}>
-                {sixPerMonth}/mo
-              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2 }}>Billed every 6 months</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 22 }}>{sixMonths}</Text>
-              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>one time</Text>
+              <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 22 }}>{sixMonthPrice}</Text>
             </View>
             <View style={{
               width: 24, height: 24, borderRadius: 12, borderWidth: 2,
@@ -243,7 +308,7 @@ export default function Upgrade() {
             </View>
           </Pressable>
 
-          {/* Yearly */}
+          {/* Yearly — highlighted */}
           <Pressable
             onPress={() => setChosen("yearly")}
             style={{
@@ -258,13 +323,10 @@ export default function Upgrade() {
             </View>
             <View style={{ flex: 1, marginTop: 4 }}>
               <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 17 }}>Yearly</Text>
-              <Text style={{ color: "rgba(253,230,138,0.6)", fontSize: 12, marginTop: 2 }}>
-                {yearlyPerMonth}/mo
-              </Text>
+              <Text style={{ color: "rgba(253,230,138,0.6)", fontSize: 12, marginTop: 2 }}>Best value · billed annually</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 22 }}>{yearly}</Text>
-              <Text style={{ color: "rgba(253,230,138,0.6)", fontSize: 11 }}>one time</Text>
+              <Text style={{ color: "#FDE68A", fontWeight: "900", fontSize: 22 }}>{yearlyPrice}</Text>
             </View>
             <View style={{
               width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: "#FDE68A",
@@ -277,16 +339,16 @@ export default function Upgrade() {
 
           {/* CTA */}
           <Pressable
-            disabled={loading}
+            disabled={busy}
             onPress={subscribe}
             style={({ pressed }) => ({
               borderRadius: 20, paddingVertical: 18, alignItems: "center",
               backgroundColor: "#F59E0B",
-              opacity: pressed || loading ? 0.88 : 1,
+              opacity: pressed || busy ? 0.88 : 1,
               shadowColor: "#F59E0B", shadowOpacity: 0.4, shadowRadius: 16, elevation: 6,
             })}
           >
-            {loading ? (
+            {busy ? (
               <ActivityIndicator color="#000" />
             ) : (
               <Text style={{ color: "#000", fontWeight: "900", fontSize: 17 }}>
@@ -298,6 +360,25 @@ export default function Upgrade() {
           <Text style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", fontSize: 11, lineHeight: 18 }}>
             No hidden fees · Cancel anytime · Your child's data is always safe
           </Text>
+
+          {/* Restore purchases */}
+          <Pressable
+            onPress={handleRestore}
+            disabled={busy}
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, alignItems: "center", paddingVertical: 4 })}
+          >
+            <Text style={{ color: "rgba(167,139,250,0.7)", fontSize: 13, textDecorationLine: "underline" }}>
+              Restore previous purchase
+            </Text>
+          </Pressable>
+
+          {/* Legal links */}
+          <View style={{ flexDirection: "row", justifyContent: "center", gap: 20, paddingBottom: 8 }}>
+            <Text style={{ color: "rgba(255,255,255,0.25)", fontSize: 11 }}>
+              Privacy Policy · Terms of Service
+            </Text>
+          </View>
+
         </ScrollView>
       </SafeAreaView>
     </View>

@@ -32,6 +32,9 @@
       "android": {
         "buildType": "app-bundle"
       },
+      "ios": {
+        "buildConfiguration": "Release"
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://www.myheroapp.org"
       }
@@ -44,9 +47,9 @@
         "track": "internal"
       },
       "ios": {
-        "appleId": "YOUR_APPLE_ID@example.com",
-        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+        "appleId": "FILL_IN: your Apple ID email (e.g. you@icloud.com)",
+        "ascAppId": "FILL_IN: App Store Connect App ID (found in App Store Connect > App > General > Apple ID field)",
+        "appleTeamId": "FILL_IN: your Apple Team ID (found at developer.apple.com/account > Membership)"
       }
     }
   }
