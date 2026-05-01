@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Sara — My Hero</title>
+<script src="https://unpkg.com/@rive-app/canvas@2.23.9/rive.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  height:100%;font-family:'Nunito',sans-serif;overflow-x:hidden;
+  background:
+    radial-gradient(ellipse 120% 60% at 15% 0%,#0d1b5e,transparent 50%),
+    radial-gradient(ellipse 100% 60% at 85% 100%,#2a0845,transparent 55%),
+    #07080f;
+  display:flex;flex-direction:column;align-items:center;
+}
+header{text-align:center;padding:14px 12px 4px}
+.pill{
+  display:inline-flex;
+  background:linear-gradient(135deg,#6D28D9,#DB2777);
+  border-radius:99px;padding:5px 18px;margin-bottom:8px
+}
+.pill span{color:#fff;font-size:10px;font-weight:900;letter-spacing:2px}
+h1{color:#fff;font-size:22px;font-weight:900;margin-bottom:2px}
+.sub{color:rgba(255,255,255,.35);font-size:11px}
+
+/* ── Outer mask: what user sees ── */
+.stage{
+  position:relative;
+  width:220px; height:340px;
+  margin:10px 0 8px;
+  border-radius:28px;
+  border:1.5px solid rgba(255,255,255,.10);
+  box-shadow:0 8px 48px rgba(109,40,217,.35);
+  background:radial-gradient(ellipse 80% 60% at 42% 38%,#1e0840,#050208);
+  overflow:hidden;
+}
+
+/* ── Hidden Rive canvas – rendered large so Sara fills the window
+       The Rive artboard is landscape (≈776×594 from community page).
+       We render it at 800×614 and offset so only Sara's body is visible.
+       Sara stands at roughly x=130-270, y=80-580 in artboard space. ── */
+#rc{
+  position:absolute;
+  /* Make canvas 800px wide, cropped to 220px frame */
+  width:800px; height:614px;
+  /* Shift left so Sara (left side of artboard) is in view, panel is hidden */
+  left:-75px;
+  /* Pull up less so her full body including feet shows */
+  top:-10px;
+  display:block;
+}
+
+/* ── Stage animations ── */
+.stage{animation:idle-bounce 3.2s ease-in-out infinite}
+@keyframes idle-bounce{
+  0%,100%{transform:translateY(0) rotate(0)}
+  28%{transform:translateY(-6px) rotate(.3deg)}
+  62%{transform:translateY(-3px) rotate(-.2deg)}
+  82%{transform:translateY(-7px) rotate(.15deg)}
+}
+.stage.thinking{animation:think-bobble 1.25s ease-in-out infinite}
+@keyframes think-bobble{
+  0%,100%{transform:translateY(0) rotate(0)}
+  25%{transform:translateY(-5px) rotate(-2.5deg)}
+  75%{transform:translateY(-2px) rotate(2.5deg)}
+}
+.stage.talking{animation:talk-bob .3s ease-in-out infinite}
+@keyframes talk-bob{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-5px)}
+}
+.stage.celebrating{animation:celeb .42s ease-in-out infinite}
+@keyframes celeb{
+  0%,100%{transform:translateY(0) scale(1) rotate(0)}
+  35%{transform:translateY(-14px) scale(1.06) rotate(-1.5deg)}
+  68%{transform:translateY(-18px) scale(1.08) rotate(1.5deg)}
+}
+.stage.dancing{animation:dance .52s ease-in-out infinite}
+@keyframes dance{
+  0%,100%{transform:translateY(0) rotate(-2.5deg) scale(1)}
+  25%{transform:translateY(-10px) rotate(2.5deg) scale(1.05)}
+  50%{transform:translateY(-5px) rotate(-1.5deg) scale(1.02)}
+  75%{transform:translateY(-13px) rotate(3.5deg) scale(1.06)}
+}
+.stage.waving{animation:wave .62s ease-in-out infinite}
+@keyframes wave{
+  0%,100%{transform:translateX(0) rotate(0)}
+  30%{transform:translateX(6px) rotate(2.5deg)}
+  70%{transform:translateX(-3px) rotate(-1.5deg)}
+}
+
+/* ── Blink overlay ──
+   The Rive canvas is 800px wide inside a 220px clip window.
+   Sara's eyes at artboard ≈ x:165-215 → in our shifted canvas: (165-55)/800*100% ≈ 14%-20%.
+   But since canvas is wider than frame, effective % = (artboard_x - 55) / 800 * 100.
+   Eyebrows at artboard y ≈ 170-185, canvas 614px: (170-42)/614 ≈ 21%, (185-42)/614 ≈ 23%
+   Width of both eyes together ≈ 50px artboard → 50/800*100 ≈ 6%.
+   Using approximate values tuned for this layout: ── */
+.blink-overlay{
+  position:absolute;
+  top:25%; left:12%; width:30%; height:7%;
+  pointer-events:none;z-index:3;
+  display:flex;gap:18%;align-items:flex-start;justify-content:center;
+}
+.eyelid{
+  width:36%;height:0;
+  background:linear-gradient(180deg,#1e0840 60%,transparent);
+  border-radius:0 0 60% 60%;
+  animation:blink 3.8s ease-in-out infinite;
+}
+.eyelid:nth-child(2){animation-delay:.07s}
+@keyframes blink{
+  0%,38%,42%,100%{height:0;opacity:0}
+  39%,41%{height:100%;opacity:1}
+}
+
+/* ── Thought bubble ── */
+.think-bubble{
+  position:absolute;top:5%;right:3%;
+  display:none;flex-direction:column;align-items:center;gap:5px;
+  pointer-events:none;z-index:10;
+}
+.think-bubble.show{display:flex;animation:pop-in .35s cubic-bezier(.34,1.56,.64,1)}
+@keyframes pop-in{
+  from{opacity:0;transform:scale(.4) translateY(14px)}
+  to{opacity:1;transform:scale(1) translateY(0)}
+}
+.tb-dots{display:flex;gap:5px;margin-bottom:2px}
+.tb-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:rgba(255,255,255,.6);
+  animation:dot-pulse 1.1s ease-in-out infinite;
+}
+.tb-dot:nth-child(2){animation-delay:.18s}
+.tb-dot:nth-child(3){animation-delay:.36s}
+@keyframes dot-pulse{
+  0%,100%{transform:scale(1);opacity:.38}
+  50%{transform:scale(1.55);opacity:1}
+}
+.tb-cloud{
+  background:rgba(255,255,255,.93);border-radius:18px;
+  padding:9px 14px;font-size:22px;
+  box-shadow:0 4px 22px rgba(0,0,0,.38);
+  animation:bob 1.9s ease-in-out infinite;
+}
+@keyframes bob{0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)}}
+
+/* ── Lips ── */
+.lips{
+  position:absolute;
+  top:41%; left:14%; width:18%; height:5%;
+  display:none;pointer-events:none;z-index:4;
+}
+.lips.show{display:block}
+.lip-bar{
+  width:100%;height:42%;
+  background:rgba(210,55,88,.7);
+  border-radius:0 0 65% 65%;
+  transform-origin:center top;
+  animation:lip .18s ease-in-out infinite alternate;
+}
+@keyframes lip{from{transform:scaleY(1)} to{transform:scaleY(3)}}
+
+/* ── Sparkles ── */
+.sparkles{
+  position:absolute;inset:0;pointer-events:none;z-index:5;
+  display:none;overflow:hidden;
+}
+.sparkles.show{display:block}
+.spark{position:absolute;font-size:22px;animation:spark-fly 1.1s ease-out infinite}
+.spark:nth-child(1){left:6%;top:10%;animation-delay:0s}
+.spark:nth-child(2){left:74%;top:8%;animation-delay:.17s}
+.spark:nth-child(3){left:44%;top:2%;animation-delay:.34s}
+.spark:nth-child(4){left:12%;top:72%;animation-delay:.52s}
+.spark:nth-child(5){left:72%;top:70%;animation-delay:.71s}
+@keyframes spark-fly{
+  0%{opacity:0;transform:scale(.5) translateY(0)}
+  42%{opacity:1;transform:scale(1.3) translateY(-18px)}
+  100%{opacity:0;transform:scale(.8) translateY(-45px)}
+}
+
+/* ── Name tag ── */
+.ntag{
+  display:inline-flex;align-items:center;gap:7px;
+  border-radius:99px;padding:8px 26px;
+  font-size:14px;font-weight:900;color:#fff;
+  background:linear-gradient(135deg,#4C1D95,#BE185D);
+  box-shadow:0 2px 16px rgba(190,24,93,.42);
+  margin-bottom:12px;
+}
+
+/* ── Buttons ── */
+.ctrl{width:100%;max-width:340px;padding:0 10px}
+.slabel{
+  color:rgba(255,255,255,.26);font-size:9px;font-weight:900;
+  letter-spacing:2.5px;text-align:center;margin-bottom:7px
+}
+.brow{display:flex;flex-wrap:wrap;gap:7px;justify-content:center}
+.abtn{
+  background:rgba(255,255,255,.07);
+  border:1.5px solid rgba(255,255,255,.11);
+  border-radius:13px;color:rgba(255,255,255,.62);
+  font-size:12px;font-weight:800;font-family:inherit;
+  padding:10px 16px;cursor:pointer;
+  transition:background .16s,color .16s,transform .16s,box-shadow .16s;
+  white-space:nowrap;
+}
+.abtn:hover{background:rgba(255,255,255,.13);color:#fff;border-color:rgba(168,85,247,.4);transform:scale(1.03)}
+.abtn.on{
+  background:linear-gradient(135deg,#4C1D95,#BE185D);
+  border-color:transparent;color:#fff;
+  box-shadow:0 3px 12px rgba(190,24,93,.38);transform:scale(1.05)
+}
+
+.info{
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;padding:11px 15px;
+  width:calc(100% - 24px);max-width:316px;
+  margin:10px 12px 0
+}
+.info p{color:rgba(255,255,255,.42);font-size:10.5px;line-height:1.68}
+.info strong{color:rgba(255,255,255,.78)}
+footer{color:rgba(255,255,255,.12);font-size:10px;padding:10px 0 18px;text-align:center}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="pill"><span>🌟 MY HERO — SARA / LULU</span></div>
+  <h1>Sara / Lulu</h1>
+  <p class="sub">Tap a button to see her move!</p>
+</header>
+
+<div class="stage" id="stage">
+  <canvas id="rc"></canvas>
+
+  <div class="blink-overlay">
+    <div class="eyelid"></div>
+    <div class="eyelid"></div>
+  </div>
+
+  <div class="think-bubble" id="think-bubble">
+    <div class="tb-dots">
+      <div class="tb-dot"></div><div class="tb-dot"></div><div class="tb-dot"></div>
+    </div>
+    <div class="tb-cloud">🤔</div>
+  </div>
+
+  <div class="lips" id="lips"><div class="lip-bar"></div></div>
+
+  <div class="sparkles" id="sparkles">
+    <div class="spark">✨</div><div class="spark">⭐</div>
+    <div class="spark">🌟</div><div class="spark">💫</div><div class="spark">✨</div>
+  </div>
+</div>
+
+<div class="ntag">🌟 SARA / LULU</div>
+
+<div class="ctrl">
+  <div class="slabel">TAP TO ANIMATE</div>
+  <div class="brow">
+    <button class="abtn on" id="btn-idle"      onclick="tap('idle')">😊 Idle</button>
+    <button class="abtn"    id="btn-think"     onclick="tap('think')">🤔 Think</button>
+    <button class="abtn"    id="btn-talk"      onclick="tap('talk')">💬 Talking</button>
+    <button class="abtn"    id="btn-dance"     onclick="tap('dance')">💃 Dance</button>
+    <button class="abtn"    id="btn-celebrate" onclick="tap('celebrate')">🎉 Celebrate</button>
+    <button class="abtn"    id="btn-wave"      onclick="tap('wave')">👋 Wave</button>
+    <button class="abtn"    id="btn-thumb"     onclick="tap('thumbsup')">👍 Thumbs Up</button>
+    <button class="abtn"    id="btn-highfive"  onclick="tap('highfive')">🖐 High Five</button>
+  </div>
+</div>
+
+<div class="info"><p id="info-text"><strong>Loading Sara…</strong></p></div>
+<footer>My Hero Kids App · Powered by Rive</footer>
+
+<script>
+const stage  = document.getElementById('stage');
+const bubble = document.getElementById('think-bubble');
+const lips   = document.getElementById('lips');
+const sparks = document.getElementById('sparkles');
+const info   = document.getElementById('info-text');
+
+const STATES = ['thinking','talking','celebrating','dancing','waving'];
+const BTNMAP = {idle:'idle',think:'think',talk:'talk',dance:'dance',
+                celebrate:'celebrate',wave:'wave',thumbsup:'thumb',highfive:'highfive'};
+const MSGS = {
+  idle:      '<strong>Idle</strong> — Sara gently bounces and blinks, waiting for you.',
+  think:     '<strong>Thinking…</strong> 🤔 She tilts her head with a bubble — listening to the question.',
+  talk:      '<strong>Talking</strong> 💬 Sara bobs up and her lips move — she\'s reading the answer.',
+  dance:     '<strong>Dancing!</strong> 💃 Sara grooves — perfect for fun song lessons!',
+  celebrate: '<strong>Celebrating!</strong> 🎉 Sparkles fly — you got the right answer!',
+  wave:      '<strong>Waving</strong> 👋 Sara says hello or goodbye!',
+  thumbsup:  '<strong>Thumbs up!</strong> 👍 Great work — keep going!',
+  highfive:  '<strong>High five!</strong> 🖐 Sara is excited for you!',
+};
+
+let autoTimer = null;
+
+// ── Rive setup ────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('rc');
+canvas.width  = 800;
+canvas.height = 614;
+
+new rive.Rive({
+  src: './character.riv',
+  canvas,
+  artboard: 'home',
+  stateMachines: 'State Machine 1',
+  autoplay: true,
+  fit: rive.Fit.Contain,
+  alignment: rive.Alignment.CenterLeft,
+  onLoad() {
+    info.innerHTML = '<strong>Sara is ready!</strong> She blinks automatically and bounces at idle. Tap any button, or watch her demo the lesson flow!';
+    setTimeout(startDemo, 2000);
+  },
+  onLoadError() {
+    info.innerHTML = '<strong>Sara ready</strong> — CSS animations active!';
+    setTimeout(startDemo, 800);
+  }
+});
+
+// ── Set animation state ───────────────────────────────────────────────────────
+function setAnim(name) {
+  document.querySelectorAll('.abtn').forEach(b => b.classList.remove('on'));
+  document.getElementById('btn-' + BTNMAP[name])?.classList.add('on');
+
+  STATES.forEach(s => stage.classList.remove(s));
+  bubble.classList.remove('show');
+  lips.classList.remove('show');
+  sparks.classList.remove('show');
+
+  info.innerHTML = MSGS[name] || '';
+
+  switch(name) {
+    case 'think':
+      stage.classList.add('thinking');
+      bubble.classList.add('show');
+      break;
+    case 'talk':
+      stage.classList.add('talking');
+      lips.classList.add('show');
+      break;
+    case 'dance':
+      stage.classList.add('dancing');
+      sparks.classList.add('show');
+      break;
+    case 'celebrate':
+    case 'thumbsup':
+    case 'highfive':
+      stage.classList.add('celebrating');
+      sparks.classList.add('show');
+      break;
+    case 'wave':
+      stage.classList.add('waving');
+      break;
+  }
+}
+
+// Manual tap cancels demo
+function tap(name) {
+  clearTimeout(autoTimer); autoTimer = null;
+  setAnim(name);
+}
+
+// ── Demo loop — simulates a full lesson interaction ───────────────────────────
+function startDemo() {
+  const seq = [
+    {name:'idle',      dur:2000},
+    {name:'think',     dur:3200},   // listening to question
+    {name:'talk',      dur:3000},   // giving answer
+    {name:'celebrate', dur:2500},   // correct!
+    {name:'idle',      dur:1600},
+    {name:'wave',      dur:2000},
+    {name:'thumbsup',  dur:2000},
+    {name:'dance',     dur:2800},
+    {name:'highfive',  dur:1800},
+  ];
+  let i = 0;
+  (function next() {
+    setAnim(seq[i % seq.length].name);
+    autoTimer = setTimeout(next, seq[i % seq.length].dur);
+    i++;
+  })();
+}
+
+document.querySelectorAll('.abtn').forEach(b =>
+  b.addEventListener('click', () => { clearTimeout(autoTimer); autoTimer = null; })
+);
+</script>
+</body>
+</html>
