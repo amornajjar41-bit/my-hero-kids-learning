@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -143,26 +144,31 @@ export default function LessonPlayer() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={["top"]}>
+    <View style={{ flex: 1 }}>
+      <LinearGradient
+        colors={["#1A0533", "#0D2D6B", "#0A4A7A"]}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+      />
+      <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
       <View style={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 10 }}>
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => ({
             width: 40, height: 40, borderRadius: 20,
-            backgroundColor: c.card, alignItems: "center", justifyContent: "center",
+            backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center",
             opacity: pressed ? 0.7 : 1,
           })}
         >
-          <Ionicons name="close" size={20} color={c.text} />
+          <Ionicons name="close" size={20} color="#FFF" />
         </Pressable>
         <View style={{ flex: 1 }}>
           <ProgressBar value={progressVal} />
         </View>
-        <Text style={{ fontWeight: "800", color: c.text, fontSize: 14 }}>⭐ {stars}</Text>
+        <Text style={{ fontWeight: "800", color: "#FDE68A", fontSize: 14 }}>⭐ {stars}</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 18, gap: 14, flexGrow: 1 }}>
-        <Text style={{ fontSize: 12, fontWeight: "700", color: c.mutedForeground, letterSpacing: 1 }}>
+        <Text style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.55)", letterSpacing: 1 }}>
           {lessonTitle(lesson).toUpperCase()} · {t("step")} {stepIdx + 1} {t("of")} {steps.length}
         </Text>
 
@@ -290,6 +296,7 @@ export default function LessonPlayer() {
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }

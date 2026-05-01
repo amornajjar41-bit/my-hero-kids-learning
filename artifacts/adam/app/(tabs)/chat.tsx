@@ -82,6 +82,37 @@ function TypingBubble({ lang }: { lang: string }) {
   );
 }
 
+// ── Number word → digit normalisation (helps STT accuracy) ─────────────────
+const _ONES = ["zero","one","two","three","four","five","six","seven","eight","nine",
+  "ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+const _TENS = ["","","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
+
+function normalizeNumbers(text: string): string {
+  let r = text;
+  for (let t = 2; t <= 9; t++) {
+    for (let o = 1; o <= 9; o++) {
+      const num = String(t * 10 + o);
+      r = r.replace(new RegExp(`\\b${_TENS[t]}-${_ONES[o]}\\b`, "gi"), num);
+      r = r.replace(new RegExp(`\\b${_TENS[t]} ${_ONES[o]}\\b`, "gi"), num);
+    }
+    r = r.replace(new RegExp(`\\b${_TENS[t]}\\b`, "gi"), String(t * 10));
+  }
+  for (let i = _ONES.length - 1; i >= 0; i--) {
+    r = r.replace(new RegExp(`\\b${_ONES[i]}\\b`, "gi"), String(i));
+  }
+  return r;
+}
+
+// ── TTS cap: ~50 seconds at 0.9× speaking rate ─────────────────────────────
+const MAX_TTS_CHARS = 800;
+
+function capTtsText(text: string): string {
+  if (text.length <= MAX_TTS_CHARS) return text;
+  const trimmed = text.slice(0, MAX_TTS_CHARS);
+  const lastBreak = Math.max(trimmed.lastIndexOf(". "), trimmed.lastIndexOf("! "), trimmed.lastIndexOf("? "), trimmed.lastIndexOf("\n"));
+  return lastBreak > MAX_TTS_CHARS * 0.5 ? trimmed.slice(0, lastBreak + 1).trim() : trimmed.trim();
+}
+
 // ── Pulsing ring animation ──────────────────────────────────────────────────
 function PulseRing({ active }: { active: boolean }) {
   const scale = useRef(new Animated.Value(1)).current;
@@ -641,7 +672,7 @@ export default function Chat() {
       Keyboard.dismiss();
       setMessages((m) => [...m, { role: "assistant", text: reply }]);
       setAdamPose("talking");
-      speak(reply, voice, 1.0, undefined, profile?.ageGroup)
+      speak(capTtsText(reply), voice, 1.0, undefined, profile?.ageGroup)
         .then(() => {
           setAdamPose("happy");
           setTimeout(() => setAdamPose("normal"), 1800);
@@ -802,7 +833,7 @@ export default function Chat() {
 
       const nativeText = nativeResultRef.current?.trim();
       if (nativeText) {
-        await sendRef.current?.(nativeText);
+        await sendRef.current?.(normalizeNumbers(nativeText));
       } else {
         setMicError("🎤 Couldn't hear you — please try again or type");
         setAdamPose("normal");
@@ -829,7 +860,7 @@ export default function Chat() {
       setTranscribing(false);
 
       if (text?.trim()) {
-        await sendRef.current?.(text);
+        await sendRef.current?.(normalizeNumbers(text));
       } else {
         setTooShort(true);
         setAdamPose("normal");
