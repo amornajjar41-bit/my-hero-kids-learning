@@ -1561,10 +1561,140 @@ router.post("/admin/prewarm-chat", async (req, res) => {
     "how does planting trees help the environment",
   ];
 
+  // ── HOMEWORK WORD PROBLEMS ────────────────────────────────────────────────
+  const EN_WORD_PROBLEMS = [
+    // Addition & subtraction story problems
+    "if i have 24 apples and give away 9 how many do i have left",
+    "a shop sells 156 books on monday and 243 books on tuesday how many in total",
+    "a train has 380 passengers and 75 get off at the station how many are left",
+    "if you save 15 dollars every week how much will you have after 8 weeks",
+    "a rectangle is 12 centimeters long and 7 centimeters wide what is the perimeter",
+    "what is the perimeter of a square with sides of 9 centimeters",
+    // Multiplication story problems
+    "a box has 12 chocolates there are 6 boxes how many chocolates in total",
+    "a school has 24 classrooms and each has 28 desks how many desks in total",
+    "a jar holds 250 milliliters each carton holds 1 liter how many jars fill one carton",
+    // Division story problems
+    "125 students need to be split into groups of 5 how many groups will there be",
+    "if 84 cookies are shared equally among 7 children how many does each child get",
+    "a farmer has 96 eggs to pack in boxes of 12 how many boxes does he need",
+    // Fractions story problems
+    "a pizza is cut into 8 slices if you eat 3 slices what fraction is left",
+    "half of the class are girls if there are 30 students how many are girls",
+    "what is two thirds of 24",
+    "what is three quarters of 48",
+    "a bottle is three quarters full it holds 1 litre how many millilitres are in it",
+    // Time problems
+    "if school starts at 8:30 and ends at 3:15 how many hours is the school day",
+    "a movie is 1 hour and 45 minutes long if it starts at 6:20 when does it end",
+    "how many minutes are there in 3 and a half hours",
+    "how many seconds are in 5 minutes",
+    // Money problems
+    "if a book costs 8 dollars 50 cents and i pay with 10 dollars how much change do i get",
+    "three friends share a bill of 27 dollars equally how much does each person pay",
+    "a toy costs 34 dollars 99 cents and is on sale for 10 percent off what is the sale price",
+    // Percentages
+    "what is 10 percent of 250",
+    "what is 20 percent of 80",
+    "what is 15 percent of 60",
+    "if a score is 18 out of 20 what percentage is that",
+    "if 30 percent of 200 students like football how many students is that",
+    // Area & volume
+    "what is the area of a rectangle that is 8 centimeters long and 5 centimeters wide",
+    "what is the volume of a box that is 4 centimeters by 3 centimeters by 6 centimeters",
+    "a garden is 10 meters by 6 meters what is its area",
+    "if a room is 5 metres by 4 metres what is the floor area",
+    // Ratio & proportion
+    "what is a ratio", "what is proportion in maths",
+    "if the ratio of boys to girls is 3 to 2 and there are 15 boys how many girls are there",
+    "a recipe needs 2 cups of flour for every 3 cups of sugar if i use 6 cups of flour how much sugar do i need",
+    // Algebra homework
+    "if x plus 7 equals 15 what is x",
+    "if 3 times x equals 27 what is x",
+    "if 2x plus 5 equals 17 what is x",
+    "how do you solve simple equations",
+    "what is the difference between an expression and an equation",
+    "what is a coefficient in algebra",
+    // Geometry homework
+    "how many degrees are in a triangle",
+    "how many degrees are in a full circle",
+    "how many degrees are in a right angle",
+    "what is the sum of angles in a quadrilateral",
+    "how do you find the hypotenuse of a right triangle",
+    "what is Pythagoras theorem",
+    "what is a3 squared plus b squared equals c squared",
+    // Statistics homework
+    "what is the mean of 4 8 6 10 2",
+    "how do you find the median of a set of numbers",
+    "what is the mode in statistics",
+    "what is a bar chart used for",
+    "what is a pie chart",
+    "how do you calculate a percentage from a fraction",
+    "what is probability in maths",
+    "if i flip a coin what is the probability of getting heads",
+    "what is the probability of rolling a 6 on a dice",
+    // Mixed operations
+    "what is bodmas", "what is pemdas",
+    "what comes first in order of operations",
+    "how do you add negative numbers",
+    "how do you subtract a negative number",
+    "what is a negative times a negative",
+    // Long multiplication & division
+    "how do you do long multiplication",
+    "how do you do long division",
+    "what is a remainder in division",
+    "what are multiples of 6", "what are multiples of 7", "what are multiples of 8",
+    "what are factors of 12", "what are factors of 24",
+    "what is the highest common factor of 12 and 18",
+    "what is the lowest common multiple of 4 and 6",
+  ];
+
+  // ── CODING & COMPUTER SCIENCE BASICS ─────────────────────────────────────
+  const EN_CODING_BASICS = [
+    "what is a variable in programming",
+    "what is a string in coding", "what is an integer in coding",
+    "what is a boolean in programming",
+    "what is an array in coding", "what is a list in python",
+    "what is a function in programming", "why do we use functions in coding",
+    "what is a parameter in a function",
+    "what is a return value in programming",
+    "what is the difference between a for loop and a while loop",
+    "what is an if else statement in coding",
+    "what does print do in python",
+    "what is indentation in python",
+    "what is a comment in code",
+    "what is a syntax error",
+    "what is a runtime error",
+    "what is a logic error in programming",
+    "what is pseudocode",
+    "what is a flowchart in computing",
+    "what is binary in computing", "how do you count in binary",
+    "how do you convert decimal to binary",
+    "what is a bit", "what is a byte",
+    "what is ASCII", "how does a computer store letters",
+    "what is a database", "what is a spreadsheet",
+    "what is HTML", "what is CSS in web design",
+    "what does a website use to look nice",
+    "what is a function call in python",
+    "what does len do in python",
+    "how do you write a loop in python",
+    "how do you get user input in python",
+    "what is scratch programming",
+    "what is block-based coding",
+    "what is the difference between compiled and interpreted languages",
+    "what does debugging mean",
+    "what is a unit test in programming",
+    "what is a computer network",
+    "what is an IP address",
+    "what is a domain name",
+    "what is http and https",
+  ];
+
   const EN_QUESTIONS = [
     ...EN_MATH, ...EN_SPACE, ...EN_OCEAN, ...EN_PHYSICS, ...EN_SCIENCE,
     ...EN_HISTORY, ...EN_GEOGRAPHY, ...EN_ANIMALS, ...EN_TECHNOLOGY,
     ...EN_HEALTH, ...EN_LANGUAGE, ...EN_ENVIRONMENT,
+    ...EN_WORD_PROBLEMS, ...EN_CODING_BASICS,
   ];
 
   const items: PrewarmItem[] = [];

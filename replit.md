@@ -97,6 +97,23 @@ Expo SDK 54 + expo-router mobile app for ages 3–15: bilingual EN/AR homework h
   - `constants/stories.ts` — Expanded from 10 to **20 stories** (all English). Stories 11–20: The Robot Who Learned to Cry, The Compass That Never Lied, The Dragon Who Was Afraid of the Dark, The Boy Who Asked a Million Questions, The Painter Who Mixed Colors, The Smallest Library, One Step at a Time, The Echo in the Valley, The Scientist Who Failed for Forty Years, The Child Who Fixed the Clock.
   - `constants/curriculum.ts` — Added **2 new English units = 10 new lessons**: Unit 4 "Science & Nature" (Space, Ocean Life, Plants & Nature, Inside My Body, Seasons) + Unit 5 "My World" (Transportation, Jobs & Careers, Technology, Sports & Hobbies, Healthy Habits). Lessons en-u4-l13 through en-u5-l22.
   - `routes/admin.ts` — LESSON_WORDS + STORY_SENTENCES updated with all new content (80 new lesson words + 120 new story sentences).
+- **Technology & AI Lessons System (18 lessons)**:
+  - `constants/techCurriculum.ts` — 18 full slide-based lessons (hook/story/fact/quiz/celebrate): Computers, Robots, Internet, AI Thinking, Coding, Loops, If-Then Logic, Machine Learning, Cybersecurity, How Search Works, Quantum Computing, Self-Driving Cars, Medical AI, AI Ethics, Programming Languages, Big Data, Brain-Computer Interfaces, Future Tech. Ages 5–14 (ageMin per lesson).
+  - `app/tech/_layout.tsx` — Stack navigator for tech zone.
+  - `app/tech/index.tsx` — Floating animated lesson cards (alternating left/right), age badges, completion indicators, progress pill.
+  - `app/tech/[id].tsx` — Slide-by-slide lesson player: character speaking rings, SpeakRing animation, slide transitions, quiz with answer reveal + explanation, celebrate with confetti, preloads audio on mount.
+  - `lib/lessonAudio.ts` — Added `techSlidePath(lessonId, slideIndex)` + `preloadTechLesson(lessonId, slideCount)`.
+  - `routes/admin.ts` — POST `/api/admin/prewarm-tech-audio` (SSE): generates TTS for all 18 lessons (all slides), stores in `lessons-audio` bucket at `tech/{lessonId}/slide-{index}-en`. Also added EN_WORD_PROBLEMS (70+ homework word problems: fractions, algebra, geometry, time, money, ratios, statistics, probability) and EN_CODING_BASICS (40+ CS/coding questions) to the prewarm-chat question bank.
+  - `(tabs)/index.tsx` — "Technology & AI" section card (blue gradient) on home screen.
+  - `app/parent/upgrade.tsx` — Tech & AI feature banner (18 lessons, chip list).
+  - `app/onboarding/done.tsx` — Tech lessons listed in feature benefits.
+- **Public Privacy Policy + Terms of Service**:
+  - `artifacts/api-server/src/app.ts` — GET `/privacy` and GET `/terms` serve standalone HTML pages (COPPA/GDPR-compliant privacy policy, full terms with subscription pricing). Styled to match My Hero brand.
+  - `artifacts/api-server/.replit-artifact/artifact.toml` — Added `/privacy` and `/terms` paths to proxy routing so they're publicly accessible at `www.myheroapp.org/privacy` and `www.myheroapp.org/terms`.
+- **RevenueCat Integration Setup**:
+  - `artifacts/adam/lib/revenuecat.tsx` — `initializeRevenueCat()`, `SubscriptionProvider`, `useSubscription()` hook wrapping react-native-purchases. Uses platform-aware API key selection (test/iOS/Android).
+  - `artifacts/adam/app/_layout.tsx` — Initializes RevenueCat on app start, wraps app in `SubscriptionProvider`.
+  - `scripts/src/seedRevenueCat.ts` — Full seed script: creates project, iOS/Android/test apps, 3 products (monthly/6-month/yearly), premium entitlement, default offering, packages with attached products. Prints all env var keys on completion.
 - **Change 8 – Bug Fixes, PWA, Welcome Updates**:
   - Bottom nav label font reduced from 12→10px to prevent label cutoff on small screens.
   - `resetAll()` now also clears `onboardingDone` — logout properly returns to welcome screen and blocks back-navigation (router.replace).
