@@ -1,111 +1,123 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>My Hero – 3D Character Preview</title>
 <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet"/>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%;font-family:'Nunito',sans-serif;overflow-x:hidden}
-  body{
-    display:flex;flex-direction:column;align-items:center;min-height:100vh;
-    background:radial-gradient(ellipse 90% 50% at 20% 5%,#0B1E55 0%,transparent 55%),
-               radial-gradient(ellipse 70% 50% at 85% 90%,#1A084A 0%,transparent 55%),
-               #070915;
-  }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Nunito',sans-serif;overflow-x:hidden}
+body{
+  display:flex;flex-direction:column;align-items:center;min-height:100vh;
+  background:
+    radial-gradient(ellipse 100% 55% at 18% 5%,#0A1A50 0%,transparent 55%),
+    radial-gradient(ellipse 80% 50% at 82% 92%,#1A0845 0%,transparent 55%),
+    #060910;
+}
 
-  header{text-align:center;padding:18px 16px 6px;width:100%}
-  .pill{display:inline-flex;align-items:center;gap:6px;
-    background:linear-gradient(135deg,#1D4ED8,#6D28D9);
-    border-radius:99px;padding:5px 16px;margin-bottom:8px}
-  .pill span{color:#fff;font-size:10px;font-weight:900;letter-spacing:2px}
-  h1{color:#fff;font-size:22px;font-weight:900;margin-bottom:2px}
-  .sub{color:rgba(255,255,255,0.38);font-size:11px}
+/* ── HEADER ── */
+header{text-align:center;padding:16px 12px 4px;width:100%}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;
+  background:linear-gradient(135deg,#1D4ED8,#6D28D9);
+  border-radius:99px;padding:5px 16px;margin-bottom:8px
+}
+.pill span{color:#fff;font-size:10px;font-weight:900;letter-spacing:2px}
+h1{color:#fff;font-size:21px;font-weight:900;margin-bottom:2px}
+.sub{color:rgba(255,255,255,0.35);font-size:11px}
 
-  /* ── STAGE ── */
-  .stage{
-    display:flex;gap:10px;padding:8px 10px 0;
-    width:100%;max-width:680px;justify-content:center
-  }
+/* ── STAGE ── */
+.stage{
+  display:flex;gap:10px;padding:8px 10px 0;
+  width:100%;max-width:700px;justify-content:center
+}
+.col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
 
-  .char-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+/* ── VIEWER BOX ── */
+.vbox{
+  width:100%;border-radius:20px;overflow:hidden;position:relative;
+  height:280px;
+  border:1.5px solid rgba(255,255,255,0.09);
+  box-shadow:0 8px 40px rgba(0,0,0,0.7)
+}
+.adam-bg{background:radial-gradient(ellipse at 50% 20%,#0C1E60 0%,#020610 100%)}
+.sara-bg{background:radial-gradient(ellipse at 50% 20%,#280C5E 0%,#06020D 100%)}
 
-  /* ── VIEWER ── */
-  .vbox{
-    width:100%;border-radius:22px;overflow:hidden;
-    position:relative;aspect-ratio:0.6/1;
-    border:1.5px solid rgba(255,255,255,0.09);
-    box-shadow:0 8px 40px rgba(0,0,0,0.7)
-  }
-  .adam-bg{background:radial-gradient(ellipse at 50% 15%,#0D2165 0%,#020610 100%)}
-  .sara-bg{background:radial-gradient(ellipse at 50% 15%,#2A0D5E 0%,#050109 100%)}
+model-viewer{width:100%;height:100%;--poster-color:transparent}
 
-  model-viewer{width:100%;height:100%;--poster-color:transparent}
+/* loading overlay */
+.spin-wrap{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;
+  transition:opacity .5s;pointer-events:none;z-index:2;
+  background:rgba(4,6,15,.88)
+}
+.sara-bg + .spin-wrap,.sara-bg .spin-wrap{background:rgba(6,2,13,.88)}
+.ring{width:36px;height:36px;border-radius:50%;border:3px solid rgba(255,255,255,0.1);animation:spin .9s linear infinite}
+.b{border-top-color:#3B82F6}.p{border-top-color:#A855F7}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lt{color:rgba(255,255,255,.35);font-size:10px;font-weight:800}
 
-  /* loading */
-  .spin-wrap{
-    position:absolute;inset:0;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:8px;
-    transition:opacity .5s;pointer-events:none;z-index:2
-  }
-  .adam-bg .spin-wrap{background:rgba(2,6,16,.88)}
-  .sara-bg .spin-wrap{background:rgba(5,1,9,.88)}
-  .ring{width:38px;height:38px;border-radius:50%;border:3px solid rgba(255,255,255,0.1);animation:spin .9s linear infinite}
-  .ring.b{border-top-color:#3B82F6}
-  .ring.p{border-top-color:#A855F7}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .lt{color:rgba(255,255,255,0.38);font-size:10px;font-weight:800}
+/* ── NAME TAG ── */
+.ntag{
+  display:inline-flex;align-items:center;gap:5px;
+  border-radius:99px;padding:6px 18px;
+  font-size:13px;font-weight:900;color:#fff
+}
+.ntag.a{background:linear-gradient(135deg,#1E3A8A,#3B82F6);box-shadow:0 2px 12px rgba(59,130,246,.45)}
+.ntag.s{background:linear-gradient(135deg,#4C1D95,#7C3AED);box-shadow:0 2px 12px rgba(124,58,237,.45)}
 
-  /* ── NAME TAG ── */
-  .ntag{
-    display:flex;align-items:center;gap:5px;
-    border-radius:99px;padding:6px 18px;
-    font-size:13px;font-weight:900;color:#fff;letter-spacing:.5px
-  }
-  .ntag.a{background:linear-gradient(135deg,#1E3A8A,#2563EB);box-shadow:0 2px 14px rgba(37,99,235,.4)}
-  .ntag.s{background:linear-gradient(135deg,#4C1D95,#7C3AED);box-shadow:0 2px 14px rgba(124,58,237,.4)}
+/* ── ANIM PANEL ── */
+.anim-panel{
+  width:100%;max-width:700px;
+  padding:4px 10px 0;
+  display:flex;flex-direction:column;gap:6px;align-items:center
+}
+.anim-row{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+.cat{
+  color:rgba(255,255,255,0.28);font-size:9px;font-weight:900;
+  letter-spacing:2px;text-align:center;margin-top:4px
+}
+.abtn{
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;color:rgba(255,255,255,.65);
+  font-size:11px;font-weight:800;font-family:inherit;
+  padding:7px 12px;cursor:pointer;transition:all .17s;white-space:nowrap
+}
+.abtn:hover{background:rgba(255,255,255,.13);color:#fff;transform:scale(1.03)}
+.abtn.a-on{background:linear-gradient(135deg,#1E40AF,#3B82F6);border-color:rgba(59,130,246,.5);color:#fff;transform:scale(1.04)}
+.abtn.s-on{background:linear-gradient(135deg,#4C1D95,#7C3AED);border-color:rgba(124,58,237,.5);color:#fff;transform:scale(1.04)}
 
-  /* ── ANIM BUTTONS ── */
-  .anims{
-    display:flex;flex-wrap:wrap;gap:6px;justify-content:center;
-    width:100%;max-width:680px;padding:4px 10px 0
-  }
-  .abtn{
-    background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
-    border-radius:13px;color:rgba(255,255,255,.7);
-    font-size:12px;font-weight:800;font-family:inherit;
-    padding:8px 14px;cursor:pointer;transition:all .17s
-  }
-  .abtn:hover{background:rgba(255,255,255,.13);color:#fff;transform:scale(1.03)}
-  .abtn.on{background:linear-gradient(135deg,#1E40AF,#7C3AED);border-color:rgba(99,102,241,.5);color:#fff;transform:scale(1.05)}
+/* active character indicator */
+.char-tabs{display:flex;gap:6px;justify-content:center;margin-top:2px}
+.ctab{
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);
+  border-radius:10px;padding:5px 14px;
+  font-size:11px;font-weight:900;color:rgba(255,255,255,.35);cursor:pointer;
+  transition:all .17s
+}
+.ctab.a-sel{background:rgba(59,130,246,.18);border-color:rgba(59,130,246,.4);color:#93C5FD}
+.ctab.s-sel{background:rgba(124,58,237,.18);border-color:rgba(124,58,237,.4);color:#C4B5FD}
 
-  /* ── DIVIDER ── */
-  .div{width:100%;max-width:680px;height:1px;background:rgba(255,255,255,.07);margin:8px 0}
+/* ── DIVIDER ── */
+.div{width:100%;max-width:700px;height:1px;background:rgba(255,255,255,.07);margin:8px 0}
 
-  /* ── INFO BOX ── */
-  .info-box{
-    width:100%;max-width:680px;padding:0 10px;
-    display:flex;flex-direction:column;gap:6px
-  }
-  .ib{
-    background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,.08);
-    border-radius:14px;padding:10px 14px
-  }
-  .ib-label{color:rgba(255,255,255,.35);font-size:9px;font-weight:900;letter-spacing:2px;margin-bottom:4px}
-  .ib-text{color:rgba(255,255,255,.6);font-size:11px;line-height:1.6}
-  .ib-text strong.b{color:#60A5FA}
-  .ib-text strong.p{color:#C084FC}
+/* ── INFO ── */
+.info{width:100%;max-width:700px;padding:0 10px}
+.ib{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px 14px}
+.ib-h{color:rgba(255,255,255,.3);font-size:9px;font-weight:900;letter-spacing:2px;margin-bottom:4px}
+.ib-t{color:rgba(255,255,255,.55);font-size:11px;line-height:1.6}
+.bl{color:#60A5FA;font-weight:900}.pl{color:#C084FC;font-weight:900}
 
-  .tip-row{display:flex;gap:8px;justify-content:center;padding:4px 10px 0;flex-wrap:wrap}
-  .tip{display:inline-flex;align-items:center;gap:4px;
-    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
-    border-radius:10px;padding:4px 10px}
-  .tip span{color:rgba(255,255,255,.35);font-size:10px;font-weight:700}
+.tip-row{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;padding:4px 10px 0}
+.tip{display:inline-flex;align-items:center;gap:4px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  border-radius:9px;padding:4px 10px}
+.tip span{color:rgba(255,255,255,.32);font-size:10px;font-weight:700}
 
-  footer{color:rgba(255,255,255,.16);font-size:10px;text-align:center;padding:8px 16px 14px;line-height:1.6}
-  footer a{color:rgba(255,255,255,.28)}
+footer{color:rgba(255,255,255,.14);font-size:10px;text-align:center;padding:6px 12px 14px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -113,30 +125,30 @@
 <header>
   <div class="pill"><span>⚡ MY HERO — 3D CHARACTER PREVIEW</span></div>
   <h1>Adam &amp; Sara</h1>
-  <p class="sub">Real 3D · Drag to orbit · Scroll to zoom · Click animations</p>
+  <p class="sub">Real 3D · Drag to rotate · Scroll to zoom</p>
 </header>
 
 <!-- STAGE -->
 <div class="stage">
 
   <!-- ADAM -->
-  <div class="char-col">
-    <div class="vbox adam-bg">
+  <div class="col">
+    <div class="vbox adam-bg" id="adam-box">
       <model-viewer
         id="adam-mv"
         src="./models/adam.glb"
         animation-name="Idle"
         autoplay
         camera-controls
-        shadow-intensity="1.4"
-        shadow-softness="0.85"
-        exposure="1.0"
+        shadow-intensity="1.5"
+        shadow-softness="0.9"
+        exposure="1.1"
         environment-image="neutral"
-        camera-orbit="-5deg 78deg 2.2m"
-        min-camera-orbit="auto 40deg 1.2m"
-        max-camera-orbit="auto 100deg 4m"
+        camera-orbit="0deg 80deg 1.8m"
+        min-camera-orbit="auto 40deg 0.8m"
+        max-camera-orbit="auto 100deg 3.5m"
         interaction-prompt="none"
-        style="--progress-bar-color:#3B82F6;"
+        style="--progress-bar-color:#3B82F6"
       ></model-viewer>
       <div class="spin-wrap" id="adam-spin">
         <div class="ring b"></div>
@@ -144,33 +156,26 @@
       </div>
     </div>
     <div class="ntag a">⚡ ADAM</div>
-    <!-- Per-character anim buttons -->
-    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">
-      <button class="abtn on" onclick="setAdam('Idle',this)">😊 Idle</button>
-      <button class="abtn" onclick="setAdam('Walk',this)">🚶 Walk</button>
-      <button class="abtn" onclick="setAdam('Run',this)">🏃 Run</button>
-      <button class="abtn" onclick="setAdam('TPose',this)">✋ T-Pose</button>
-    </div>
   </div>
 
   <!-- SARA -->
-  <div class="char-col">
-    <div class="vbox sara-bg">
+  <div class="col">
+    <div class="vbox sara-bg" id="sara-box">
       <model-viewer
         id="sara-mv"
         src="./models/sara.glb"
         animation-name="SambaDance"
         autoplay
         camera-controls
-        shadow-intensity="1.4"
-        shadow-softness="0.85"
+        shadow-intensity="1.5"
+        shadow-softness="0.9"
         exposure="0.95"
         environment-image="neutral"
-        camera-orbit="-5deg 78deg 2.2m"
-        min-camera-orbit="auto 40deg 1.2m"
-        max-camera-orbit="auto 100deg 4m"
+        camera-orbit="0deg 80deg 2.0m"
+        min-camera-orbit="auto 40deg 0.8m"
+        max-camera-orbit="auto 100deg 3.5m"
         interaction-prompt="none"
-        style="--progress-bar-color:#A855F7;"
+        style="--progress-bar-color:#A855F7"
       ></model-viewer>
       <div class="spin-wrap" id="sara-spin">
         <div class="ring p"></div>
@@ -178,50 +183,94 @@
       </div>
     </div>
     <div class="ntag s">🌟 SARA</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">
-      <button class="abtn on" onclick="setSara('SambaDance',this)">💃 Dance</button>
-      <button class="abtn" onclick="setSara('TPose',this)">✋ T-Pose</button>
+  </div>
+
+</div><!-- /stage -->
+
+<!-- TIPS -->
+<div class="tip-row" style="margin-top:8px">
+  <div class="tip"><span>🖱 Drag to orbit</span></div>
+  <div class="tip"><span>🔍 Scroll to zoom</span></div>
+</div>
+
+<!-- ANIMATIONS PANEL -->
+<div class="anim-panel">
+
+  <!-- Character selector -->
+  <div class="char-tabs" style="margin-top:6px">
+    <button class="ctab a-sel" id="tab-adam" onclick="selectChar('adam')">⚡ Adam animations</button>
+    <button class="ctab" id="tab-sara" onclick="selectChar('sara')">🌟 Sara animations</button>
+  </div>
+
+  <!-- Adam animations -->
+  <div id="adam-anims">
+    <div class="cat" style="margin-top:4px">ADAM — ROBOT SUPERHERO · 14 ANIMATIONS</div>
+    <div class="anim-row">
+      <button class="abtn a-on" onclick="anim('adam','Idle',this)">😊 Idle</button>
+      <button class="abtn" onclick="anim('adam','Walking',this)">🚶 Walk</button>
+      <button class="abtn" onclick="anim('adam','Running',this)">🏃 Run</button>
+      <button class="abtn" onclick="anim('adam','Jump',this)">🦘 Jump</button>
+      <button class="abtn" onclick="anim('adam','WalkJump',this)">⬆️ WalkJump</button>
+    </div>
+    <div class="anim-row" style="margin-top:4px">
+      <button class="abtn" onclick="anim('adam','Wave',this)">👋 Wave</button>
+      <button class="abtn" onclick="anim('adam','ThumbsUp',this)">👍 ThumbsUp</button>
+      <button class="abtn" onclick="anim('adam','Yes',this)">✅ Yes!</button>
+      <button class="abtn" onclick="anim('adam','No',this)">❌ No</button>
+      <button class="abtn" onclick="anim('adam','Dance',this)">💃 Dance</button>
+      <button class="abtn" onclick="anim('adam','Punch',this)">👊 Punch</button>
+    </div>
+    <div class="anim-row" style="margin-top:4px">
+      <button class="abtn" onclick="anim('adam','Sitting',this)">🪑 Sit</button>
+      <button class="abtn" onclick="anim('adam','Standing',this)">🧍 Stand</button>
+      <button class="abtn" onclick="anim('adam','Death',this)">💀 Fall</button>
+    </div>
+  </div>
+
+  <!-- Sara animations (hidden by default) -->
+  <div id="sara-anims" style="display:none">
+    <div class="cat" style="margin-top:4px">SARA — GIRL CHARACTER · 2 ANIMATIONS</div>
+    <div class="anim-row">
+      <button class="abtn s-on" onclick="anim('sara','SambaDance',this)">💃 Samba Dance</button>
+      <button class="abtn" onclick="anim('sara','TPose',this)">✋ T-Pose</button>
+    </div>
+    <div style="background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.25);border-radius:12px;padding:8px 12px;margin-top:6px;text-align:center">
+      <p style="color:rgba(255,255,255,.5);font-size:10px;font-weight:700;line-height:1.5">
+        Sara currently has 2 animations. A custom superhero girl<br/>
+        character with full animations is the recommended next step.
+      </p>
     </div>
   </div>
 
 </div>
 
-<!-- TIPS -->
-<div class="tip-row" style="margin-top:10px">
-  <div class="tip"><span>🖱 Drag to orbit</span></div>
-  <div class="tip"><span>🔍 Scroll to zoom</span></div>
-  <div class="tip"><span>🔄 Auto-spins while idle</span></div>
-</div>
-
 <div class="div"></div>
 
-<div class="info-box">
+<!-- INFO -->
+<div class="info">
   <div class="ib">
-    <div class="ib-label">MODELS — OPEN SOURCE · FREE · DOWNLOADABLE GLB</div>
-    <p class="ib-text">
-      <strong class="b">Adam</strong> — Three.js "Soldier" · animations: Idle, Walk, Run, T-Pose<br/>
-      <strong class="p">Sara</strong> — Three.js "Michelle" · animations: Samba Dance, T-Pose<br/>
-      Both are locally hosted GLBs (2–3 MB each). Can be <strong style="color:rgba(255,255,255,.75)">bundled directly into the Expo app</strong>.
+    <div class="ib-h">CHARACTER DETAILS</div>
+    <p class="ib-t">
+      <span class="bl">Adam</span> — Three.js "RobotExpressive" · 464 KB · <strong style="color:rgba(255,255,255,.75)">14 animations</strong><br/>
+      Wave · ThumbsUp · Dance · Jump · Run · Walk · Yes · No · Punch · Sit · Idle + more<br/>
+      <span style="color:rgba(255,255,255,.3);font-size:10px">Expressive robot superhero — can be textured blue+gold for Adam's colors</span>
     </p>
-  </div>
-  <div class="ib">
-    <div class="ib-label">NEXT STEPS</div>
-    <p class="ib-text">
-      <strong style="color:rgba(255,255,255,.8)">Option A — Use these as-is</strong>: Add superhero costume geometry/materials via Three.js (cape, emblem, color override).<br/>
-      <strong style="color:rgba(255,255,255,.8)">Option B — Source custom assets</strong>: Mixamo lets you upload any character + add 100+ free animations (idle, wave, celebrate, talk…).<br/>
-      <strong style="color:rgba(255,255,255,.8)">Option C — Lottie characters</strong>: 2D Lottie with pro superhero artwork — lighter weight for mobile.
+    <div style="height:6px"></div>
+    <p class="ib-t">
+      <span class="pl">Sara</span> — Three.js "Michelle" · 3.2 MB · 2 animations (Samba Dance + T-Pose)<br/>
+      <span style="color:rgba(255,255,255,.3);font-size:10px">Needs upgrade → custom superhero girl character recommended</span>
     </p>
   </div>
 </div>
 
 <footer>
-  Powered by Google model-viewer · Three.js open-source characters ·
-  <a href="https://threejs.org/examples/webgl_animation_skinning_blending.html" target="_blank">Source</a>
+  Models: Three.js open-source (CC0) · Google model-viewer · Drag · Zoom · Tap animations
 </footer>
 
 <script>
   const adamMV = document.getElementById('adam-mv');
   const saraMV = document.getElementById('sara-mv');
+  let activeChar = 'adam';
 
   // Hide spinners on load
   adamMV.addEventListener('load', () => {
@@ -235,15 +284,32 @@
     setTimeout(() => s.style.display = 'none', 500);
   });
 
-  function setAdam(anim, btn) {
-    adamMV.animationName = anim;
-    btn.closest('div').querySelectorAll('.abtn').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on');
+  function anim(char, name, btn) {
+    const mv = char === 'adam' ? adamMV : saraMV;
+    mv.animationName = name;
+    const cls = char === 'adam' ? 'a-on' : 's-on';
+    btn.closest('.anim-panel').querySelectorAll(`.abtn.${cls}`).forEach(b => b.classList.remove(cls));
+    btn.classList.add(cls);
   }
-  function setSara(anim, btn) {
-    saraMV.animationName = anim;
-    btn.closest('div').querySelectorAll('.abtn').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on');
+
+  function selectChar(char) {
+    activeChar = char;
+    const tabAdam = document.getElementById('tab-adam');
+    const tabSara = document.getElementById('tab-sara');
+    const animAdam = document.getElementById('adam-anims');
+    const animSara = document.getElementById('sara-anims');
+
+    if (char === 'adam') {
+      tabAdam.classList.add('a-sel');
+      tabSara.classList.remove('a-sel','s-sel');
+      animAdam.style.display = '';
+      animSara.style.display = 'none';
+    } else {
+      tabSara.classList.add('s-sel');
+      tabAdam.classList.remove('a-sel','s-sel');
+      animSara.style.display = '';
+      animAdam.style.display = 'none';
+    }
   }
 </script>
 </body>
