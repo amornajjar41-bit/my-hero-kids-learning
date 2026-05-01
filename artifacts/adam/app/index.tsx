@@ -27,7 +27,7 @@ export default function Gate() {
           // Restore profile from server if local is missing
           if (!profile) {
             await saveProfile({
-              language: (result.child.languagePreference ?? "en") as "en" | "ar",
+              language: "en" as "en",
               hero: (result.child.characterChoice ?? "boy") as "boy" | "girl",
               childName: result.child.childName,
               ageGroup: (result.child.ageGroup ?? "7-9") as any,

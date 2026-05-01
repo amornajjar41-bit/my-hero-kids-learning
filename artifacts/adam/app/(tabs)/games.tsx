@@ -167,7 +167,7 @@ function PulseDot() {
   );
 }
 
-function GameCard({ game, lang, onPress }: { game: GameDef; lang: string; onPress: () => void }) {
+function GameCard({ game, lang, onPress }: { game: GameDef; lang: "en"; onPress: () => void }) {
   const isLeft = game.side === "left";
   const bounce = useRef(new Animated.Value(0)).current;
 

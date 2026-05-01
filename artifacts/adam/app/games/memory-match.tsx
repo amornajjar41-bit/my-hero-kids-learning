@@ -249,7 +249,7 @@ export default function MemoryMatch() {
               setMatchCount(newMatchCount);
 
               const msg = ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)]!;
-              playChime("correct");
+              playChime("success");
               setTimeout(() => speakText(msg, voice).catch(() => {}), 600);
 
               setFlippedIds([]);
@@ -263,7 +263,7 @@ export default function MemoryMatch() {
                   if (round >= ROUNDS.length - 1) {
                     setGameOver(true);
                     speakText("You finished! Amazing job!", voice).catch(() => {});
-                    playChime("levelup");
+                    playChime("celebration");
                     saveProgress((p) => ({
                       ...p,
                       gamesPlayed: (p.gamesPlayed ?? 0) + 1,
@@ -274,7 +274,7 @@ export default function MemoryMatch() {
                     const nextRound = round + 1;
                     setRound(nextRound);
                     speakText(`Round ${nextRound + 1}! Memorise fast!`, voice).catch(() => {});
-                    playChime("levelup");
+                    playChime("celebration");
                     startRound(nextRound);
                   }
                 }, 800);
