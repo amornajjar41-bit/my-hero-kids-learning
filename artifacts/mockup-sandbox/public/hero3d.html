@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Hero – 3D Character Preview</title>
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;font-family:'Nunito',sans-serif;overflow-x:hidden}
+  body{
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;
+    background:radial-gradient(ellipse 90% 50% at 20% 5%,#0B1E55 0%,transparent 55%),
+               radial-gradient(ellipse 70% 50% at 85% 90%,#1A084A 0%,transparent 55%),
+               #070915;
+  }
+
+  header{text-align:center;padding:18px 16px 6px;width:100%}
+  .pill{display:inline-flex;align-items:center;gap:6px;
+    background:linear-gradient(135deg,#1D4ED8,#6D28D9);
+    border-radius:99px;padding:5px 16px;margin-bottom:8px}
+  .pill span{color:#fff;font-size:10px;font-weight:900;letter-spacing:2px}
+  h1{color:#fff;font-size:22px;font-weight:900;margin-bottom:2px}
+  .sub{color:rgba(255,255,255,0.38);font-size:11px}
+
+  /* ── STAGE ── */
+  .stage{
+    display:flex;gap:10px;padding:8px 10px 0;
+    width:100%;max-width:680px;justify-content:center
+  }
+
+  .char-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+
+  /* ── VIEWER ── */
+  .vbox{
+    width:100%;border-radius:22px;overflow:hidden;
+    position:relative;aspect-ratio:0.6/1;
+    border:1.5px solid rgba(255,255,255,0.09);
+    box-shadow:0 8px 40px rgba(0,0,0,0.7)
+  }
+  .adam-bg{background:radial-gradient(ellipse at 50% 15%,#0D2165 0%,#020610 100%)}
+  .sara-bg{background:radial-gradient(ellipse at 50% 15%,#2A0D5E 0%,#050109 100%)}
+
+  model-viewer{width:100%;height:100%;--poster-color:transparent}
+
+  /* loading */
+  .spin-wrap{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:8px;
+    transition:opacity .5s;pointer-events:none;z-index:2
+  }
+  .adam-bg .spin-wrap{background:rgba(2,6,16,.88)}
+  .sara-bg .spin-wrap{background:rgba(5,1,9,.88)}
+  .ring{width:38px;height:38px;border-radius:50%;border:3px solid rgba(255,255,255,0.1);animation:spin .9s linear infinite}
+  .ring.b{border-top-color:#3B82F6}
+  .ring.p{border-top-color:#A855F7}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .lt{color:rgba(255,255,255,0.38);font-size:10px;font-weight:800}
+
+  /* ── NAME TAG ── */
+  .ntag{
+    display:flex;align-items:center;gap:5px;
+    border-radius:99px;padding:6px 18px;
+    font-size:13px;font-weight:900;color:#fff;letter-spacing:.5px
+  }
+  .ntag.a{background:linear-gradient(135deg,#1E3A8A,#2563EB);box-shadow:0 2px 14px rgba(37,99,235,.4)}
+  .ntag.s{background:linear-gradient(135deg,#4C1D95,#7C3AED);box-shadow:0 2px 14px rgba(124,58,237,.4)}
+
+  /* ── ANIM BUTTONS ── */
+  .anims{
+    display:flex;flex-wrap:wrap;gap:6px;justify-content:center;
+    width:100%;max-width:680px;padding:4px 10px 0
+  }
+  .abtn{
+    background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
+    border-radius:13px;color:rgba(255,255,255,.7);
+    font-size:12px;font-weight:800;font-family:inherit;
+    padding:8px 14px;cursor:pointer;transition:all .17s
+  }
+  .abtn:hover{background:rgba(255,255,255,.13);color:#fff;transform:scale(1.03)}
+  .abtn.on{background:linear-gradient(135deg,#1E40AF,#7C3AED);border-color:rgba(99,102,241,.5);color:#fff;transform:scale(1.05)}
+
+  /* ── DIVIDER ── */
+  .div{width:100%;max-width:680px;height:1px;background:rgba(255,255,255,.07);margin:8px 0}
+
+  /* ── INFO BOX ── */
+  .info-box{
+    width:100%;max-width:680px;padding:0 10px;
+    display:flex;flex-direction:column;gap:6px
+  }
+  .ib{
+    background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,.08);
+    border-radius:14px;padding:10px 14px
+  }
+  .ib-label{color:rgba(255,255,255,.35);font-size:9px;font-weight:900;letter-spacing:2px;margin-bottom:4px}
+  .ib-text{color:rgba(255,255,255,.6);font-size:11px;line-height:1.6}
+  .ib-text strong.b{color:#60A5FA}
+  .ib-text strong.p{color:#C084FC}
+
+  .tip-row{display:flex;gap:8px;justify-content:center;padding:4px 10px 0;flex-wrap:wrap}
+  .tip{display:inline-flex;align-items:center;gap:4px;
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+    border-radius:10px;padding:4px 10px}
+  .tip span{color:rgba(255,255,255,.35);font-size:10px;font-weight:700}
+
+  footer{color:rgba(255,255,255,.16);font-size:10px;text-align:center;padding:8px 16px 14px;line-height:1.6}
+  footer a{color:rgba(255,255,255,.28)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="pill"><span>⚡ MY HERO — 3D CHARACTER PREVIEW</span></div>
+  <h1>Adam &amp; Sara</h1>
+  <p class="sub">Real 3D · Drag to orbit · Scroll to zoom · Click animations</p>
+</header>
+
+<!-- STAGE -->
+<div class="stage">
+
+  <!-- ADAM -->
+  <div class="char-col">
+    <div class="vbox adam-bg">
+      <model-viewer
+        id="adam-mv"
+        src="/models/adam.glb"
+        animation-name="Idle"
+        autoplay
+        camera-controls
+        shadow-intensity="1.4"
+        shadow-softness="0.85"
+        exposure="1.0"
+        environment-image="neutral"
+        camera-orbit="-5deg 78deg 2.2m"
+        min-camera-orbit="auto 40deg 1.2m"
+        max-camera-orbit="auto 100deg 4m"
+        interaction-prompt="none"
+        style="--progress-bar-color:#3B82F6;"
+      ></model-viewer>
+      <div class="spin-wrap" id="adam-spin">
+        <div class="ring b"></div>
+        <span class="lt">Loading Adam…</span>
+      </div>
+    </div>
+    <div class="ntag a">⚡ ADAM</div>
+    <!-- Per-character anim buttons -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">
+      <button class="abtn on" onclick="setAdam('Idle',this)">😊 Idle</button>
+      <button class="abtn" onclick="setAdam('Walk',this)">🚶 Walk</button>
+      <button class="abtn" onclick="setAdam('Run',this)">🏃 Run</button>
+      <button class="abtn" onclick="setAdam('TPose',this)">✋ T-Pose</button>
+    </div>
+  </div>
+
+  <!-- SARA -->
+  <div class="char-col">
+    <div class="vbox sara-bg">
+      <model-viewer
+        id="sara-mv"
+        src="/models/sara.glb"
+        animation-name="SambaDance"
+        autoplay
+        camera-controls
+        shadow-intensity="1.4"
+        shadow-softness="0.85"
+        exposure="0.95"
+        environment-image="neutral"
+        camera-orbit="-5deg 78deg 2.2m"
+        min-camera-orbit="auto 40deg 1.2m"
+        max-camera-orbit="auto 100deg 4m"
+        interaction-prompt="none"
+        style="--progress-bar-color:#A855F7;"
+      ></model-viewer>
+      <div class="spin-wrap" id="sara-spin">
+        <div class="ring p"></div>
+        <span class="lt">Loading Sara…</span>
+      </div>
+    </div>
+    <div class="ntag s">🌟 SARA</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">
+      <button class="abtn on" onclick="setSara('SambaDance',this)">💃 Dance</button>
+      <button class="abtn" onclick="setSara('TPose',this)">✋ T-Pose</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- TIPS -->
+<div class="tip-row" style="margin-top:10px">
+  <div class="tip"><span>🖱 Drag to orbit</span></div>
+  <div class="tip"><span>🔍 Scroll to zoom</span></div>
+  <div class="tip"><span>🔄 Auto-spins while idle</span></div>
+</div>
+
+<div class="div"></div>
+
+<div class="info-box">
+  <div class="ib">
+    <div class="ib-label">MODELS — OPEN SOURCE · FREE · DOWNLOADABLE GLB</div>
+    <p class="ib-text">
+      <strong class="b">Adam</strong> — Three.js "Soldier" · animations: Idle, Walk, Run, T-Pose<br/>
+      <strong class="p">Sara</strong> — Three.js "Michelle" · animations: Samba Dance, T-Pose<br/>
+      Both are locally hosted GLBs (2–3 MB each). Can be <strong style="color:rgba(255,255,255,.75)">bundled directly into the Expo app</strong>.
+    </p>
+  </div>
+  <div class="ib">
+    <div class="ib-label">NEXT STEPS</div>
+    <p class="ib-text">
+      <strong style="color:rgba(255,255,255,.8)">Option A — Use these as-is</strong>: Add superhero costume geometry/materials via Three.js (cape, emblem, color override).<br/>
+      <strong style="color:rgba(255,255,255,.8)">Option B — Source custom assets</strong>: Mixamo lets you upload any character + add 100+ free animations (idle, wave, celebrate, talk…).<br/>
+      <strong style="color:rgba(255,255,255,.8)">Option C — Lottie characters</strong>: 2D Lottie with pro superhero artwork — lighter weight for mobile.
+    </p>
+  </div>
+</div>
+
+<footer>
+  Powered by Google model-viewer · Three.js open-source characters ·
+  <a href="https://threejs.org/examples/webgl_animation_skinning_blending.html" target="_blank">Source</a>
+</footer>
+
+<script>
+  const adamMV = document.getElementById('adam-mv');
+  const saraMV = document.getElementById('sara-mv');
+
+  // Hide spinners on load
+  adamMV.addEventListener('load', () => {
+    const s = document.getElementById('adam-spin');
+    s.style.opacity = '0';
+    setTimeout(() => s.style.display = 'none', 500);
+  });
+  saraMV.addEventListener('load', () => {
+    const s = document.getElementById('sara-spin');
+    s.style.opacity = '0';
+    setTimeout(() => s.style.display = 'none', 500);
+  });
+
+  function setAdam(anim, btn) {
+    adamMV.animationName = anim;
+    btn.closest('div').querySelectorAll('.abtn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+  }
+  function setSara(anim, btn) {
+    saraMV.animationName = anim;
+    btn.closest('div').querySelectorAll('.abtn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+  }
+</script>
+</body>
+</html>
