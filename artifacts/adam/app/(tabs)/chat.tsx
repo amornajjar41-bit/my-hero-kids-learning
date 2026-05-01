@@ -103,14 +103,44 @@ function normalizeNumbers(text: string): string {
   return r;
 }
 
-// ── TTS cap: ~50 seconds at 0.9× speaking rate ─────────────────────────────
+// ── TTS split: ~50 seconds per chunk at 0.9× speaking rate ─────────────────
+// Rather than cutting long answers, we split them into sequential chunks so
+// every word is spoken. Chunks are broken at sentence boundaries where possible.
 const MAX_TTS_CHARS = 800;
 
-function capTtsText(text: string): string {
-  if (text.length <= MAX_TTS_CHARS) return text;
-  const trimmed = text.slice(0, MAX_TTS_CHARS);
-  const lastBreak = Math.max(trimmed.lastIndexOf(". "), trimmed.lastIndexOf("! "), trimmed.lastIndexOf("? "), trimmed.lastIndexOf("\n"));
-  return lastBreak > MAX_TTS_CHARS * 0.5 ? trimmed.slice(0, lastBreak + 1).trim() : trimmed.trim();
+function splitTtsText(text: string): string[] {
+  if (text.length <= MAX_TTS_CHARS) return [text];
+
+  const chunks: string[] = [];
+  let remaining = text.trim();
+
+  while (remaining.length > MAX_TTS_CHARS) {
+    const window = remaining.slice(0, MAX_TTS_CHARS);
+    // Prefer a clean sentence break; search from the end of the window
+    const breakAt = Math.max(
+      window.lastIndexOf(". "),
+      window.lastIndexOf("! "),
+      window.lastIndexOf("? "),
+      window.lastIndexOf("\n"),
+    );
+
+    let cutAt: number;
+    if (breakAt > MAX_TTS_CHARS * 0.4) {
+      // Include the punctuation character itself (+1)
+      cutAt = breakAt + 1;
+    } else {
+      // No good sentence break — fall back to last space (word boundary)
+      const lastSpace = window.lastIndexOf(" ");
+      cutAt = lastSpace > MAX_TTS_CHARS * 0.4 ? lastSpace : MAX_TTS_CHARS;
+    }
+
+    const chunk = remaining.slice(0, cutAt).trim();
+    if (chunk) chunks.push(chunk);
+    remaining = remaining.slice(cutAt).trim();
+  }
+
+  if (remaining) chunks.push(remaining);
+  return chunks;
 }
 
 // ── Pulsing ring animation ──────────────────────────────────────────────────
@@ -681,14 +711,21 @@ export default function Chat() {
       setMessages((m) => [...m, { role: "assistant", text: displayText }]);
       setAdamPose("talking");
 
-      // Speak each part sequentially so homework with multiple questions
-      // is fully spoken without any chunk being cut off or skipped
+      // Speak each part sequentially — long parts are split into ≤800-char
+      // chunks so the full answer is always heard, never cut off mid-sentence.
       (async () => {
         try {
           for (let i = 0; i < ttsParts.length; i++) {
-            await speak(capTtsText(ttsParts[i]!), voice, 1.0, undefined, profile?.ageGroup);
+            const subChunks = splitTtsText(ttsParts[i]!);
+            for (let j = 0; j < subChunks.length; j++) {
+              await speak(subChunks[j]!, voice, 1.0, undefined, profile?.ageGroup);
+              // Short pause between sub-chunks so it doesn't sound rushed
+              if (j < subChunks.length - 1) {
+                await new Promise((r) => setTimeout(r, 600));
+              }
+            }
             if (i < ttsParts.length - 1) {
-              // Brief pause between answers so the child can follow
+              // Slightly longer pause between separate ||NEXT|| sections
               await new Promise((r) => setTimeout(r, 1200));
             }
           }

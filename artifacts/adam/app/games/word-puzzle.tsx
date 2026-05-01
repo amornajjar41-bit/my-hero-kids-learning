@@ -40,6 +40,7 @@ export default function WordPuzzle() {
   const [score, setScore] = useState(0);
   const [picked, setPicked] = useState<number[]>([]);
   const [done, setDone] = useState(false);
+  const advancingRef = React.useRef(false);
 
   const pool = puzzleWords;
   const item = pool[round % pool.length]!;
@@ -59,26 +60,30 @@ export default function WordPuzzle() {
   // Speak just the word after a short delay so the UI settles first
   useEffect(() => {
     setPicked([]);
+    advancingRef.current = false; // reset guard on new round
     const timer = setTimeout(() => {
       speak(item.word, voice).catch(() => {});
-    }, 500);
+    }, 220);
     return () => clearTimeout(timer);
   }, [round]);
 
   useEffect(() => {
     if (current.length === target.length) {
       if (current === target) {
+        if (advancingRef.current) return; // prevent double-fire
+        advancingRef.current = true;
         setScore((s) => s + 1);
         const variant = Math.floor(Math.random() * 5);
         playPreloaded(mathCorrectPath(variant), () =>
           speak("Correct!", voice)
         ).catch(() => {});
         setTimeout(() => {
+          advancingRef.current = false;
           if (round + 1 >= 10) setDone(true);
           else setRound((r) => r + 1);
-        }, 900);
+        }, 700);
       } else {
-        setTimeout(() => setPicked([]), 600);
+        setTimeout(() => setPicked([]), 450);
       }
     }
   }, [current, target, round, voice]);

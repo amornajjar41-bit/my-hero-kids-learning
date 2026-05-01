@@ -127,17 +127,17 @@ export default function MathBlast() {
       const hitA = await playPreloaded(aPath);
       if (cancelled) return;
       if (!hitA) {
-        // Cache miss — speak whole equation in one fast TTS call
-        speak(`${q.a} ${opWord(q.op)} ${q.b}`, voice, 1.15).catch(() => {});
+        // Cache miss — speak whole equation at faster speed to reduce perceived latency
+        speak(`${q.a} ${opWord(q.op)} ${q.b}`, voice, 1.3).catch(() => {});
         return;
       }
-      await new Promise<void>((r) => setTimeout(r, 80));
+      await new Promise<void>((r) => setTimeout(r, 60));
       if (cancelled) return;
       await playPreloaded(opPath);
-      await new Promise<void>((r) => setTimeout(r, 80));
+      await new Promise<void>((r) => setTimeout(r, 60));
       if (cancelled) return;
       await playPreloaded(bPath);
-    }, 200);
+    }, 120);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [q]);
 

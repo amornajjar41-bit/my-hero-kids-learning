@@ -425,9 +425,10 @@ export default function TechLessonPlayer() {
     preloadTechLesson(lesson.id, totalSlides);
   }, [lesson.id, totalSlides]);
 
-  // Speak text for current slide — tries cached audio first, falls back to live TTS
+  // Speak text for current slide — always uses the user's selected voice (echo/nova)
+  // so Adam users always hear Adam and Sara users always hear Sara.
   const speakSlide = useCallback(
-    (s: TechSlide, idx: number) => {
+    (s: TechSlide, _idx: number) => {
       if (!s) return;
       let text = "";
       if (s.kind === "hook") text = `${s.title}. ${s.body}`;
@@ -436,17 +437,14 @@ export default function TechLessonPlayer() {
       else if (s.kind === "quiz") text = s.question;
       else if (s.kind === "celebrate") text = s.message;
 
-      // Cap at ~100 words for TTS fallback
+      // Cap at ~100 words
       const words = text.split(" ");
       const capped = words.length > 100 ? words.slice(0, 100).join(" ") + "..." : text;
 
       setSpeaking(true);
-      playPreloaded(
-        techSlidePath(lesson.id, idx),
-        () => speak(capped, voice, 1.0),
-      ).finally(() => setSpeaking(false));
+      speak(capped, voice, 1.0).finally(() => setSpeaking(false));
     },
-    [lesson.id, voice]
+    [voice]
   );
 
   // Animate slide transition and auto-speak
@@ -595,21 +593,23 @@ export default function TechLessonPlayer() {
           </View>
         </View>
 
-        {/* Slide content */}
-        <Animated.View style={{ flex: 1, transform: [{ translateX: slideTranslate }] }}>
-          <ScrollView
-            contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
-            showsVerticalScrollIndicator={false}
-          >
-            {slide.kind === "hook" && <HookSlide slide={slide} />}
-            {slide.kind === "story" && <StorySlide slide={slide} />}
-            {slide.kind === "fact" && <FactSlide slide={slide} />}
-            {slide.kind === "quiz" && (
-              <QuizSlide slide={slide} onAnswer={handleQuizAnswer} />
-            )}
-            {slide.kind === "celebrate" && <CelebSlide message={slide.message} />}
-          </ScrollView>
-        </Animated.View>
+        {/* Slide content — overflow:hidden clips the slide-in animation */}
+        <View style={{ flex: 1, overflow: "hidden" }}>
+          <Animated.View style={{ flex: 1, transform: [{ translateX: slideTranslate }] }}>
+            <ScrollView
+              contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {slide.kind === "hook" && <HookSlide slide={slide} />}
+              {slide.kind === "story" && <StorySlide slide={slide} />}
+              {slide.kind === "fact" && <FactSlide slide={slide} />}
+              {slide.kind === "quiz" && (
+                <QuizSlide slide={slide} onAnswer={handleQuizAnswer} />
+              )}
+              {slide.kind === "celebrate" && <CelebSlide message={slide.message} />}
+            </ScrollView>
+          </Animated.View>
+        </View>
 
         {/* Navigation bar */}
         <View style={{

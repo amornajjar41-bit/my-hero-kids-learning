@@ -12,7 +12,7 @@ import { createAudioPlayer, AudioModule } from "expo-audio";
 const BG_MUSIC_URL =
   "https://ptkncbdsrnzkmuagygom.supabase.co/storage/v1/object/public/game-audio/bg-music.mp3";
 
-const VOLUME = 0.15;
+const VOLUME = 0.22;
 
 let _bgPlayer: ReturnType<typeof createAudioPlayer> | null = null;
 let _bgWebEl: HTMLAudioElement | null = null;
@@ -66,37 +66,34 @@ export async function startBgMusic(): Promise<void> {
     try { (player as any).volume = VOLUME; } catch { }
     try { (player as any).loop = true; } catch { }
 
+    // doPlay is only called once — _hasStarted guards against double-fire
     const doPlay = () => {
-      if (!_active || _bgPlayer !== player) return;
-      if (!_hasStarted) {
-        _hasStarted = true;
-        try { player.volume = VOLUME; } catch { }
-        try { player.play(); } catch { }
-      }
+      if (!_active || _bgPlayer !== player || _hasStarted) return;
+      _hasStarted = true;
+      try { player.volume = VOLUME; } catch { }
+      try { player.play(); } catch { }
     };
 
     player.addListener("playbackStatusUpdate", (status: any) => {
       if (!_active || _bgPlayer !== player) return;
 
-      // Fire play() the first time source is loaded and ready
+      // Primary trigger: play the moment the source is loaded and ready
       if (status.isLoaded && !_hasStarted) {
         doPlay();
       }
 
-      // Manual loop fallback
+      // Manual loop: restart when track ends
       if (_hasStarted && (status.didJustFinish || status.playbackState === "ended")) {
         try { player.seekTo(0); player.play(); } catch { }
       }
     });
 
-    // Immediate attempt — works if audio is cached
-    doPlay();
-
-    // 2-second timer fallback — covers slow networks or unresponsive status events
+    // Fallback: if status listener never fires "isLoaded" (some devices),
+    // try after 2.5s. Does nothing if doPlay() already ran.
     _fallbackTimer = setTimeout(() => {
       _fallbackTimer = null;
       doPlay();
-    }, 2000);
+    }, 2500);
 
   } catch {
     // Background music is optional — never crash the story screen

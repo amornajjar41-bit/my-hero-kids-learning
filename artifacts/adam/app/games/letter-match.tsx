@@ -55,15 +55,15 @@ export default function LetterMatch() {
   useEffect(() => {
     const timer = setTimeout(() => {
       speak(data.correct.letter, voice).catch(() => {});
-    }, 400);
+    }, 200);
     return () => clearTimeout(timer);
   }, [round]);
 
   const choose = (letter: string) => {
+    if (feedback !== "") return; // prevent double-tap during feedback window
     if (letter === data.correct.letter) {
       setScore((s) => s + 1);
       setFeedback("ok");
-      // Play a random pre-generated celebration phrase; fall back to short phrase
       const variant = Math.floor(Math.random() * 5);
       const path = letterCelebratePath(variant);
       playPreloaded(path, () =>
@@ -73,10 +73,10 @@ export default function LetterMatch() {
         setFeedback("");
         if (round + 1 >= 6) setDone(true);
         else setRound((r) => r + 1);
-      }, 900);
+      }, 650);
     } else {
       setFeedback("no");
-      setTimeout(() => setFeedback(""), 600);
+      setTimeout(() => setFeedback(""), 500);
     }
   };
 
