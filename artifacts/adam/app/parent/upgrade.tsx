@@ -18,9 +18,9 @@ import type { PurchasesPackage } from "react-native-purchases";
 
 // ─── Plan definitions ───────────────────────────────────────────────────────
 const PLAN_KEYS = {
-  monthly:  "$rc_monthly",
-  "6months": "$rc_six_month",
-  yearly:   "$rc_annual",
+  monthly:  "monthly",
+  "6months": "six_month",
+  yearly:   "yearly",
 } as const;
 
 type PlanKey = keyof typeof PLAN_KEYS;
@@ -62,7 +62,7 @@ function rcPkg(
   if (!offerings?.current) return undefined;
   const identifier = PLAN_KEYS[plan];
   return offerings.current.availablePackages.find(
-    (p) => p.packageType === identifier || p.identifier === identifier,
+    (p) => p.identifier === identifier,
   );
 }
 
