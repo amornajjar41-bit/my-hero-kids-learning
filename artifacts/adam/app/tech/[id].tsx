@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -13,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AdamCharacter } from "@/components/AdamCharacter";
 import { Confetti } from "@/components/Confetti";
 import { useApp } from "@/contexts/AppContext";
 import { playChime } from "@/lib/chime";
@@ -57,24 +57,24 @@ function SpeakRing({ speaking }: { speaking: boolean }) {
         pointerEvents="none"
         style={{
           position: "absolute",
-          width: 100, height: 100,
-          borderRadius: 50,
+          width: 140, height: 140,
+          borderRadius: 70,
           borderWidth: 2,
           borderColor: "rgba(96,165,250,0.6)",
           opacity: ring1,
-          transform: [{ scale: ring1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }],
+          transform: [{ scale: ring1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] }) }],
         }}
       />
       <Animated.View
         pointerEvents="none"
         style={{
           position: "absolute",
-          width: 100, height: 100,
-          borderRadius: 50,
+          width: 140, height: 140,
+          borderRadius: 70,
           borderWidth: 2,
           borderColor: "rgba(167,139,250,0.4)",
           opacity: ring2,
-          transform: [{ scale: ring2.interpolate({ inputRange: [0, 1], outputRange: [1, 1.8] }) }],
+          transform: [{ scale: ring2.interpolate({ inputRange: [0, 1], outputRange: [1, 1.75] }) }],
         }}
       />
     </>
@@ -399,31 +399,25 @@ export default function TechLessonPlayer() {
 
   const isGirl = profile?.hero === "girl";
   const voice = isGirl ? "nova" : "echo";
-  const charImg = isGirl
-    ? require("../../assets/images/lulu-girl.png")
-    : require("../../assets/images/adam-boy.png");
 
   const [slideIdx, setSlideIdx] = useState(0);
   const [speaking, setSpeaking] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [awaitingNext, setAwaitingNext] = useState(false);
 
-  const charBob = useRef(new Animated.Value(0)).current;
   const slideTranslate = useRef(new Animated.Value(0)).current;
-
-  // Character bobbing animation
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(charBob, { toValue: -8, duration: 1600, useNativeDriver: true }),
-        Animated.timing(charBob, { toValue: 0, duration: 1600, useNativeDriver: true }),
-      ])
-    ).start();
-  }, [charBob]);
 
   const slide = lesson.slides[slideIdx];
   const totalSlides = lesson.slides.length;
   const isLastSlide = slideIdx === totalSlides - 1;
+
+  const charPose = useMemo(() => {
+    if (speaking) return "talking" as const;
+    if (!slide) return "happy" as const;
+    if (slide.kind === "hook" || slide.kind === "celebrate" || slide.kind === "fact") return "excited" as const;
+    if (slide.kind === "quiz") return "thinking" as const;
+    return "happy" as const;
+  }, [speaking, slide]);
 
   // Preload all slide audio for this lesson on mount
   useEffect(() => {
@@ -562,25 +556,19 @@ export default function TechLessonPlayer() {
         </View>
 
         {/* Character + speak button */}
-        <View style={{ alignItems: "center", paddingTop: 16 }}>
-          <Animated.View style={{ transform: [{ translateY: charBob }], position: "relative", alignItems: "center", justifyContent: "center" }}>
+        <View style={{ alignItems: "center", paddingTop: 8 }}>
+          <Pressable
+            onPress={() => speakSlide(slide, slideIdx)}
+            style={{ position: "relative", alignItems: "center", justifyContent: "center" }}
+          >
             <SpeakRing speaking={speaking} />
-            <Pressable
-              onPress={() => speakSlide(slide, slideIdx)}
-              style={{
-                width: 90, height: 90, borderRadius: 45,
-                backgroundColor: "rgba(255,255,255,0.06)",
-                alignItems: "center", justifyContent: "center",
-                overflow: "hidden",
-              }}
-            >
-              <Image
-                source={charImg}
-                style={{ width: 90, height: 90 }}
-                contentFit="contain"
-              />
-            </Pressable>
-          </Animated.View>
+            <AdamCharacter
+              hero={isGirl ? "girl" : "boy"}
+              size={120}
+              pose={charPose}
+              bobbing
+            />
+          </Pressable>
 
           {/* Lesson title pill */}
           <View style={{
