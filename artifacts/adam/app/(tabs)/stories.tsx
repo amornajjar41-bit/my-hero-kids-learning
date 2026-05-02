@@ -14,6 +14,8 @@ import { useColors } from "@/hooks/useColors";
 import { STORIES, type Story } from "@/constants/stories";
 import { setCurrentStoryId } from "@/lib/storyStore";
 import { getJSON, STORAGE_KEYS } from "@/lib/storage";
+import { useApp } from "@/contexts/AppContext";
+import { AdamCharacter } from "@/components/AdamCharacter";
 
 type Filter = "all" | "young" | "older";
 
@@ -53,6 +55,7 @@ const starPositions = Array.from({ length: STARS_COUNT }, (_, i) => ({
 
 export default function StoriesScreen() {
   const router = useRouter();
+  const { profile } = useApp();
   const [filter, setFilter] = useState<Filter>("all");
   const [listened, setListened] = useState<Record<string, boolean>>({});
 
@@ -110,7 +113,14 @@ export default function StoriesScreen() {
           ))}
         </View>
 
-        <View style={{ padding: 20, paddingTop: 10 }}>
+        <View style={{ padding: 20, paddingTop: 10, alignItems: "center" }}>
+          <AdamCharacter
+            hero={profile?.hero}
+            size={80}
+            bobbing
+            pose="sleeping"
+            style={{ marginBottom: 6 }}
+          />
           <Text style={{ fontSize: 28, fontWeight: "800", color: "#FFF", textAlign: "center", letterSpacing: 0.5 }}>
             🌙 Bedtime Stories
           </Text>

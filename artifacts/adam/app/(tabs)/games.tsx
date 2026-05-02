@@ -7,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useApp } from "@/contexts/AppContext";
 import { useT } from "@/hooks/useT";
 import { playChime } from "@/lib/chime";
+import { AdamCharacter } from "@/components/AdamCharacter";
 
 type GameDef = {
   id: string;
@@ -275,13 +276,16 @@ export default function Games() {
         <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
 
           {/* Header */}
-          <View style={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 8 }}>
-            <Text style={{ fontSize: 28, fontWeight: "900", color: "#FFF" }}>
-              🎮 {t("gamesZone")}
-            </Text>
-            <Text style={{ color: "rgba(167,139,250,0.8)", fontSize: 13, marginTop: 4 }}>
-              Pick your adventure!
-            </Text>
+          <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 8, flexDirection: "row", alignItems: "center" }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 28, fontWeight: "900", color: "#FFF" }}>
+                🎮 {t("gamesZone")}
+              </Text>
+              <Text style={{ color: "rgba(167,139,250,0.8)", fontSize: 13, marginTop: 4 }}>
+                Pick your adventure!
+              </Text>
+            </View>
+            <AdamCharacter hero={profile?.hero} size={82} bobbing pose="happy" />
           </View>
 
           {/* Stats pill */}

@@ -261,6 +261,20 @@ export function AdamCharacter({
           ],
         }}
       >
+        {/* Soft radial glow — ensures character is visible on any dark background */}
+        <View
+          style={{
+            position: "absolute",
+            width: size * 0.88,
+            height: size * 0.88,
+            borderRadius: (size * 0.88) / 2,
+            backgroundColor: hero === "girl"
+              ? "rgba(255,180,230,0.28)"
+              : "rgba(180,215,255,0.22)",
+            alignSelf: "center",
+            top: size * 0.06,
+          }}
+        />
         <Image
           source={hero === "girl" ? luluImg : adamImg}
           style={{ width: size, height: size }}

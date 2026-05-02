@@ -7,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useApp } from "@/contexts/AppContext";
 import { useT } from "@/hooks/useT";
 import { curriculum } from "@/constants/curriculum";
+import { AdamCharacter } from "@/components/AdamCharacter";
 
 function FloatingStar({ style }: { style: any }) {
   const a = useRef(new Animated.Value(0)).current;
@@ -40,7 +41,7 @@ const STARS = [
 export default function LearnTab() {
   const router = useRouter();
   const t = useT();
-  const { progress } = useApp();
+  const { progress, profile } = useApp();
 
   const enDone = progress.englishLessons;
   const enTotal = curriculum.english.length;
@@ -74,12 +75,17 @@ export default function LearnTab() {
       <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
         <ScrollView contentContainerStyle={{ padding: 18, gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
 
-          <Text style={{ fontSize: 28, fontWeight: "900", color: "#FFF" }}>
-            📚 {t("startLearning")}
-          </Text>
-          <Text style={{ color: "rgba(167,139,250,0.8)", fontSize: 14, marginTop: -8 }}>
-            Choose a subject to start learning
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 2 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 28, fontWeight: "900", color: "#FFF" }}>
+                📚 {t("startLearning")}
+              </Text>
+              <Text style={{ color: "rgba(167,139,250,0.8)", fontSize: 14, marginTop: 2 }}>
+                Choose a subject to start learning
+              </Text>
+            </View>
+            <AdamCharacter hero={profile?.hero} size={80} bobbing pose="excited" />
+          </View>
 
           {/* English */}
           <Pressable onPress={() => router.push("/learn/english")} style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1 })}>

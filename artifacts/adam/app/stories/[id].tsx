@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ReAnimated, { FadeIn } from "react-native-reanimated";
+import { AdamCharacter } from "@/components/AdamCharacter";
 
 import { Confetti } from "@/components/Confetti";
 import { PrimaryButton } from "@/components/PrimaryButton";
@@ -188,8 +189,18 @@ export default function StoryReader() {
         </View>
 
         {/* Progress bar */}
-        <View style={{ marginHorizontal: 16, marginBottom: 8, height: 3, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 2 }}>
+        <View style={{ marginHorizontal: 16, marginBottom: 4, height: 3, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 2 }}>
           <View style={{ width: `${progress}%`, height: "100%", backgroundColor: "#A78BFA", borderRadius: 2 }} />
+        </View>
+
+        {/* Character — reacts to playback state */}
+        <View style={{ alignItems: "center", paddingVertical: 6 }}>
+          <AdamCharacter
+            hero={profile?.hero}
+            size={90}
+            bobbing
+            pose={finished ? "excited" : isPlaying ? "talking" : "sleeping"}
+          />
         </View>
 
         {finished ? (
