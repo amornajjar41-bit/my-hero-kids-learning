@@ -4,7 +4,10 @@
  * Runs in a completely separate player from the voice-over so both can
  * play simultaneously. Uses mixWithOthers so the narrator is never interrupted.
  *
- * Robust: isLoaded listener + immediate play attempt + 2s timer fallback.
+ * Strategy: attempt play() immediately on creation (works on most devices),
+ * then also hook into playbackStatusUpdate for devices that require
+ * the audio to finish loading before play() is accepted. A 3-second
+ * fallback timer covers rare cases where neither fires.
  */
 import { Platform } from "react-native";
 import { createAudioPlayer, AudioModule } from "expo-audio";
@@ -12,7 +15,7 @@ import { createAudioPlayer, AudioModule } from "expo-audio";
 const BG_MUSIC_URL =
   "https://ptkncbdsrnzkmuagygom.supabase.co/storage/v1/object/public/game-audio/bg-music.mp3";
 
-const VOLUME = 0.22;
+const VOLUME = 0.35;
 
 let _bgPlayer: ReturnType<typeof createAudioPlayer> | null = null;
 let _bgWebEl: HTMLAudioElement | null = null;
@@ -52,34 +55,38 @@ export async function startBgMusic(): Promise<void> {
       return;
     }
 
-    // Set MixWithOthers BEFORE creating the player
+    // Set audio mode FIRST — mixWithOthers lets music + narrator co-exist
     await AudioModule.setAudioModeAsync({
       playsInSilentMode: true,
-      shouldPlayInBackground: false,
+      shouldPlayInBackground: true,
       interruptionMode: "mixWithOthers",
     }).catch(() => {});
 
     const player = createAudioPlayer({ uri: BG_MUSIC_URL });
     _bgPlayer = player;
 
-    // Set volume and loop
-    try { (player as any).volume = VOLUME; } catch { }
+    // Apply volume + loop immediately (some devices accept these before loading)
+    try { player.volume = VOLUME; } catch { }
     try { (player as any).loop = true; } catch { }
 
-    // doPlay is only called once — _hasStarted guards against double-fire
-    const doPlay = () => {
+    // ── Attempt 1: play immediately right after creation ──────────────────
+    // Works on most Android/iOS devices where createAudioPlayer auto-prepares.
+    const tryPlay = () => {
       if (!_active || _bgPlayer !== player || _hasStarted) return;
       _hasStarted = true;
       try { player.volume = VOLUME; } catch { }
       try { player.play(); } catch { }
     };
 
+    tryPlay();
+
+    // ── Attempt 2: listen for isLoaded (devices that need buffering time) ─
     player.addListener("playbackStatusUpdate", (status: any) => {
       if (!_active || _bgPlayer !== player) return;
 
-      // Primary trigger: play the moment the source is loaded and ready
+      // Play as soon as loaded if immediate attempt didn't work
       if (status.isLoaded && !_hasStarted) {
-        doPlay();
+        tryPlay();
       }
 
       // Manual loop: restart when track ends
@@ -88,12 +95,11 @@ export async function startBgMusic(): Promise<void> {
       }
     });
 
-    // Fallback: if status listener never fires "isLoaded" (some devices),
-    // try after 2.5s. Does nothing if doPlay() already ran.
+    // ── Attempt 3: hard fallback after 3 s (covers edge cases) ──────────
     _fallbackTimer = setTimeout(() => {
       _fallbackTimer = null;
-      doPlay();
-    }, 2500);
+      if (!_hasStarted) tryPlay();
+    }, 3000);
 
   } catch {
     // Background music is optional — never crash the story screen

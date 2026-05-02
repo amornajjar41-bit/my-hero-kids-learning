@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, Image, View, type ViewStyle } from "react-native";
+import { Animated, Easing, Image, View, Text, type ViewStyle } from "react-native";
 
-const adamImg = require("@/assets/images/adam-boy.png");
-const luluImg = require("@/assets/images/lulu-girl.png");
+const adamImg = require("@/assets/images/adam-transparent.png");
+const luluImg = require("@/assets/images/sara-transparent.png");
 
 export type CharacterPose =
   | "normal"
@@ -22,14 +22,14 @@ type Props = {
 
 export function AdamCharacter({
   hero = "boy",
-  size = 120,
+  size = 140,
   bobbing = true,
   pose = "normal",
   style,
 }: Props) {
   // Breathing: subtle scale
   const breathe = useRef(new Animated.Value(1)).current;
-  // Bounce for happy/excited
+  // Bounce for happy/excited/talking
   const bounceY = useRef(new Animated.Value(0)).current;
   // Sway for thinking
   const sway = useRef(new Animated.Value(0)).current;
@@ -67,14 +67,14 @@ export function AdamCharacter({
     Animated.loop(
       Animated.sequence([
         Animated.timing(bobY, {
-          toValue: -5,
-          duration: 900,
+          toValue: -6,
+          duration: 950,
           useNativeDriver: false,
           easing: Easing.inOut(Easing.quad),
         }),
         Animated.timing(bobY, {
           toValue: 0,
-          duration: 900,
+          duration: 950,
           useNativeDriver: false,
           easing: Easing.inOut(Easing.quad),
         }),
@@ -178,41 +178,95 @@ export function AdamCharacter({
 
   const totalY = Animated.add(bounceY, bobY);
 
+  // Thought bubble sizing relative to character
+  const bubbleW = Math.round(size * 0.56);
+  const bubbleH = Math.round(size * 0.48);
+  const dot1 = Math.round(size * 0.13);
+  const dot2 = Math.round(size * 0.086);
+  const dot3 = Math.round(size * 0.056);
+
   return (
-    <Animated.View
-      style={[
-        { alignItems: "center" },
-        style,
-        {
+    <View style={[{ alignItems: "center" }, style]}>
+      {/* ── THOUGHT BUBBLE (thinking pose only) ──
+          Layout top→bottom: cloud → large dot → medium dot → small dot
+          Offset right so it looks like it flows from the head naturally */}
+      {pose === "thinking" && (
+        <View
+          style={{
+            alignItems: "flex-start",
+            marginLeft: size * 0.32,
+            marginBottom: size * 0.04,
+          }}
+        >
+          {/* Main cloud */}
+          <View
+            style={{
+              width: bubbleW,
+              height: bubbleH,
+              borderRadius: bubbleW * 0.5,
+              backgroundColor: "rgba(255,255,255,0.95)",
+              alignItems: "center",
+              justifyContent: "center",
+              shadowColor: "#000",
+              shadowOpacity: 0.14,
+              shadowRadius: 10,
+              elevation: 5,
+            }}
+          >
+            <Text style={{ fontSize: Math.round(size * 0.22) }}>🤔</Text>
+          </View>
+          {/* Large connector dot */}
+          <View
+            style={{
+              width: dot1, height: dot1,
+              borderRadius: dot1 / 2,
+              backgroundColor: "rgba(255,255,255,0.95)",
+              marginTop: Math.round(size * 0.03),
+              marginLeft: Math.round(size * 0.06),
+              elevation: 3,
+            }}
+          />
+          {/* Medium connector dot */}
+          <View
+            style={{
+              width: dot2, height: dot2,
+              borderRadius: dot2 / 2,
+              backgroundColor: "rgba(255,255,255,0.95)",
+              marginTop: Math.round(size * 0.02),
+              marginLeft: Math.round(size * 0.03),
+              elevation: 2,
+            }}
+          />
+          {/* Small connector dot — closest to head */}
+          <View
+            style={{
+              width: dot3, height: dot3,
+              borderRadius: dot3 / 2,
+              backgroundColor: "rgba(255,255,255,0.95)",
+              marginTop: Math.round(size * 0.015),
+              elevation: 1,
+            }}
+          />
+        </View>
+      )}
+
+      {/* ── CHARACTER IMAGE ── */}
+      <Animated.View
+        style={{
           transform: [
             { translateY: totalY as unknown as number },
             { translateX: sway as unknown as number },
             { rotate: rotateInterp },
             { scale: breathe as unknown as number },
           ],
-        },
-      ]}
-    >
-      <View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          overflow: "hidden",
-          backgroundColor: "#FFF",
-          shadowColor: "#000",
-          shadowOpacity: 0.18,
-          shadowRadius: 14,
-          shadowOffset: { width: 0, height: 6 },
-          elevation: 6,
         }}
       >
         <Image
           source={hero === "girl" ? luluImg : adamImg}
-          style={{ width: "100%", height: "100%" }}
-          resizeMode="cover"
+          style={{ width: size, height: size }}
+          resizeMode="contain"
         />
-      </View>
-    </Animated.View>
+      </Animated.View>
+    </View>
   );
 }

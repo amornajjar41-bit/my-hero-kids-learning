@@ -105,15 +105,42 @@ function resolveVoice(text: string, voice: string): VoiceParams {
   };
 }
 
+// ── Number-to-words expansion (0–99) ─────────────────────────────────────────
+// Converts standalone digit sequences to spoken words so Google TTS never
+// mispronounces numbers. e.g. "6 plus 3" → "six plus three".
+const _ones = [
+  "zero","one","two","three","four","five","six","seven","eight","nine",
+  "ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen",
+  "seventeen","eighteen","nineteen",
+];
+const _tens = ["","","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
+
+function numberToWords(n: number): string {
+  if (n < 20) return _ones[n]!;
+  const t = Math.floor(n / 10);
+  const o = n % 10;
+  return o === 0 ? _tens[t]! : `${_tens[t]}-${_ones[o]!}`;
+}
+
+function expandNumbers(text: string): string {
+  return text.replace(/\b(\d{1,2})\b/g, (_, raw: string) => {
+    const n = parseInt(raw, 10);
+    if (n >= 0 && n <= 99) return numberToWords(n);
+    return raw;
+  });
+}
+
 // ── Text sanitiser ────────────────────────────────────────────────────────────
 // maxChars is Google TTS hard limit. Client always sends ≤800-char chunks so
 // we rarely hit this ceiling, but it protects against oversized direct calls.
 function cleanText(text: string, maxChars = 4500): string {
-  const cleaned = text
-    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}]/gu, "")
-    .replace(/\*\*/g, "")
-    .replace(/[*_`#]/g, "")
-    .trim();
+  const cleaned = expandNumbers(
+    text
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}]/gu, "")
+      .replace(/\*\*/g, "")
+      .replace(/[*_`#]/g, "")
+      .trim(),
+  );
   if (cleaned.length <= maxChars) return cleaned;
   // Walk backward from the limit to find a clean sentence boundary
   let cutAt = maxChars;

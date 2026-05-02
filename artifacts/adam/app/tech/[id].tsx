@@ -97,14 +97,14 @@ function HookSlide({ slide }: { slide: Extract<TechSlide, { kind: "hook" }> }) {
 
   return (
     <Animated.View
-      style={{ opacity: fadeAnim, transform: [{ translateY: slideUp }], alignItems: "center", padding: 24 }}
+      style={{ opacity: fadeAnim, transform: [{ translateY: slideUp }], alignItems: "center", padding: 24, width: "100%" }}
     >
       <Animated.Text
         style={{ fontSize: 80, marginBottom: 20, transform: [{ scale: visualScale }] }}
       >
         {slide.visual}
       </Animated.Text>
-      <Text style={{ color: "#FFF", fontSize: 24, fontWeight: "900", textAlign: "center", marginBottom: 16, lineHeight: 32 }}>
+      <Text style={{ color: "#FFF", fontSize: 24, fontWeight: "900", textAlign: "center", marginBottom: 16, lineHeight: 32, width: "100%" }}>
         {slide.title}
       </Text>
       <View style={{
@@ -113,6 +113,7 @@ function HookSlide({ slide }: { slide: Extract<TechSlide, { kind: "hook" }> }) {
         padding: 20,
         borderWidth: 1,
         borderColor: "rgba(255,255,255,0.12)",
+        width: "100%",
       }}>
         <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 16, textAlign: "center", lineHeight: 26 }}>
           {slide.body}
@@ -135,7 +136,7 @@ function StorySlide({ slide }: { slide: Extract<TechSlide, { kind: "story" }> })
 
   return (
     <Animated.View
-      style={{ opacity: fadeAnim, transform: [{ translateX: slideRight }], padding: 24 }}
+      style={{ opacity: fadeAnim, transform: [{ translateX: slideRight }], padding: 24, width: "100%" }}
     >
       {/* Visual emoji cluster */}
       <View style={{
@@ -144,6 +145,7 @@ function StorySlide({ slide }: { slide: Extract<TechSlide, { kind: "story" }> })
         backgroundColor: "rgba(255,255,255,0.05)",
         borderRadius: 24,
         paddingVertical: 20,
+        width: "100%",
       }}>
         <Text style={{ fontSize: 56, letterSpacing: 8 }}>{slide.visual}</Text>
       </View>
@@ -156,6 +158,7 @@ function StorySlide({ slide }: { slide: Extract<TechSlide, { kind: "story" }> })
         letterSpacing: 1.5,
         marginBottom: 8,
         textTransform: "uppercase",
+        width: "100%",
       }}>
         {slide.heading}
       </Text>
@@ -167,6 +170,7 @@ function StorySlide({ slide }: { slide: Extract<TechSlide, { kind: "story" }> })
         padding: 20,
         borderLeftWidth: 4,
         borderLeftColor: "#60A5FA",
+        width: "100%",
       }}>
         <Text style={{ color: "#E2E8F0", fontSize: 16, lineHeight: 28 }}>
           {slide.body}
@@ -259,7 +263,7 @@ function QuizSlide({
   );
 
   return (
-    <Animated.View style={{ opacity: fadeAnim, padding: 24 }}>
+    <Animated.View style={{ opacity: fadeAnim, padding: 24, width: "100%" }}>
       {/* Question */}
       <View style={{
         backgroundColor: "rgba(255,255,255,0.07)",
@@ -269,9 +273,10 @@ function QuizSlide({
         alignItems: "center",
         borderWidth: 1,
         borderColor: "rgba(255,255,255,0.1)",
+        width: "100%",
       }}>
         <Text style={{ fontSize: 28, marginBottom: 12 }}>🤔</Text>
-        <Text style={{ color: "#FFF", fontSize: 18, fontWeight: "800", textAlign: "center", lineHeight: 28 }}>
+        <Text style={{ color: "#FFF", fontSize: 18, fontWeight: "800", textAlign: "center", lineHeight: 28, width: "100%" }}>
           {slide.question}
         </Text>
       </View>
