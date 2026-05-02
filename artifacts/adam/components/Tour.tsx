@@ -170,7 +170,10 @@ export function Tour({ visible, onDone }: Props) {
           {phase === "welcome" && (
             <View style={{ alignItems: "center", gap: 16 }}>
               <Text style={{ fontSize: 36 }}>👋</Text>
-              <AdamCharacter hero={hero} size={130} pose="happy" />
+              <View style={{ flexDirection: "row", justifyContent: "center", gap: 12 }}>
+                <AdamCharacter hero="boy" size={105} pose="happy" bobbing />
+                <AdamCharacter hero="girl" size={105} pose="happy" bobbing />
+              </View>
               <Text style={{ fontWeight: "900", fontSize: 24, color: c.text, textAlign: "center" }}>
                 Welcome to My Hero!
               </Text>
@@ -268,7 +271,10 @@ export function Tour({ visible, onDone }: Props) {
           {phase === "done" && (
             <View style={{ alignItems: "center", gap: 16, paddingVertical: 20 }}>
               <Text style={{ fontSize: 64 }}>🚀</Text>
-              <AdamCharacter hero={hero} size={120} pose="excited" />
+              <View style={{ flexDirection: "row", justifyContent: "center", gap: 12 }}>
+                <AdamCharacter hero="boy" size={95} pose="excited" bobbing />
+                <AdamCharacter hero="girl" size={95} pose="excited" bobbing />
+              </View>
               <Text style={{ fontWeight: "900", fontSize: 26, color: c.text, textAlign: "center" }}>
                 Let's start your adventure! 🚀
               </Text>

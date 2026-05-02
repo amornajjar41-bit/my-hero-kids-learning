@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 
+import { AdamCharacter } from "@/components/AdamCharacter";
 import { useColors } from "@/hooks/useColors";
 import { PLANS_USD, convertPrice } from "@/constants/countries";
 import { registerUser, saveSessionToken } from "@/lib/auth";
@@ -97,7 +98,10 @@ export default function Done() {
           colors={["#1A0F3F", "#2D1B69"]}
           style={{ borderRadius: 24, padding: 28, alignItems: "center", gap: 12 }}
         >
-          <Text style={{ fontSize: 64 }}>🦸</Text>
+          <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 4 }}>
+            <AdamCharacter hero="boy" size={100} pose="excited" bobbing />
+            <AdamCharacter hero="girl" size={100} pose="happy" bobbing />
+          </View>
           <Text style={{
             color: "#FFF", fontWeight: "900", fontSize: 24, textAlign: "center", lineHeight: 32,
           }}>

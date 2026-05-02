@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AdamCharacter } from "@/components/AdamCharacter";
 import { useApp } from "@/contexts/AppContext";
 import { useSubscription } from "@/lib/revenuecat";
 import type { PurchasesPackage } from "react-native-purchases";
@@ -162,7 +163,10 @@ export default function Upgrade() {
 
           {/* Hero */}
           <View style={{ alignItems: "center", gap: 8, paddingVertical: 10 }}>
-            <Text style={{ fontSize: 72 }}>🦸</Text>
+            <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 4 }}>
+              <AdamCharacter hero="boy" size={110} pose="excited" bobbing />
+              <AdamCharacter hero="girl" size={110} pose="happy" bobbing />
+            </View>
             <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 26, textAlign: "center", lineHeight: 32 }}>
               {"Unlock Your Hero's\nFull Powers"}
             </Text>

@@ -1,11 +1,10 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, Image, Pressable, ScrollView, Text, View } from "react-native";
+import { Animated, Easing, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const adamImg  = require("@/assets/images/adam-boy.png");
-const saraImg  = require("@/assets/images/lulu-girl.png");
+import { AdamCharacter } from "@/components/AdamCharacter";
 
 function FloatBadge({ emoji, style }: { emoji: string; style?: any }) {
   const y = useRef(new Animated.Value(0)).current;
@@ -29,6 +28,11 @@ const WHY_HERO_POINTS = [
     emoji: "🧠",
     text: "AI-powered learning",
     desc: "Your heroes adapt to your child's level and pace — no two sessions are the same.",
+  },
+  {
+    emoji: "🤖",
+    text: "18 Technology & AI lessons",
+    desc: "Computers, robots, coding, cybersecurity, self-driving cars, AI ethics & the future — ages 5–14.",
   },
   {
     emoji: "📚",
@@ -105,8 +109,8 @@ export default function Welcome() {
             {/* ── Characters ───────────────────────────────────────────── */}
             <View style={{ flexDirection: "row", paddingHorizontal: 20, gap: 14, marginTop: 10, marginBottom: 12 }}>
               <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 24, padding: 16, alignItems: "center", borderWidth: 1.5, borderColor: "rgba(255,255,255,0.2)" }}>
-                <Image source={adamImg} style={{ width: 100, height: 100 }} resizeMode="contain" />
-                <View style={{ backgroundColor: "#3b82f6", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 5, marginTop: 8 }}>
+                <AdamCharacter hero="boy" size={110} pose="happy" bobbing />
+                <View style={{ backgroundColor: "#3b82f6", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 5, marginTop: 4 }}>
                   <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 16 }}>Adam</Text>
                 </View>
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, textAlign: "center", marginTop: 6, lineHeight: 15 }}>
@@ -114,8 +118,8 @@ export default function Welcome() {
                 </Text>
               </View>
               <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 24, padding: 16, alignItems: "center", borderWidth: 1.5, borderColor: "rgba(255,255,255,0.2)" }}>
-                <Image source={saraImg} style={{ width: 100, height: 100 }} resizeMode="contain" />
-                <View style={{ backgroundColor: "#ec4899", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 5, marginTop: 8 }}>
+                <AdamCharacter hero="girl" size={110} pose="excited" bobbing />
+                <View style={{ backgroundColor: "#ec4899", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 5, marginTop: 4 }}>
                   <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 16 }}>Sara</Text>
                 </View>
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, textAlign: "center", marginTop: 6, lineHeight: 15 }}>
@@ -131,6 +135,7 @@ export default function Welcome() {
                 { emoji: "🌙", label: "Bedtime Stories" },
                 { emoji: "🎮", label: "Fun Games" },
                 { emoji: "🗣️", label: "Voice Chat" },
+                { emoji: "🤖", label: "Tech & AI Lessons" },
               ].map((f) => (
                 <View key={f.label} style={{ backgroundColor: "rgba(255,255,255,0.14)", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, flexDirection: "row", gap: 5, alignItems: "center" }}>
                   <Text style={{ fontSize: 14 }}>{f.emoji}</Text>
