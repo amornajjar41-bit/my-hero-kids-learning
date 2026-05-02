@@ -6,134 +6,125 @@
 <title>Adam – 2D Animated Preview</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet"/>
 <style>
-:root {
-  --blue: #2563eb;
-  --yellow: #fbbf24;
-  --red: #ef4444;
-  --display-w: 220px;
-}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{
   width:100%;height:100%;overflow:hidden;
   font-family:'Nunito',sans-serif;
-  background:radial-gradient(ellipse 120% 80% at 50% 0%, #1a1060 0%, #060918 60%);
+  background:radial-gradient(ellipse 120% 80% at 50% 0%,#1a1060 0%,#060918 60%);
 }
 
 /* ── STAGE ── */
 #stage{
   position:relative;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  display:flex;align-items:center;justify-content:center;
   height:100vh;
 }
 
-/* ── GLOW UNDER CHARACTER ── */
+/* ── GLOW ── */
 #glow{
   position:absolute;
-  bottom:156px;
+  bottom:150px;
   width:200px;height:36px;
   background:radial-gradient(ellipse,#2563eb55 0%,transparent 70%);
-  border-radius:50%;
-  filter:blur(8px);
+  border-radius:50%;filter:blur(8px);
+  transition:background .4s;
 }
 
-/* ── CHARACTER WRAPPER ── */
+/* ─────────────────────────────────────────
+   CHARACTER WRAPPER
+   Fixed 220×220 box — adam image fills it.
+   All overlays are absolute inside here.
+───────────────────────────────────────── */
 #char-wrap{
   position:relative;
-  width:var(--display-w);
+  width:220px;
+  height:220px;
+  /* extra top space for the thought bubble above */
+  margin-top:120px;
 }
 
-/* ── ADAM IMAGE ── */
+/* ── ADAM IMAGE (220×220) ── */
 #adam{
-  display:block;
-  width:var(--display-w);
-  height:var(--display-w);
+  position:absolute;
+  inset:0;
+  width:220px;height:220px;
   filter:drop-shadow(0 10px 28px #2563eb44) drop-shadow(0 2px 8px #0009);
-  animation: idle-bob 2.8s ease-in-out infinite;
+  animation:idle-bob 2.8s ease-in-out infinite;
   transform-origin:bottom center;
 }
 
-/* ═══════════════════════════════════════════
-   BLINK EYELIDS
-   Image is 1024×1024 displayed at 220×220px.
-   Eyes are approx at 30% from top = 66px.
-   Left eye center X ≈ 37% = 81px
-   Right eye center X ≈ 62% = 136px
-   Lid oval: 26px wide, 22px tall
-═══════════════════════════════════════════ */
-.blink-lid{
-  position:absolute;
-  width:26px; height:22px;
-  border-radius:50%;
-  /* Match the blue mask color exactly */
-  background:#2460df;
-  transform:scaleY(0);
-  transform-origin:top center;
-  z-index:6;
-  pointer-events:none;
-}
-#lid-L{ left:68px;  top:62px; }
-#lid-R{ left:123px; top:62px; }
-
-/* ═══════════════════════════════════════════
+/* ─────────────────────────────────────────
    THOUGHT BUBBLE
-   Flows upward FROM head: small dot → medium → large → bubble
-   Positioned above adam's head (top of 220px image ≈ y=0 in char-wrap)
-═══════════════════════════════════════════ */
+   Structure (top→bottom in DOM & visually):
+     .bubble-main   ← the cloud circle
+     .d1  18px dot  ← large connector
+     .d2  11px dot  ← medium connector
+     .d3   6px dot  ← small connector (nearest head)
+
+   The whole column sits ABOVE char-wrap.
+   We know char-wrap top = y=0.
+   Column height ≈ 68+6+18+6+11+6+6 = 121px
+   We want the BOTTOM of the column at y = -6px
+   So top of column = -6 - 121 = -127px → use top:-128px
+
+   Horizontally: Adam's head center ≈ x=110px.
+   Bubble offset right → left:55% (121px) feels natural.
+───────────────────────────────────────── */
 #thought{
   position:absolute;
-  /* align right-of-center above head */
-  bottom:calc(var(--display-w) - 10px);
-  left:58%;
+  top:-128px;          /* column top, above char-wrap */
+  left:50%;            /* right of Adam's center */
+  width:90px;
+
   display:flex;
-  flex-direction:column-reverse; /* dots at bottom (near head), bubble at top */
-  align-items:flex-start;
+  flex-direction:column;  /* bubble at top, small dot at bottom */
+  align-items:center;
   gap:5px;
+
   opacity:0;
   pointer-events:none;
-  transition:opacity .35s;
+  transition:opacity .3s;
 }
 #thought.show{ opacity:1; }
 
-/* Bubble grows upward from connecting dots */
 .bubble-main{
+  width:80px;height:68px;
   background:#fff;
   border-radius:50%;
-  width:80px; height:68px;
   display:flex;align-items:center;justify-content:center;
   font-size:26px;
   box-shadow:0 4px 18px #0003;
-  animation:thought-sway 3s ease-in-out infinite;
+  animation:thought-float 2.8s ease-in-out infinite;
   flex-shrink:0;
 }
-/* Connector dots — small at bottom (near head), larger toward bubble */
 .bubble-dot{
   background:#fff;
   border-radius:50%;
   flex-shrink:0;
   box-shadow:0 2px 6px #0002;
-  animation:thought-sway 3s ease-in-out infinite;
+  animation:thought-float 2.8s ease-in-out infinite;
 }
-.bubble-dot.d3{ width:7px;  height:7px;  animation-delay:.06s; }
-.bubble-dot.d2{ width:12px; height:12px; animation-delay:.03s; }
-.bubble-dot.d1{ width:18px; height:18px; animation-delay:.0s; }
+/* large → near bubble, small → near head */
+.bubble-dot.d1{ width:18px;height:18px; animation-delay:.04s; }
+.bubble-dot.d2{ width:11px;height:11px; animation-delay:.08s; }
+.bubble-dot.d3{ width:6px; height:6px;  animation-delay:.12s; }
 
 /* ── SPEECH BUBBLE ── */
 #speech{
   position:absolute;
-  top:-68px; left:-90px;
+  top:-62px;left:-95px;
   background:#fff;
-  border-radius:18px;
-  padding:9px 13px;
+  border-radius:16px;
+  padding:8px 12px;
   font-size:13px;font-weight:800;color:#1e1e40;
   box-shadow:0 4px 16px #0003;
-  max-width:150px;line-height:1.4;
+  max-width:145px;line-height:1.4;
   opacity:0;pointer-events:none;
   transition:opacity .3s;
 }
 #speech::after{
-  content:'';
-  position:absolute;
-  bottom:-9px;right:28px;
+  content:'';position:absolute;
+  bottom:-9px;right:26px;
   border:9px solid transparent;
   border-top-color:#fff;border-bottom:0;
 }
@@ -142,32 +133,26 @@ html,body{
 /* ── HIGH FIVE ARM ── */
 #hifi-arm{
   position:absolute;
-  right:-52px; bottom:72px;
+  right:-56px;bottom:68px;
   font-size:42px;
   opacity:0;
-  transform:rotate(30deg) translateX(20px);
-  transition:opacity .25s,transform .3s;
+  z-index:4;
 }
 #hifi-arm.show{
   opacity:1;
-  animation:arm-wave .45s ease-out forwards;
+  animation:arm-swing .45s ease-out forwards;
 }
 
 /* ── SPARKLES ── */
 #sparkles{
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  overflow:visible;
-  z-index:5;
+  position:absolute;inset:0;
+  overflow:visible;pointer-events:none;z-index:5;
 }
 .spark{
-  position:absolute;
-  border-radius:50%;
-  opacity:0;
+  position:absolute;border-radius:50%;opacity:0;
 }
 
-/* ─────────────────────────── BUTTONS ── */
+/* ── BUTTONS ── */
 #controls{
   position:fixed;bottom:0;left:0;right:0;
   display:flex;flex-wrap:wrap;justify-content:center;
@@ -176,26 +161,25 @@ html,body{
   z-index:20;
 }
 .btn{
-  background:rgba(255,255,255,0.1);
+  background:rgba(255,255,255,.1);
   backdrop-filter:blur(8px);
-  border:1.5px solid rgba(255,255,255,0.2);
-  color:#fff;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;
-  letter-spacing:.4px;
+  border:1.5px solid rgba(255,255,255,.2);
+  color:#fff;font-family:'Nunito',sans-serif;
+  font-size:12px;font-weight:800;letter-spacing:.4px;
   padding:7px 13px;border-radius:999px;
   cursor:pointer;user-select:none;
   transition:background .15s,transform .1s;
   white-space:nowrap;
 }
-.btn:active{transform:scale(.95)}
-.btn.active{background:var(--blue);border-color:var(--blue)}
-.btn.yellow{background:var(--yellow);border-color:var(--yellow);color:#000}
+.btn:active{ transform:scale(.95); }
+.btn.active{ background:#2563eb;border-color:#2563eb; }
+.btn.yellow{ background:#fbbf24;border-color:#fbbf24;color:#000; }
 
-/* ─────────────────────── LABEL ── */
+/* ── TOP LABEL ── */
 #label{
   position:fixed;top:0;left:0;right:0;
   display:flex;flex-direction:column;align-items:center;
-  padding:14px 0 0;
-  pointer-events:none;z-index:10;
+  padding:14px 0 0;pointer-events:none;z-index:10;
 }
 #badge{
   background:linear-gradient(90deg,#2563eb,#7c3aed);
@@ -204,55 +188,47 @@ html,body{
   box-shadow:0 2px 12px #2563eb88;
 }
 #state-label{
-  margin-top:6px;color:#aac;font-size:12px;font-weight:700;
-  min-height:18px;letter-spacing:.4px;
+  margin-top:6px;color:#aac;
+  font-size:12px;font-weight:700;letter-spacing:.4px;min-height:18px;
 }
 
-/* ─────────────────────── KEYFRAMES ── */
+/* ── KEYFRAMES ── */
 @keyframes idle-bob{
   0%,100%{ transform:translateY(0) rotate(0deg); }
-  35%{ transform:translateY(-8px) rotate(.5deg); }
-  70%{ transform:translateY(-4px) rotate(-.4deg); }
+  35%    { transform:translateY(-8px) rotate(.5deg); }
+  70%    { transform:translateY(-4px) rotate(-.4deg); }
 }
 @keyframes think-bob{
   0%,100%{ transform:translateY(0) rotate(-1.5deg); }
-  50%{ transform:translateY(-6px) rotate(1.8deg); }
+  50%    { transform:translateY(-6px) rotate(1.8deg); }
 }
 @keyframes celebrate-jump{
   0%,100%{ transform:translateY(0) rotate(0); }
-  20%{ transform:translateY(-20px) rotate(-3deg); }
-  40%{ transform:translateY(0) rotate(3deg); }
-  60%{ transform:translateY(-13px) rotate(-2deg); }
-  80%{ transform:translateY(0) rotate(1deg); }
+  20%    { transform:translateY(-20px) rotate(-3deg); }
+  40%    { transform:translateY(0) rotate(3deg); }
+  60%    { transform:translateY(-13px) rotate(-2deg); }
+  80%    { transform:translateY(0) rotate(1deg); }
 }
 @keyframes wave-hand{
   0%,100%{ transform:translateY(0) rotate(0); }
-  25%{ transform:translateY(-5px) rotate(-4deg); }
-  75%{ transform:translateY(-2px) rotate(3deg); }
+  25%    { transform:translateY(-5px) rotate(-4deg); }
+  75%    { transform:translateY(-2px) rotate(3deg); }
 }
 @keyframes hifi-bounce{
   0%,100%{ transform:translateY(0) rotate(-4deg); }
-  30%{ transform:translateY(-22px) rotate(-8deg); }
-  55%{ transform:translateY(-10px) rotate(-2deg); }
-  75%{ transform:translateY(-16px) rotate(-6deg); }
+  30%    { transform:translateY(-22px) rotate(-8deg); }
+  55%    { transform:translateY(-10px) rotate(-2deg); }
+  75%    { transform:translateY(-16px) rotate(-6deg); }
 }
-@keyframes arm-wave{
-  0%  { transform:rotate(30deg) translateX(18px); }
-  35% { transform:rotate(-18deg) translateX(-4px); }
+@keyframes arm-swing{
+  0%  { opacity:0; transform:rotate(35deg) translateX(22px); }
+  30% { opacity:1; transform:rotate(-18deg) translateX(-4px); }
   65% { transform:rotate(-4deg) translateX(0); }
   100%{ transform:rotate(-10deg) translateX(0); }
 }
-@keyframes thought-sway{
+@keyframes thought-float{
   0%,100%{ transform:translateY(0); }
-  50%{ transform:translateY(-5px); }
-}
-@keyframes blink-close{
-  0%  { transform:scaleY(0); }
-  100%{ transform:scaleY(1); }
-}
-@keyframes blink-open{
-  0%  { transform:scaleY(1); }
-  100%{ transform:scaleY(0); }
+  50%    { transform:translateY(-5px); }
 }
 @keyframes spark-burst{
   0%  { opacity:1; transform:translate(var(--tx0),var(--ty0)) scale(1); }
@@ -269,9 +245,19 @@ html,body{
 
 <div id="stage">
   <div id="glow"></div>
+
   <div id="char-wrap">
 
-    <!-- THOUGHT BUBBLE: col-reverse so d3(small) is at bottom near head, bubble at top -->
+    <!--
+      THOUGHT BUBBLE — top:-128px places this column
+      entirely above char-wrap. Reading top→bottom:
+        bubble-main (68px)
+        d1 (18px)  ← large, just below bubble
+        d2 (11px)  ← medium
+        d3 ( 6px)  ← small, pointing at Adam's head
+      Total ~121px, so d3 bottom = -128+121 = -7px
+      which is right at the top of Adam's head. ✓
+    -->
     <div id="thought">
       <div class="bubble-main">🤔</div>
       <div class="bubble-dot d1"></div>
@@ -279,212 +265,132 @@ html,body{
       <div class="bubble-dot d3"></div>
     </div>
 
-    <!-- SPEECH BUBBLE -->
     <div id="speech">High five! ⚡</div>
-
-    <!-- HIGH FIVE ARM -->
     <div id="hifi-arm">🤚</div>
 
-    <!-- ADAM IMAGE -->
     <img id="adam" src="adam-transparent.png" alt="Adam"/>
 
-    <!-- BLINK EYELIDS — positioned over Adam's eyes in the 220×220 rendered area -->
-    <div class="blink-lid" id="lid-L"></div>
-    <div class="blink-lid" id="lid-R"></div>
-
-    <!-- SPARKLES -->
     <div id="sparkles"></div>
-
   </div>
 </div>
 
 <div id="controls">
   <button class="btn active" onclick="setState('idle')">😊 Idle</button>
-  <button class="btn" onclick="setState('think')">🤔 Thinking</button>
-  <button class="btn" onclick="setState('hifi')">🙌 High Five</button>
-  <button class="btn" onclick="setState('celebrate')">🎉 Celebrate</button>
-  <button class="btn" onclick="setState('wave')">👋 Wave</button>
+  <button class="btn"        onclick="setState('think')">🤔 Thinking</button>
+  <button class="btn"        onclick="setState('hifi')">🙌 High Five</button>
+  <button class="btn"        onclick="setState('celebrate')">🎉 Celebrate</button>
+  <button class="btn"        onclick="setState('wave')">👋 Wave</button>
   <button class="btn yellow" onclick="autoDemo()">▶ Auto Demo</button>
 </div>
 
 <script>
-const adam     = document.getElementById('adam');
-const thought  = document.getElementById('thought');
-const speech   = document.getElementById('speech');
-const hifiArm  = document.getElementById('hifi-arm');
-const sparkEl  = document.getElementById('sparkles');
-const lidL     = document.getElementById('lid-L');
-const lidR     = document.getElementById('lid-R');
-const stateLabel = document.getElementById('state-label');
-const glow     = document.getElementById('glow');
+const adam      = document.getElementById('adam');
+const thought   = document.getElementById('thought');
+const speech    = document.getElementById('speech');
+const hifiArm   = document.getElementById('hifi-arm');
+const sparkEl   = document.getElementById('sparkles');
+const glow      = document.getElementById('glow');
+const stateLabel= document.getElementById('state-label');
 
-let current   = 'idle';
-let blinkTimer = null;
-let demoTimer  = null;
+let current  = 'idle';
+let demoTimer= null;
+let sparkLoop= null;
 
-/* ═══ BLINK ENGINE ═══
-   Natural human blink: eyes close ~100ms, pause ~30ms, open ~80ms
-   Interval: every 3–6s randomly
-*/
-function doBlink(){
-  const DUR_CLOSE = 100; // ms
-  const DUR_PAUSE = 40;
-  const DUR_OPEN  = 90;
-
-  [lidL, lidR].forEach(lid => {
-    lid.style.transition = `transform ${DUR_CLOSE}ms ease-in`;
-    lid.style.transform  = 'scaleY(1)';
-  });
-
-  setTimeout(()=>{
-    [lidL, lidR].forEach(lid => {
-      lid.style.transition = `transform ${DUR_OPEN}ms ease-out`;
-      lid.style.transform  = 'scaleY(0)';
-    });
-  }, DUR_CLOSE + DUR_PAUSE);
-}
-
-function startBlink(){
-  stopBlink();
-  function scheduleBlink(){
-    const delay = 3000 + Math.random() * 3500; // 3–6.5s
-    blinkTimer = setTimeout(()=>{
-      doBlink();
-      scheduleBlink();
-    }, delay);
-  }
-  // First blink after 1.5s
-  blinkTimer = setTimeout(()=>{ doBlink(); scheduleBlink(); }, 1500);
-}
-
-function stopBlink(){
-  clearTimeout(blinkTimer);
-  [lidL, lidR].forEach(lid => {
-    lid.style.transition = '';
-    lid.style.transform  = 'scaleY(0)';
-  });
-}
-
-/* ═══ SPARKLES ═══ */
+/* ── Sparkles ── */
 function clearSparks(){ sparkEl.innerHTML=''; }
-
-function burstSparks(count=10){
+function burstSparks(n=10){
   clearSparks();
-  const colors=['#fbbf24','#f472b6','#60a5fa','#34d399','#f87171','#fff','#a78bfa'];
-  for(let i=0;i<count;i++){
-    const el = document.createElement('div');
-    el.className = 'spark';
-    const size  = 6 + Math.random()*10;
-    const angle = Math.random()*Math.PI*2;
-    const dist  = 55 + Math.random()*75;
-    el.style.cssText = `
-      width:${size}px;height:${size}px;
-      background:${colors[i%colors.length]};
-      left:${50 + Math.cos(angle)*10}px;
-      top:${90 + Math.sin(angle)*10}px;
-      --tx0:${Math.cos(angle)*8}px;
-      --ty0:${Math.sin(angle)*8}px;
-      --tx1:${Math.cos(angle)*dist}px;
-      --ty1:${Math.sin(angle)*dist}px;
+  const cols=['#fbbf24','#f472b6','#60a5fa','#34d399','#f87171','#fff','#a78bfa'];
+  for(let i=0;i<n;i++){
+    const el=document.createElement('div');
+    el.className='spark';
+    const sz=6+Math.random()*10;
+    const a=Math.random()*Math.PI*2;
+    const d=55+Math.random()*75;
+    el.style.cssText=`
+      width:${sz}px;height:${sz}px;background:${cols[i%cols.length]};
+      left:${50+Math.cos(a)*12}px;top:${90+Math.sin(a)*12}px;
+      --tx0:${Math.cos(a)*8}px;--ty0:${Math.sin(a)*8}px;
+      --tx1:${Math.cos(a)*d}px;--ty1:${Math.sin(a)*d}px;
       animation:spark-burst ${.5+Math.random()*.5}s ease-out ${Math.random()*.15}s forwards;
     `;
     sparkEl.appendChild(el);
   }
 }
 
-/* ═══ GLOW ═══ */
-function setGlow(name){
-  const map = {
-    idle:      '#2563eb55',
-    think:     '#60a5fa44',
-    hifi:      '#fbbf2466',
-    celebrate: '#f472b666',
-    wave:      '#34d39944',
-  };
-  glow.style.background = `radial-gradient(ellipse,${map[name]||'#2563eb44'} 0%,transparent 70%)`;
-}
-
-/* ═══ DROP SHADOW ═══ */
-function setShadow(name){
-  const map = {
-    idle:      'drop-shadow(0 10px 28px #2563eb44) drop-shadow(0 2px 8px #0009)',
-    think:     'drop-shadow(0 10px 28px #60a5fa55) drop-shadow(0 2px 8px #0009)',
-    hifi:      'drop-shadow(0 10px 28px #fbbf2466) drop-shadow(0 2px 8px #0009)',
-    celebrate: 'drop-shadow(0 10px 32px #f472b677) drop-shadow(0 2px 8px #0009)',
-    wave:      'drop-shadow(0 10px 28px #34d39944) drop-shadow(0 2px 8px #0009)',
-  };
-  adam.style.filter = map[name] || map.idle;
-}
-
-/* ═══ SET STATE ═══ */
-const ANIMS = {
-  idle:      'idle-bob 2.8s ease-in-out infinite',
-  think:     'think-bob 2.2s ease-in-out infinite',
-  hifi:      'hifi-bounce 1.8s ease-in-out infinite',
-  celebrate: 'celebrate-jump 1.0s ease-in-out infinite',
-  wave:      'wave-hand 1.4s ease-in-out infinite',
+/* ── Glow & shadow presets ── */
+const GLOWS={
+  idle:     '#2563eb55', think:'#60a5fa44',
+  hifi:     '#fbbf2466', celebrate:'#f472b666', wave:'#34d39944',
 };
-const LABELS = {
-  idle:      'Idle — floating',
-  think:     'Thinking…',
-  hifi:      'High Five! ⚡',
-  celebrate: 'Celebrate! 🎉',
-  wave:      'Waving 👋',
+const SHADOWS={
+  idle:     'drop-shadow(0 10px 28px #2563eb44) drop-shadow(0 2px 8px #0009)',
+  think:    'drop-shadow(0 10px 28px #60a5fa55) drop-shadow(0 2px 8px #0009)',
+  hifi:     'drop-shadow(0 10px 28px #fbbf2466) drop-shadow(0 2px 8px #0009)',
+  celebrate:'drop-shadow(0 10px 32px #f472b677) drop-shadow(0 2px 8px #0009)',
+  wave:     'drop-shadow(0 10px 28px #34d39944) drop-shadow(0 2px 8px #0009)',
 };
-
-let sparkLoop = null;
+const ANIMS={
+  idle:     'idle-bob 2.8s ease-in-out infinite',
+  think:    'think-bob 2.2s ease-in-out infinite',
+  hifi:     'hifi-bounce 1.8s ease-in-out infinite',
+  celebrate:'celebrate-jump 1.0s ease-in-out infinite',
+  wave:     'wave-hand 1.4s ease-in-out infinite',
+};
+const LABELS={
+  idle:'Idle — floating', think:'Thinking…',
+  hifi:'High Five! ⚡', celebrate:'Celebrate! 🎉', wave:'Waving 👋',
+};
+const BTN_KEYS=['idle','think','hifi','celebrate','wave'];
 
 function setState(name){
-  current = name;
-  stateLabel.textContent = LABELS[name] || name;
+  current=name;
+  stateLabel.textContent=LABELS[name]||name;
 
-  // Update button highlights
+  /* buttons */
   document.querySelectorAll('.btn:not(.yellow)').forEach((b,i)=>{
-    b.classList.toggle('active', ['idle','think','hifi','celebrate','wave'][i] === name);
+    b.classList.toggle('active', BTN_KEYS[i]===name);
   });
 
-  // Restart animation
-  adam.style.animation = 'none';
-  adam.offsetHeight;
-  adam.style.animation = ANIMS[name] || ANIMS.idle;
+  /* character animation */
+  adam.style.animation='none';
+  adam.offsetHeight; // reflow
+  adam.style.animation=ANIMS[name]||ANIMS.idle;
 
-  // Thought bubble
-  thought.classList.toggle('show', name === 'think');
+  /* thought bubble */
+  thought.classList.toggle('show', name==='think');
 
-  // Speech bubble
-  speech.classList.toggle('show', name === 'hifi');
+  /* speech bubble */
+  speech.classList.toggle('show', name==='hifi');
 
-  // High five arm
-  if(name === 'hifi'){
-    hifiArm.className = '';
+  /* high five arm */
+  if(name==='hifi'){
+    hifiArm.className='';
     hifiArm.offsetHeight;
-    hifiArm.className = 'show';
-    burstSparks(8);
+    hifiArm.className='show';
+    burstSparks(9);
   } else {
-    hifiArm.className = '';
+    hifiArm.className='';
   }
 
-  // Sparkles
+  /* sparkles loop for celebrate */
   clearInterval(sparkLoop);
-  if(name === 'celebrate'){
+  if(name==='celebrate'){
     burstSparks(14);
-    sparkLoop = setInterval(()=>{ if(current==='celebrate') burstSparks(9); }, 950);
-  } else if(name !== 'hifi'){
+    sparkLoop=setInterval(()=>{ if(current==='celebrate') burstSparks(9); },950);
+  } else if(name!=='hifi'){
     clearSparks();
   }
 
-  // Glow + shadow
-  setGlow(name);
-  setShadow(name);
-
-  // Blink runs always
-  startBlink();
+  /* glow + shadow */
+  glow.style.background=`radial-gradient(ellipse,${GLOWS[name]||GLOWS.idle} 0%,transparent 70%)`;
+  adam.style.filter=SHADOWS[name]||SHADOWS.idle;
 }
 
-/* ═══ AUTO DEMO ═══ */
+/* ── Auto Demo ── */
 function autoDemo(){
   clearTimeout(demoTimer);
-  const seq = [
+  const seq=[
     ['idle',1800],['think',2500],['wave',1600],
     ['hifi',2000],['celebrate',2200],['idle',0],
   ];
@@ -492,15 +398,14 @@ function autoDemo(){
   function next(){
     setState(seq[i][0]);
     if(i<seq.length-1){
-      demoTimer = setTimeout(()=>{ i++; next(); }, seq[i][1]);
+      demoTimer=setTimeout(()=>{ i++; next(); },seq[i][1]);
     }
   }
   next();
 }
 
-// Boot
 setState('idle');
-setTimeout(autoDemo, 1000);
+setTimeout(autoDemo,800);
 </script>
 </body>
 </html>
