@@ -99,8 +99,8 @@ export default function Done() {
           style={{ borderRadius: 24, padding: 28, alignItems: "center", gap: 12 }}
         >
           <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 4 }}>
-            <AdamCharacter hero="boy" size={100} pose="excited" bobbing />
-            <AdamCharacter hero="girl" size={100} pose="happy" bobbing />
+            <AdamCharacter hero="boy" size={100} pose="normal" bobbing />
+            <AdamCharacter hero="girl" size={100} pose="normal" bobbing />
           </View>
           <Text style={{
             color: "#FFF", fontWeight: "900", fontSize: 24, textAlign: "center", lineHeight: 32,

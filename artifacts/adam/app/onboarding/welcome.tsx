@@ -109,7 +109,7 @@ export default function Welcome() {
             {/* ── Characters ───────────────────────────────────────────── */}
             <View style={{ flexDirection: "row", paddingHorizontal: 20, gap: 14, marginTop: 10, marginBottom: 12 }}>
               <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 24, padding: 16, alignItems: "center", borderWidth: 1.5, borderColor: "rgba(255,255,255,0.2)" }}>
-                <AdamCharacter hero="boy" size={110} pose="happy" bobbing />
+                <AdamCharacter hero="boy" size={110} pose="normal" bobbing />
                 <View style={{ backgroundColor: "#3b82f6", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 5, marginTop: 4 }}>
                   <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 16 }}>Adam</Text>
                 </View>
@@ -118,7 +118,7 @@ export default function Welcome() {
                 </Text>
               </View>
               <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 24, padding: 16, alignItems: "center", borderWidth: 1.5, borderColor: "rgba(255,255,255,0.2)" }}>
-                <AdamCharacter hero="girl" size={110} pose="excited" bobbing />
+                <AdamCharacter hero="girl" size={110} pose="normal" bobbing />
                 <View style={{ backgroundColor: "#ec4899", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 5, marginTop: 4 }}>
                   <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 16 }}>Sara</Text>
                 </View>

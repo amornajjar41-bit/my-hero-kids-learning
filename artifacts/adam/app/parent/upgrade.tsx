@@ -164,8 +164,8 @@ export default function Upgrade() {
           {/* Hero */}
           <View style={{ alignItems: "center", gap: 8, paddingVertical: 10 }}>
             <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 4 }}>
-              <AdamCharacter hero="boy" size={110} pose="excited" bobbing />
-              <AdamCharacter hero="girl" size={110} pose="happy" bobbing />
+              <AdamCharacter hero="boy" size={110} pose="normal" bobbing />
+              <AdamCharacter hero="girl" size={110} pose="normal" bobbing />
             </View>
             <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 26, textAlign: "center", lineHeight: 32 }}>
               {"Unlock Your Hero's\nFull Powers"}
