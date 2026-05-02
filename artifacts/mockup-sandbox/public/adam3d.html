@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Adam – 3D Character Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Nunito',sans-serif;background:#060918}
+canvas{display:block}
+#ui{
+  position:fixed;top:0;left:0;right:0;
+  display:flex;flex-direction:column;align-items:center;
+  pointer-events:none;padding:14px 0 0;
+  z-index:10;
+}
+#badge{
+  background:linear-gradient(90deg,#2563eb,#1d4ed8);
+  color:#fff;font-size:13px;font-weight:800;letter-spacing:1.5px;
+  padding:5px 18px;border-radius:999px;
+  box-shadow:0 2px 12px #2563eb88;
+  text-shadow:0 1px 4px #0004;
+}
+#title{color:#fff;font-size:22px;font-weight:900;margin-top:6px;text-shadow:0 2px 10px #0008}
+#hint{color:#aac;font-size:12px;font-weight:700;margin-top:2px;letter-spacing:.5px}
+#bottom{
+  position:fixed;bottom:0;left:0;right:0;
+  display:flex;justify-content:center;gap:10px;
+  padding:0 0 18px;pointer-events:none;z-index:10;
+}
+.chip{
+  background:rgba(255,255,255,0.1);backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,0.18);
+  color:#dde;font-size:11px;font-weight:800;letter-spacing:.6px;
+  padding:5px 14px;border-radius:999px;
+}
+</style>
+</head>
+<body>
+<div id="ui">
+  <div id="badge">⚡ ADAM — 3D CHARACTER PREVIEW</div>
+  <div id="title">Superhero Adam</div>
+  <div id="hint">Drag to rotate · Scroll to zoom</div>
+</div>
+<div id="bottom">
+  <div class="chip">🖱 Drag to orbit</div>
+  <div class="chip">🔍 Scroll to zoom</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ── RENDERER ── */
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.prepend(renderer.domElement);
+
+/* ── SCENE ── */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x060918);
+scene.fog = new THREE.FogExp2(0x060918, 0.09);
+
+/* ── CAMERA ── */
+const camera = new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 0.01, 100);
+camera.position.set(0, 1.2, 5.5);
+
+/* ── CONTROLS ── */
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.8, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 2;
+controls.maxDistance = 10;
+controls.maxPolarAngle = Math.PI * 0.72;
+controls.update();
+
+/* ── LIGHTING ── */
+const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+scene.add(ambient);
+
+const key = new THREE.DirectionalLight(0xfff8e8, 1.6);
+key.position.set(3, 6, 4);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 0.1;
+key.shadow.camera.far = 20;
+key.shadow.camera.left = key.shadow.camera.bottom = -3;
+key.shadow.camera.right = key.shadow.camera.top = 3;
+key.shadow.bias = -0.001;
+scene.add(key);
+
+const fill = new THREE.DirectionalLight(0x88aaff, 0.5);
+fill.position.set(-4, 3, -2);
+scene.add(fill);
+
+const rim = new THREE.DirectionalLight(0xffdd88, 0.4);
+rim.position.set(0, 4, -5);
+scene.add(rim);
+
+/* ── COLORS ── */
+const C = {
+  skin:    0xf8c98a,
+  skinD:   0xe8a870,
+  blue:    0x2563eb,
+  blueD:   0x1d4ed8,
+  yellow:  0xfbbf24,
+  yellowD: 0xd97706,
+  red:     0xef4444,
+  redD:    0xb91c1c,
+  brown:   0x78350f,
+  brownL:  0x92400e,
+  white:   0xffffff,
+  black:   0x0d0d0d,
+  pupilH:  0x4488ff,
+};
+
+/* ── MATERIAL HELPER ── */
+function m(color, rough=0.75, metal=0, emissive=0, emissiveInt=0) {
+  return new THREE.MeshStandardMaterial({
+    color, roughness: rough, metalness: metal,
+    emissive, emissiveIntensity: emissiveInt
+  });
+}
+
+/* ── STAR SHAPE ── */
+function starShape(outerR, innerR, spikes=5) {
+  const s = new THREE.Shape();
+  for (let i = 0; i < spikes * 2; i++) {
+    const a = (i * Math.PI / spikes) - Math.PI / 2;
+    const r = i % 2 === 0 ? outerR : innerR;
+    const x = Math.cos(a) * r, y = Math.sin(a) * r;
+    i === 0 ? s.moveTo(x, y) : s.lineTo(x, y);
+  }
+  s.closePath();
+  return s;
+}
+
+/* ── CHARACTER GROUP ── */
+const G = new THREE.Group();
+
+function add(mesh) { G.add(mesh); return mesh; }
+function mesh(geo, mat, px=0, py=0, pz=0, sx=1, sy=1, sz=1, rx=0, ry=0, rz=0) {
+  const o = new THREE.Mesh(geo, mat);
+  o.position.set(px, py, pz);
+  o.scale.set(sx, sy, sz);
+  o.rotation.set(rx, ry, rz);
+  o.castShadow = true;
+  o.receiveShadow = true;
+  return add(o);
+}
+
+/* ════ HEAD ════ */
+// Main head sphere
+mesh(new THREE.SphereGeometry(0.46, 32, 32), m(C.skin, 0.82), 0, 1.62, 0);
+
+// Cheek blush
+[-0.28, 0.28].forEach(x => {
+  mesh(new THREE.SphereGeometry(0.1, 12, 12), m(0xffaaaa, 0.9, 0, 0xffaaaa, 0.05),
+    x, 1.50, 0.38, 1.2, 0.6, 0.5);
+});
+
+/* ════ EARS ════ */
+[-0.47, 0.47].forEach(x => {
+  mesh(new THREE.SphereGeometry(0.13, 16, 12), m(C.skin, 0.82),
+    x, 1.58, 0.0, 0.55, 0.8, 0.7);
+});
+
+/* ════ HAIR ════ */
+// Hair skull cap
+mesh(new THREE.SphereGeometry(0.475, 32, 20, 0, Math.PI*2, 0, Math.PI*0.52),
+  m(C.brown, 0.9), 0, 1.68, 0, 1, 1, 0.96);
+
+// Central spike (tallest)
+mesh(new THREE.SphereGeometry(0.2, 16, 16), m(C.brownL, 0.88),
+  0.02, 2.05, 0.06, 1.0, 1.5, 0.75);
+
+// Right spike
+mesh(new THREE.SphereGeometry(0.155, 14, 14), m(C.brownL, 0.88),
+  0.26, 1.98, 0.06, 0.85, 1.3, 0.7);
+
+// Left spike (smaller)
+mesh(new THREE.SphereGeometry(0.13, 14, 14), m(C.brownL, 0.88),
+  -0.22, 1.94, 0.08, 0.75, 1.15, 0.65);
+
+// Far right spike
+mesh(new THREE.SphereGeometry(0.1, 12, 12), m(C.brownL, 0.88),
+  0.42, 1.88, 0.02, 0.7, 1.0, 0.6);
+
+// Side hair (left)
+mesh(new THREE.SphereGeometry(0.1, 12, 12), m(C.brown, 0.9),
+  -0.44, 1.80, 0.0, 0.7, 1.0, 0.7);
+
+/* ════ BLUE MASK ════ */
+mesh(new THREE.BoxGeometry(0.76, 0.21, 0.08), m(C.blue, 0.55),
+  0, 1.61, 0.40, 1, 1, 1, 0.05, 0, 0);
+
+// Mask sides (wrap around face)
+[-0.38, 0.38].forEach((x, i) => {
+  const side = new THREE.Mesh(
+    new THREE.BoxGeometry(0.09, 0.21, 0.14),
+    m(C.blue, 0.55)
+  );
+  side.position.set(x, 1.61, 0.35);
+  side.rotation.y = i===0 ? 0.4 : -0.4;
+  side.castShadow = true;
+  G.add(side);
+});
+
+/* ════ EYES ════ */
+[-0.2, 0.2].forEach(x => {
+  // White sclera
+  mesh(new THREE.SphereGeometry(0.095, 20, 20), m(C.white, 0.4),
+    x, 1.615, 0.43);
+  // Dark iris
+  mesh(new THREE.SphereGeometry(0.058, 16, 16), m(0x1a1a8a, 0.3),
+    x, 1.612, 0.515);
+  // Pupil
+  mesh(new THREE.SphereGeometry(0.033, 14, 14), m(C.black, 0.3),
+    x, 1.608, 0.545);
+  // Highlight dot
+  mesh(new THREE.SphereGeometry(0.013, 8, 8), m(C.white, 0.1),
+    x + 0.02, 1.622, 0.555);
+  // Eye shine 2
+  mesh(new THREE.SphereGeometry(0.009, 6, 6), m(C.white, 0.1),
+    x - 0.018, 1.602, 0.552);
+});
+
+/* ════ EYEBROWS ════ */
+[-0.2, 0.2].forEach((x, i) => {
+  const brow = new THREE.Mesh(
+    new THREE.BoxGeometry(0.13, 0.025, 0.025),
+    m(C.brown, 0.85)
+  );
+  brow.position.set(x, 1.675, 0.42);
+  brow.rotation.z = i===0 ? 0.12 : -0.12;
+  brow.castShadow = true;
+  G.add(brow);
+});
+
+/* ════ NOSE ════ */
+mesh(new THREE.SphereGeometry(0.05, 14, 14), m(C.skinD, 0.85),
+  0, 1.49, 0.455, 1, 0.8, 0.85);
+
+/* ════ SMILE ════ */
+{
+  const pts = [];
+  for (let i=0; i<=20; i++) {
+    const a = (i/20) * Math.PI;
+    pts.push(new THREE.Vector3(Math.cos(a)*0.14, -Math.sin(a)*0.07, 0));
+  }
+  const smileCurve = new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3(pts), 20, 0.018, 8, false
+  );
+  mesh(smileCurve, m(0xcc5533, 0.7), 0, 1.40, 0.435, 1, 1, 1);
+}
+
+/* ════ NECK ════ */
+mesh(new THREE.CylinderGeometry(0.12, 0.155, 0.22, 14), m(C.skin, 0.82),
+  0, 1.13, 0.0);
+
+/* ════ COLLAR (red) ════ */
+mesh(new THREE.CylinderGeometry(0.27, 0.24, 0.13, 16), m(C.red, 0.65),
+  0, 1.06, 0.0);
+
+/* ════ BODY – blue suit ════ */
+mesh(new THREE.CylinderGeometry(0.31, 0.29, 0.72, 20), m(C.blue, 0.68),
+  0, 0.63, 0.0);
+
+/* ════ STAR BADGE ════ */
+{
+  const starGeo = new THREE.ExtrudeGeometry(starShape(0.115, 0.052), {
+    depth: 0.035, bevelEnabled: true, bevelThickness: 0.008,
+    bevelSize: 0.006, bevelSegments: 2
+  });
+  const star = new THREE.Mesh(starGeo, m(C.yellow, 0.4, 0.3, C.yellow, 0.08));
+  star.position.set(-0.055, 0.72, 0.31);
+  star.castShadow = true;
+  G.add(star);
+}
+
+/* ════ BELT (yellow) ════ */
+mesh(new THREE.CylinderGeometry(0.32, 0.305, 0.085, 18), m(C.yellow, 0.55),
+  0, 0.29, 0.0);
+
+// Belt buckle
+mesh(new THREE.BoxGeometry(0.1, 0.065, 0.04), m(C.yellowD, 0.4, 0.4),
+  0, 0.29, 0.315);
+
+/* ════ CAPE ════ */
+// Cape body (red triangle fan)
+{
+  const capeShape2 = new THREE.Shape();
+  capeShape2.moveTo(-0.3, 0);
+  capeShape2.quadraticCurveTo(-0.32, -0.25, -0.26, -0.55);
+  capeShape2.lineTo(-0.06, -0.68);
+  capeShape2.lineTo(0,    -0.65);
+  capeShape2.lineTo( 0.06, -0.68);
+  capeShape2.lineTo( 0.26, -0.55);
+  capeShape2.quadraticCurveTo(0.32, -0.25, 0.3, 0);
+  capeShape2.closePath();
+  const capeGeo = new THREE.ShapeGeometry(capeShape2, 8);
+  const cape = new THREE.Mesh(capeGeo, m(C.red, 0.72));
+  cape.position.set(0, 0.93, -0.28);
+  cape.rotation.x = 0.12;
+  cape.castShadow = true;
+  G.add(cape);
+}
+// Cape top band
+mesh(new THREE.BoxGeometry(0.62, 0.09, 0.04), m(C.red, 0.65),
+  0, 0.98, -0.25);
+
+/* ════ ARMS ════ */
+[[-1, -0.44], [1, 0.44]].forEach(([side, x]) => {
+  // Shoulder
+  mesh(new THREE.SphereGeometry(0.115, 14, 14), m(C.blue, 0.68),
+    x, 0.85, 0, 1, 1, 1);
+  // Upper arm
+  mesh(new THREE.CylinderGeometry(0.1, 0.088, 0.34, 12), m(C.blue, 0.68),
+    x + side*0.045, 0.67, 0, 1, 1, 1, 0, 0, -side*0.28);
+  // Forearm
+  mesh(new THREE.CylinderGeometry(0.085, 0.075, 0.28, 12), m(C.blue, 0.68),
+    x + side*0.13, 0.43, 0, 1, 1, 1, 0, 0, -side*0.28);
+  // Glove (yellow)
+  mesh(new THREE.SphereGeometry(0.1, 16, 16), m(C.yellow, 0.6),
+    x + side*0.2, 0.30, 0);
+  // Glove thumb nub
+  mesh(new THREE.SphereGeometry(0.045, 10, 10), m(C.yellow, 0.6),
+    x + side*0.3, 0.33, 0.04);
+});
+
+/* ════ HIPS ════ */
+mesh(new THREE.CylinderGeometry(0.27, 0.25, 0.12, 16), m(C.blueD, 0.72),
+  0, 0.2, 0.0);
+
+/* ════ LEGS ════ */
+[-0.155, 0.155].forEach(x => {
+  // Upper leg
+  mesh(new THREE.CylinderGeometry(0.115, 0.1, 0.35, 14), m(C.blue, 0.70),
+    x, -0.0, 0.0);
+  // Lower leg
+  mesh(new THREE.CylinderGeometry(0.098, 0.088, 0.28, 14), m(C.blue, 0.70),
+    x, -0.31, 0.0);
+  // Boot (yellow cylinder)
+  mesh(new THREE.CylinderGeometry(0.105, 0.115, 0.22, 14), m(C.yellow, 0.6),
+    x, -0.54, 0.0);
+  // Boot toe cap
+  mesh(new THREE.SphereGeometry(0.1, 14, 14), m(C.yellow, 0.58),
+    x, -0.63, 0.055, 1.1, 0.75, 1.15);
+});
+
+/* ── Add group to scene ── */
+G.position.y = 0.42;
+scene.add(G);
+
+/* ── PLATFORM / GROUND ── */
+{
+  const platform = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.2, 1.2, 0.06, 48),
+    new THREE.MeshStandardMaterial({ color: 0x1a2060, roughness: 0.9 })
+  );
+  platform.position.y = 0.0;
+  platform.receiveShadow = true;
+  scene.add(platform);
+
+  // Glow ring
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(1.15, 0.03, 8, 48),
+    new THREE.MeshStandardMaterial({ color: 0x2563eb, emissive: 0x2563eb, emissiveIntensity: 0.8 })
+  );
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.04;
+  scene.add(ring);
+}
+
+/* ── STARS BACKGROUND ── */
+{
+  const starVerts = [];
+  for (let i = 0; i < 600; i++) {
+    starVerts.push(
+      (Math.random() - 0.5) * 60,
+      (Math.random() - 0.5) * 60,
+      (Math.random() - 0.5) * 60
+    );
+  }
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.08 }));
+  scene.add(stars);
+}
+
+/* ── RENDER LOOP ── */
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
